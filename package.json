@@ -1,0 +1,145 @@
+{
+  "name": "@sdcorejs/nestjs",
+  "version": "0.1.0",
+  "description": "Neutral NestJS framework library: Base classes, multi-tenancy, audit, permission, request context (AsyncLocalStorage), cache, HTTP client, JWT — all domain specifics injected via DI strategies.",
+  "license": "MIT",
+  "author": "Trần Thuận Nghĩa",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sdcorejs/sdcorejs-nestjs"
+  },
+  "homepage": "https://github.com/sdcorejs/sdcorejs-nestjs#readme",
+  "bugs": "https://github.com/sdcorejs/sdcorejs-nestjs/issues",
+  "keywords": [
+    "nestjs",
+    "typeorm",
+    "multi-tenancy",
+    "audit",
+    "permission",
+    "context",
+    "async-local-storage",
+    "framework",
+    "library"
+  ],
+  "engines": {
+    "node": ">=18.18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/cjs/index.cjs",
+  "module": "./dist/esm/index.mjs",
+  "types": "./dist/types/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/esm/index.mjs",
+      "require": "./dist/cjs/index.cjs"
+    },
+    "./orm": {
+      "types": "./dist/types/orm/index.d.ts",
+      "import": "./dist/esm/orm/index.mjs",
+      "require": "./dist/cjs/orm/index.cjs"
+    },
+    "./context": {
+      "types": "./dist/types/context/index.d.ts",
+      "import": "./dist/esm/context/index.mjs",
+      "require": "./dist/cjs/context/index.cjs"
+    },
+    "./tenancy": {
+      "types": "./dist/types/tenancy/index.d.ts",
+      "import": "./dist/esm/tenancy/index.mjs",
+      "require": "./dist/cjs/tenancy/index.cjs"
+    },
+    "./audit": {
+      "types": "./dist/types/audit/index.d.ts",
+      "import": "./dist/esm/audit/index.mjs",
+      "require": "./dist/cjs/audit/index.cjs"
+    },
+    "./permission": {
+      "types": "./dist/types/permission/index.d.ts",
+      "import": "./dist/esm/permission/index.mjs",
+      "require": "./dist/cjs/permission/index.cjs"
+    },
+    "./cache": {
+      "types": "./dist/types/cache/index.d.ts",
+      "import": "./dist/esm/cache/index.mjs",
+      "require": "./dist/cjs/cache/index.cjs"
+    },
+    "./http": {
+      "types": "./dist/types/http/index.d.ts",
+      "import": "./dist/esm/http/index.mjs",
+      "require": "./dist/cjs/http/index.cjs"
+    },
+    "./jwt": {
+      "types": "./dist/types/jwt/index.d.ts",
+      "import": "./dist/esm/jwt/index.mjs",
+      "require": "./dist/cjs/jwt/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup && tsc -p tsconfig.build.json",
+    "build:types": "tsc -p tsconfig.build.json",
+    "build:bundle": "tsup",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "test:e2e": "jest --testRegex='.*\\.e2e-spec\\.ts$' --runInBand",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
+    "changeset": "changeset",
+    "changeset:version": "changeset version",
+    "release": "npm run build && changeset publish",
+    "clean": "rimraf dist coverage"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/passport": "^11.0.0",
+    "@sdcorejs/utils": "^1.1.0",
+    "reflect-metadata": "^0.2.0",
+    "rxjs": "^7.8.0",
+    "typeorm": "^0.3.20"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.0",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/passport": "^11.0.0",
+    "@nestjs/platform-express": "^11.1.23",
+    "@nestjs/testing": "^11.0.0",
+    "@sdcorejs/utils": "^1.1.0",
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/pg": "^8.20.0",
+    "@types/supertest": "^6.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0",
+    "pg": "^8.21.0",
+    "pg-mem": "^3.0.2",
+    "prettier": "^3.3.0",
+    "reflect-metadata": "^0.2.0",
+    "rimraf": "^6.0.0",
+    "rxjs": "^7.8.0",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.2.0",
+    "tsup": "^8.3.0",
+    "typeorm": "^0.3.20",
+    "typescript": "^5.6.0"
+  }
+}

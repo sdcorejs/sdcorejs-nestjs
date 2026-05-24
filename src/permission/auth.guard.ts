@@ -1,0 +1,66 @@
+import {
+  type ExecutionContext,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  Optional,
+} from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { AuthGuard as PassportAuthGuard } from '@nestjs/passport';
+import { ContextService } from '../context/context.service';
+import type { IPermissionStrategy } from './strategy.interface';
+import { PERMISSION_METADATA_KEY, PERMISSION_STRATEGY } from './tokens';
+
+interface RequestWithPermissions {
+  permissions?: string[];
+  user?: unknown;
+}
+
+/**
+ * JWT + permission guard. Extends `PassportAuthGuard('jwt')` so consumers register their
+ * own `JwtStrategy` via `JwtModule.forRoot({ secret })`. After successful authentication,
+ * loads permission codes via `IPermissionStrategy.load()` and validates the route's
+ * `@HasPermission` / `@HasAnyPermission` metadata.
+ *
+ * Throws 403 with `{ vi, en }` bilingual body on permission mismatch.
+ */
+@Injectable()
+export class AuthGuard extends PassportAuthGuard('jwt') {
+  constructor(
+    private readonly reflector: Reflector,
+    @Inject(PERMISSION_STRATEGY) private readonly strategy: IPermissionStrategy,
+    @Optional() @Inject(ContextService) private readonly contextService?: ContextService,
+  ) {
+    super();
+  }
+
+  async canActivate(execCtx: ExecutionContext): Promise<boolean> {
+    const authed = (await super.canActivate(execCtx)) as boolean;
+    if (!authed) return false;
+    return this.checkPermissions(execCtx);
+  }
+
+  protected async checkPermissions(execCtx: ExecutionContext): Promise<boolean> {
+    const required = this.reflector.getAllAndOverride<string[] | undefined>(
+      PERMISSION_METADATA_KEY,
+      [execCtx.getHandler(), execCtx.getClass()],
+    );
+    if (!required || required.length === 0) return true;
+
+    const req = execCtx.switchToHttp().getRequest<RequestWithPermissions>();
+    if (!req.permissions) {
+      const ctx = this.contextService?.store ?? {};
+      req.permissions = await this.strategy.load(ctx);
+    }
+    const codes = req.permissions ?? [];
+    const check = this.strategy.check ?? ((cs: string[], r: string): boolean => cs.includes(r));
+    const allowed = required.some((r) => check(codes, r));
+    if (!allowed) {
+      throw new ForbiddenException({
+        vi: 'Bạn không có quyền thực hiện hành động này',
+        en: 'You do not have permission to perform this action',
+      });
+    }
+    return true;
+  }
+}
