@@ -94,14 +94,59 @@ grep -rE "NOT_END_WIDTH" src/ | wc -l   # before
 sed -i 's/NOT_END_WIDTH/NOT_END_WITH/g' src/**/*.ts
 ```
 
-## 7. Known gotchas
+## 7. Domain fields → consumer
+
+Lib's `RequestContext` keeps only framework-generic keys: `userId, tenantCode, lang, token, user, permissions, request, response, custom`.
+
+Domain values from `be-masterdata` (`departmentCode, project, internalSecret, username, fullName, isSystemAdmin, isTenantAdmin`) MUST move into your app.
+
+**Option A — declaration merging** (type-safe):
+```ts
+declare module '@sdcorejs/nestjs/context' {
+  interface RequestContext {
+    departmentCode?: string;
+    project?: string;
+    isSystemAdmin?: boolean;
+  }
+}
+```
+
+**Option B — `customHeaders` + `ctx.custom`** (no compile-time types):
+```ts
+SdCoreModule.forRoot({
+  context: {
+    headers: {
+      customHeaders: { departmentCode: 'x-department-code', project: 'x-project' },
+    },
+  },
+});
+// access: contextService.getCustom('departmentCode')
+```
+
+`DefaultAuditStrategy` no longer fills `creator/modifier` jsonb snapshots (username + fullName are domain). Subclass it:
+
+```ts
+@Injectable()
+export class SdAuditStrategy extends DefaultAuditStrategy {
+  onCreate(entity, ctx) {
+    super.onCreate(entity, ctx);
+    const u = ctx.user as { username?: string; fullName?: string } | undefined;
+    if (u?.username && u?.fullName && ctx.userId) {
+      entity.creator = { id: ctx.userId, username: u.username, fullName: u.fullName };
+      entity.modifier = entity.creator;
+    }
+  }
+}
+```
+
+## 8. Known gotchas
 
 - **Mixin metadata**: TypeORM picks up columns from `WithAudit(BaseEntity)` because the mixin class still has decorators. If you see "Entity X is missing column Y" after migration, verify the mixin chain order matches the example: `WithAudit(BaseEntity)`, NOT `WithAudit(WithTimestamps(BaseEntity))` (which double-adds timestamps).
 - **`AsyncLocalStorage` vs `cls-hooked`**: ALS preserves context across `await` chains automatically. Manual `session.run(...)` is now `contextService.run(store, fn)`. The cls-hooked `getNamespace` pattern is gone — use `ContextService` accessors.
 - **ActionHistory**: not yet abstracted. If you used `BaseRepository.options.logHistory = true`, that flag is parsed but no-op in `v0.1`. Wire your own subscriber or wait for `v0.2`.
 - **FileStorage**: not in `v0.1`. Continue using the local `core-be/modules/file-storage` until the lib version ships.
 
-## 8. Verification
+## 9. Verification
 
 ```bash
 npm run build       # type-check + compile
