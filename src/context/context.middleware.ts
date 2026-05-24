@@ -31,7 +31,7 @@ export class ContextMiddleware implements NestMiddleware {
     }
 
     return {
-      tenantCode: read(this.headers.tenantCode),
+      tenant: read(this.headers.tenant),
       userId: read(this.headers.userId),
       lang: this.detectLang(req),
       token: this.extractToken(req),
@@ -41,16 +41,14 @@ export class ContextMiddleware implements NestMiddleware {
     };
   }
 
-  private detectLang(req: IncomingMessage): 'vi' | 'en' {
+  private detectLang(req: IncomingMessage): string | undefined {
     const priority = this.headers.lang ?? ['accept-language', 'x-language'];
     for (const name of priority) {
       const raw = req.headers[name.toLowerCase()];
       const value = Array.isArray(raw) ? raw[0] : raw;
-      if (value) {
-        return value.toLowerCase().startsWith('en') ? 'en' : 'vi';
-      }
+      if (value) return value;
     }
-    return 'vi';
+    return undefined;
   }
 
   private extractToken(req: IncomingMessage): string | undefined {

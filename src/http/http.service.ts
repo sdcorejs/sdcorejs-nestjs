@@ -6,9 +6,9 @@ import { CONTEXT_HEADERS_CONFIG } from '../context/tokens';
 import { HTTP_CLIENT_CONFIG, type HttpClientConfig } from './types';
 
 /**
- * Axios-based HTTP client. Auto-propagates the canonical context headers (`tenantCode`,
- * `userId`) + any consumer-declared `customHeaders` to outbound requests when
- * `ContextService` is registered.
+ * Axios-based HTTP client. Auto-propagates canonical context headers (`tenant`, `userId`)
+ * + any consumer-declared `customHeaders` to outbound requests when `ContextService` is
+ * registered.
  */
 @Injectable()
 export class HttpService {
@@ -28,7 +28,7 @@ export class HttpService {
     this.propagate =
       cfg.propagateHeaders ??
       [
-        map.tenantCode ?? 'x-tenant-code',
+        map.tenant ?? 'x-tenant',
         map.userId ?? 'x-user-id',
         ...Object.values(map.customHeaders ?? {}),
       ].filter((h): h is string => !!h);
@@ -65,7 +65,7 @@ export class HttpService {
   private contextHeaderMap(ctx: Record<string, unknown>): Record<string, string> {
     const map = this.headers ?? DEFAULT_HEADERS_CONFIG;
     const out: Record<string, string> = {};
-    if (map.tenantCode && ctx.tenantCode != null) out[map.tenantCode] = String(ctx.tenantCode);
+    if (map.tenant && ctx.tenant != null) out[map.tenant] = String(ctx.tenant);
     if (map.userId && ctx.userId != null) out[map.userId] = String(ctx.userId);
     const custom = ctx.custom as Record<string, unknown> | undefined;
     if (custom) {

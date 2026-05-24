@@ -3,9 +3,9 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 /**
  * Per-request context populated by `ContextMiddleware` and read by `ContextService`.
  *
- * Lib keeps only the framework-generic fields. Domain-specific values (departmentCode,
- * project, username, fullName, internal-secret flags, …) belong to the consumer — extend
- * via `custom` bag or TypeScript declaration merging on this interface.
+ * Lib keeps only framework-generic fields. Domain values (departmentCode, project,
+ * username, fullName, internal-secret, …) belong to the consumer — extend via
+ * `custom` bag or TypeScript declaration merging.
  *
  * @example consumer-side declaration merging:
  *   declare module '@sdcorejs/nestjs/context' {
@@ -14,8 +14,9 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
  */
 export interface RequestContext {
   userId?: string;
-  tenantCode?: string;
-  lang?: 'vi' | 'en';
+  /** Framework-level tenant identifier value (NOT the column name). */
+  tenant?: string;
+  lang?: string;
   token?: string;
   /** Filled by `AuthGuard` after JWT validation. Shape is consumer-defined. */
   user?: unknown;
@@ -32,7 +33,7 @@ export interface RequestContext {
  * populate `custom.<key>` from a header without redeclaring `RequestContext`.
  */
 export interface HeadersConfig {
-  tenantCode?: string;
+  tenant?: string;
   userId?: string;
   lang?: string[];
   /** Extra `{ contextCustomKey: headerName }` pairs; values land in `ctx.custom`. */
@@ -40,11 +41,11 @@ export interface HeadersConfig {
 }
 
 /**
- * Default header names. Only the multi-tenancy + user identity + language headers are
- * canonical here; everything else is a consumer concern.
+ * Default header names. `lang` not resolved here — `ContextMiddleware.detectLang` reads
+ * raw values and consumer's resolver decides the parsed code.
  */
 export const DEFAULT_HEADERS_CONFIG: Required<Omit<HeadersConfig, 'customHeaders'>> & Pick<HeadersConfig, 'customHeaders'> = {
-  tenantCode: 'x-tenant-code',
+  tenant: 'x-tenant',
   userId: 'x-user-id',
   lang: ['accept-language', 'x-language'],
   customHeaders: {},

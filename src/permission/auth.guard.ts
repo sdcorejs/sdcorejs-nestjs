@@ -8,6 +8,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { AuthGuard as PassportAuthGuard } from '@nestjs/passport';
 import { ContextService } from '../context/context.service';
+import { apiError } from '../orm/types/api-response.types';
 import type { IPermissionStrategy } from './strategy.interface';
 import { PERMISSION_METADATA_KEY, PERMISSION_STRATEGY } from './tokens';
 
@@ -22,7 +23,8 @@ interface RequestWithPermissions {
  * loads permission codes via `IPermissionStrategy.load()` and validates the route's
  * `@HasPermission` / `@HasAnyPermission` metadata.
  *
- * Throws 403 with `{ vi, en }` bilingual body on permission mismatch.
+ * Throws 403 with `apiError(code, message, data?)` body on permission mismatch — consumer's
+ * i18n layer translates `code` to the localized message.
  */
 @Injectable()
 export class AuthGuard extends PassportAuthGuard('jwt') {
@@ -56,10 +58,11 @@ export class AuthGuard extends PassportAuthGuard('jwt') {
     const check = this.strategy.check ?? ((cs: string[], r: string): boolean => cs.includes(r));
     const allowed = required.some((r) => check(codes, r));
     if (!allowed) {
-      throw new ForbiddenException({
-        vi: 'Bạn không có quyền thực hiện hành động này',
-        en: 'You do not have permission to perform this action',
-      });
+      throw new ForbiddenException(
+        apiError('core.permission.forbidden', 'You do not have permission to perform this action', {
+          required,
+        }),
+      );
     }
     return true;
   }

@@ -14,7 +14,7 @@ import { CACHED_METADATA, type CachedOptions } from './decorators/cached.decorat
 
 /**
  * Interceptor that caches `@Cached`-marked method return values. Key = `<class>.<method>:<argsHash>:<tenantScopeHash>`.
- * If `ContextService` is present, the current `tenantCode` is folded into the key so cached
+ * If `ContextService` is present, the current `tenant` is folded into the key so cached
  * results stay per-tenant.
  */
 @Injectable()
@@ -43,7 +43,7 @@ export class CacheInterceptor implements NestInterceptor {
     if (opts.keyResolver) return opts.keyResolver(methodName, args);
     const argsHash = Utilities.hash(args);
     const ctx = this.context?.store;
-    const scopeHash = ctx ? Utilities.hash({ t: ctx.tenantCode }) : 'no-ctx';
+    const scopeHash = ctx ? Utilities.hash({ t: ctx.tenant }) : 'no-ctx';
     return `${className}.${methodName}:${argsHash}:${scopeHash}`;
   }
 }

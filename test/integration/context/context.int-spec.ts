@@ -18,15 +18,15 @@ describe('ContextService — AsyncLocalStorage preservation', () => {
 
   it('returns undefined when no store active', () => {
     expect(service.userId).toBeUndefined();
-    expect(service.get('tenantCode')).toBeUndefined();
+    expect(service.get('tenant')).toBeUndefined();
     expect(service.store).toBeUndefined();
   });
 
   it('preserves store across nested await', async () => {
-    await service.run({ userId: 'u1', tenantCode: 'T1' }, async () => {
+    await service.run({ userId: 'u1', tenant: 'T1' }, async () => {
       expect(service.userId).toBe('u1');
       await Promise.resolve();
-      expect(service.tenantCode).toBe('T1');
+      expect(service.tenant).toBe('T1');
       const inner = async () => {
         await Promise.resolve();
         return service.userId;
@@ -71,8 +71,8 @@ describe('ContextService — AsyncLocalStorage preservation', () => {
     expect(service.userId).toBeUndefined();
   });
 
-  it('lang defaults to vi when not set', () => {
-    expect(service.lang).toBe('vi');
+  it('lang undefined when not set (raw value pass-through)', () => {
+    expect(service.lang).toBeUndefined();
   });
 
   it('lang reflects store value', () => {
@@ -116,17 +116,17 @@ describe('ContextModule.forRoot — headers config', () => {
   it('registers default headers config when no overrides passed', async () => {
     const mod = await Test.createTestingModule({ imports: [ContextModule.forRoot()] }).compile();
     const cfg = mod.get<HeadersConfig>(CONTEXT_HEADERS_CONFIG);
-    expect(cfg.tenantCode).toBe('x-tenant-code');
+    expect(cfg.tenant).toBe('x-tenant');
     expect(cfg.userId).toBe('x-user-id');
     expect(cfg.lang).toEqual(['accept-language', 'x-language']);
   });
 
   it('merges overrides with defaults', async () => {
     const mod = await Test.createTestingModule({
-      imports: [ContextModule.forRoot({ headers: { tenantCode: 'X-Org-Id' } })],
+      imports: [ContextModule.forRoot({ headers: { tenant: 'X-Org-Id' } })],
     }).compile();
     const cfg = mod.get<HeadersConfig>(CONTEXT_HEADERS_CONFIG);
-    expect(cfg.tenantCode).toBe('X-Org-Id');
+    expect(cfg.tenant).toBe('X-Org-Id');
     expect(cfg.userId).toBe('x-user-id');
   });
 });
@@ -142,7 +142,7 @@ describe('ContextMiddleware — header reading', () => {
     const { ctx, mw } = buildMw();
     const req = {
       headers: {
-        'x-tenant-code': 'T-ABC',
+        'x-tenant': 'T-ABC',
         'x-user-id': 'u-42',
         'accept-language': 'en-US,vi;q=0.9',
         'authorization': 'Bearer xyz',
@@ -150,9 +150,9 @@ describe('ContextMiddleware — header reading', () => {
     };
     await new Promise<void>((resolve) => {
       mw.use(req as never, {} as never, () => {
-        expect(ctx.tenantCode).toBe('T-ABC');
+        expect(ctx.tenant).toBe('T-ABC');
         expect(ctx.userId).toBe('u-42');
-        expect(ctx.lang).toBe('en');
+        expect(ctx.lang).toBe('en-US,vi;q=0.9');
         expect(ctx.token).toBe('Bearer xyz');
         resolve();
       });
@@ -177,11 +177,11 @@ describe('ContextMiddleware — header reading', () => {
     });
   });
 
-  it('lang defaults to vi when no language header present', async () => {
+  it('lang undefined when no language header present', async () => {
     const { ctx, mw } = buildMw();
     await new Promise<void>((resolve) => {
       mw.use({ headers: {} } as never, {} as never, () => {
-        expect(ctx.lang).toBe('vi');
+        expect(ctx.lang).toBeUndefined();
         resolve();
       });
     });
@@ -191,7 +191,7 @@ describe('ContextMiddleware — header reading', () => {
     const { ctx, mw } = buildMw();
     await new Promise<void>((resolve) => {
       mw.use(
-        { headers: { 'x-language': 'EN' } } as never,
+        { headers: { 'x-language': 'en' } } as never,
         {} as never,
         () => {
           expect(ctx.lang).toBe('en');
@@ -205,10 +205,10 @@ describe('ContextMiddleware — header reading', () => {
     const { ctx, mw } = buildMw();
     await new Promise<void>((resolve) => {
       mw.use(
-        { headers: { 'x-tenant-code': ['T-FIRST', 'T-SECOND'] } } as never,
+        { headers: { 'x-tenant': ['T-FIRST', 'T-SECOND'] } } as never,
         {} as never,
         () => {
-          expect(ctx.tenantCode).toBe('T-FIRST');
+          expect(ctx.tenant).toBe('T-FIRST');
           resolve();
         },
       );

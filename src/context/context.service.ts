@@ -40,9 +40,9 @@ export class ContextService {
   }
 
   get userId(): string | undefined { return this.get('userId'); }
-  get tenantCode(): string | undefined { return this.get('tenantCode'); }
-  /** Resolved language, defaults to `'vi'` if not set. */
-  get lang(): 'vi' | 'en' { return this.get('lang') ?? 'vi'; }
+  get tenant(): string | undefined { return this.get('tenant'); }
+  /** Raw language string from headers (e.g. `'en-US,vi;q=0.9'`); consumer parses to a locale code. */
+  get lang(): string | undefined { return this.get('lang'); }
   get token(): string | undefined { return this.get('token'); }
   get user(): unknown { return this.get('user'); }
   get permissions(): string[] { return this.get('permissions') ?? []; }

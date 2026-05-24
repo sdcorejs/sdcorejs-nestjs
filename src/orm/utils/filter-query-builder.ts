@@ -5,6 +5,7 @@ import {
   type WhereExpressionBuilder,
 } from 'typeorm';
 import type { Filter, FilterAndOr, Order } from '@sdcorejs/utils/models';
+import { apiError } from '../types/api-response.types';
 
 /** Safe-character regex for field paths. Used as SQL injection guard before interpolation. */
 const SAFE_FIELD = /^[a-zA-Z0-9_.]+$/;
@@ -82,7 +83,7 @@ export function prepareSorts<T>(sorts: Order<T>[] | undefined): Order<T>[] {
  */
 export function resolveColumnName(field: string, alias: string, metadata: EntityMetadata): string {
   if (!SAFE_FIELD.test(field)) {
-    throw new BadRequestException({ vi: `Tên trường không hợp lệ: ${field}`, en: `Invalid field name: ${field}` });
+    throw new BadRequestException(apiError('core.repository.invalid-field-name', 'Invalid field name', { field }));
   }
 
   const parts = field.split('.');
@@ -118,7 +119,7 @@ export function resolveColumnName(field: string, alias: string, metadata: Entity
  */
 export function resolveSortColumn(field: string, alias: string, metadata: EntityMetadata): string {
   if (!SAFE_FIELD.test(field)) {
-    throw new BadRequestException({ vi: `Trường sắp xếp không hợp lệ: ${field}`, en: `Invalid sort field: ${field}` });
+    throw new BadRequestException(apiError('core.repository.invalid-sort-field', 'Invalid sort field', { field }));
   }
 
   const parts = field.split('.');
@@ -126,7 +127,7 @@ export function resolveSortColumn(field: string, alias: string, metadata: Entity
   if (parts.length === 1) {
     const col = metadata.findColumnWithPropertyName(parts[0]);
     if (!col) {
-      throw new BadRequestException({ vi: `Cột "${field}" không tồn tại trong entity`, en: `Column "${field}" not found in entity` });
+      throw new BadRequestException(apiError('core.repository.column-not-found', 'Column not found in entity', { field }));
     }
     return `${alias}.${field}`;
   }
@@ -134,7 +135,7 @@ export function resolveSortColumn(field: string, alias: string, metadata: Entity
   const rootRelation = parts[0];
   const rel = metadata.findRelationWithPropertyPath(rootRelation);
   if (!rel) {
-    throw new BadRequestException({ vi: `Quan hệ "${rootRelation}" không tồn tại`, en: `Relation "${rootRelation}" not found` });
+    throw new BadRequestException(apiError('core.repository.relation-not-found', 'Relation not found', { relation: rootRelation }));
   }
 
   const aliasName = parts.slice(0, -1).join('_');
@@ -144,20 +145,24 @@ export function resolveSortColumn(field: string, alias: string, metadata: Entity
   for (let i = 1; i < parts.length - 1; i++) {
     const next = currentMeta.findRelationWithPropertyPath(parts[i]);
     if (!next) {
-      throw new BadRequestException({
-        vi: `Quan hệ "${parts[i]}" không tồn tại trong "${currentMeta.name}"`,
-        en: `Relation "${parts[i]}" not found in "${currentMeta.name}"`,
-      });
+      throw new BadRequestException(
+        apiError('core.repository.relation-not-found-in', 'Relation not found in parent entity', {
+          relation: parts[i],
+          parent: currentMeta.name,
+        }),
+      );
     }
     currentMeta = next.inverseEntityMetadata;
   }
 
   const finalCol = currentMeta.findColumnWithPropertyName(columnName);
   if (!finalCol) {
-    throw new BadRequestException({
-      vi: `Cột "${columnName}" không tồn tại trong "${currentMeta.name}"`,
-      en: `Column "${columnName}" not found in "${currentMeta.name}"`,
-    });
+    throw new BadRequestException(
+      apiError('core.repository.column-not-found-in', 'Column not found in entity', {
+        column: columnName,
+        parent: currentMeta.name,
+      }),
+    );
   }
 
   return `${aliasName}.${columnName}`;

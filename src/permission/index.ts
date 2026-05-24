@@ -4,3 +4,5 @@ export * from './default-permission.strategy';
 export * from './auth.guard';
 export * from './permission.module';
 export * from './decorators';
+export * from './internal-secret.provider';
+export * from './internal.guard';

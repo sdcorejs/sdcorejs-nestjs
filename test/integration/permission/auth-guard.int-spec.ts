@@ -53,7 +53,7 @@ describe('AuthGuard permission check', () => {
     expect(strategy.load).toHaveBeenCalledTimes(1);
   });
 
-  it('throws ForbiddenException with bilingual body on mismatch', async () => {
+  it('throws ForbiddenException with code-based body on mismatch', async () => {
     const strategy: IPermissionStrategy = { load: async () => ['other:permission'] };
     class C {
       @HasPermission('product:create')
@@ -62,8 +62,9 @@ describe('AuthGuard permission check', () => {
     const guard = new TestableAuthGuard(reflector, strategy);
     await expect(guard.canActivate(buildExecCtx(C.prototype.m, C))).rejects.toMatchObject({
       response: {
-        vi: 'Bạn không có quyền thực hiện hành động này',
-        en: 'You do not have permission to perform this action',
+        code: 'core.permission.forbidden',
+        message: 'You do not have permission to perform this action',
+        data: { required: ['product:create'] },
       },
     });
   });

@@ -6,12 +6,13 @@ import type { ITenancyStrategy } from '../../src/tenancy/strategy.interface';
 import type { IAuditStrategy } from '../../src/audit/strategy.interface';
 import type { IPermissionStrategy } from '../../src/permission/strategy.interface';
 
-/** Sample tenancy strategy reading `tenantCode` from context; bypass via `ctx.custom.isSystemAdmin`. */
+/** Sample tenancy strategy reading `tenant` from context; bypass via `ctx.custom.isSystemAdmin`.
+ *  Maps the framework-level `tenant` value to the entity column name `tenantCode`. */
 @Injectable()
 export class SampleTenancyStrategy implements ITenancyStrategy {
   constructor(@Optional() @Inject(ContextService) private readonly ctx?: ContextService) {}
   getCurrentScope(ctx: RequestContext): Record<string, unknown> {
-    return { tenantCode: ctx.tenantCode ?? this.ctx?.tenantCode };
+    return { tenantCode: ctx.tenant ?? this.ctx?.tenant };
   }
   shouldBypass(ctx: RequestContext): boolean {
     return ctx.custom?.isSystemAdmin === true;

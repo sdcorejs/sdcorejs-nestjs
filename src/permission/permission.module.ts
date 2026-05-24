@@ -1,6 +1,7 @@
 import { type DynamicModule, Module, type Provider, type Type } from '@nestjs/common';
 import { AuthGuard } from './auth.guard';
 import { DefaultPermissionStrategy } from './default-permission.strategy';
+import { InternalGuard } from './internal.guard';
 import type { IPermissionStrategy } from './strategy.interface';
 import { PERMISSION_STRATEGY } from './tokens';
 
@@ -18,8 +19,8 @@ export class PermissionModule {
     return {
       module: PermissionModule,
       global: true,
-      providers: [provider, AuthGuard],
-      exports: [PERMISSION_STRATEGY, AuthGuard],
+      providers: [provider, AuthGuard, InternalGuard],
+      exports: [PERMISSION_STRATEGY, AuthGuard, InternalGuard],
     };
   }
 }

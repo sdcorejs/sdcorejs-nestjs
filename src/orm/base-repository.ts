@@ -19,6 +19,7 @@ import { applyScopeToEntity, buildScopeFilters, getScopedColumns } from '../tena
 import { isAuditEnabled } from './mixins/with-audit';
 import type { ClassRef } from './types/class-ref.types';
 import { getSearchableConfig } from './decorators/searchable-fields.decorator';
+import { apiError } from './types/api-response.types';
 import type { BaseRepositoryArgs } from './types/repository-args.types';
 import { applyFilterToQuery, prepareFilter, prepareSorts, resolveSortColumn } from './utils/filter-query-builder';
 
@@ -254,7 +255,7 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
 
   detail = async (id: string, args?: BaseRepositoryArgs<T>): Promise<T | null> => {
     if (!isUuid(id)) {
-      throw new BadRequestException({ vi: `UUID không hợp lệ: ${id}`, en: `Invalid uuid: ${id}` });
+      throw new BadRequestException(apiError('core.repository.invalid-uuid', 'Invalid UUID', { id }));
     }
     const uniqueRelations = Array.from(new Set(args?.relations ?? []));
     return this.repository.findOne({

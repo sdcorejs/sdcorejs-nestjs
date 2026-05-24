@@ -128,10 +128,10 @@ describe('Consumer-app E2E — full SdCoreModule.forRoot() integration', () => {
     await ds?.destroy();
   });
 
-  it('paging scoped to tenant ACME via X-Tenant-Code header', async () => {
+  it('paging scoped to tenant ACME via X-Tenant header (mapped to entity tenantCode column)', async () => {
     const res = await request(app.getHttpServer())
       .post('/products/paging')
-      .set('X-Tenant-Code', 'ACME')
+      .set('X-Tenant', 'ACME')
       .set('X-User-Id', '00000000-0000-4000-a000-000000000001')
       .send({ pageNumber: 0, pageSize: 10 });
     expect(res.status).toBe(201);
@@ -142,7 +142,7 @@ describe('Consumer-app E2E — full SdCoreModule.forRoot() integration', () => {
   it('paging scoped to tenant BETA returns only BETA rows', async () => {
     const res = await request(app.getHttpServer())
       .post('/products/paging')
-      .set('X-Tenant-Code', 'BETA')
+      .set('X-Tenant', 'BETA')
       .send({ pageNumber: 0, pageSize: 10 });
     expect(res.status).toBe(201);
     expect(res.body.data.total).toBe(1);
@@ -151,7 +151,7 @@ describe('Consumer-app E2E — full SdCoreModule.forRoot() integration', () => {
   it('GET /all envelope includes ApiResponse wrapper', async () => {
     const res = await request(app.getHttpServer())
       .get('/products/all')
-      .set('X-Tenant-Code', 'ACME');
+      .set('X-Tenant', 'ACME');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(2);
   });
