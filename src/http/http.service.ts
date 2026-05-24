@@ -6,8 +6,9 @@ import { CONTEXT_HEADERS_CONFIG } from '../context/tokens';
 import { HTTP_CLIENT_CONFIG, type HttpClientConfig } from './types';
 
 /**
- * Axios-based HTTP client. Auto-propagates context headers (`tenantCode`, `userId`, etc.)
- * to outbound requests when `ContextService` is registered.
+ * Axios-based HTTP client. Auto-propagates the canonical context headers (`tenantCode`,
+ * `userId`) + any consumer-declared `customHeaders` to outbound requests when
+ * `ContextService` is registered.
  */
 @Injectable()
 export class HttpService {
@@ -15,7 +16,7 @@ export class HttpService {
   private readonly propagate: string[];
 
   constructor(
-    @Optional() @Inject(HTTP_CLIENT_CONFIG) private readonly cfg: HttpClientConfig = {},
+    @Optional() @Inject(HTTP_CLIENT_CONFIG) cfg: HttpClientConfig = {},
     @Optional() @Inject(ContextService) private readonly context?: ContextService,
     @Optional() @Inject(CONTEXT_HEADERS_CONFIG) private readonly headers?: HeadersConfig,
   ) {
@@ -24,13 +25,13 @@ export class HttpService {
       timeout: cfg.timeout ?? 30_000,
     });
     const map = headers ?? DEFAULT_HEADERS_CONFIG;
-    this.propagate = cfg.propagateHeaders ?? [
-      map.tenantCode ?? 'x-tenant-code',
-      map.departmentCode ?? 'x-department-code',
-      map.userId ?? 'x-user-id',
-      map.username ?? 'x-username',
-      map.fullName ?? 'x-full-name',
-    ].filter((h): h is string => !!h);
+    this.propagate =
+      cfg.propagateHeaders ??
+      [
+        map.tenantCode ?? 'x-tenant-code',
+        map.userId ?? 'x-user-id',
+        ...Object.values(map.customHeaders ?? {}),
+      ].filter((h): h is string => !!h);
 
     this.client.interceptors.request.use((config) => {
       const ctx = this.context?.store;
@@ -64,15 +65,14 @@ export class HttpService {
   private contextHeaderMap(ctx: Record<string, unknown>): Record<string, string> {
     const map = this.headers ?? DEFAULT_HEADERS_CONFIG;
     const out: Record<string, string> = {};
-    const entries: [string | undefined, unknown][] = [
-      [map.tenantCode, ctx.tenantCode],
-      [map.departmentCode, ctx.departmentCode],
-      [map.userId, ctx.userId],
-      [map.username, ctx.username],
-      [map.fullName, ctx.fullName],
-    ];
-    for (const [headerName, value] of entries) {
-      if (headerName && value !== undefined && value !== null) out[headerName] = String(value);
+    if (map.tenantCode && ctx.tenantCode != null) out[map.tenantCode] = String(ctx.tenantCode);
+    if (map.userId && ctx.userId != null) out[map.userId] = String(ctx.userId);
+    const custom = ctx.custom as Record<string, unknown> | undefined;
+    if (custom) {
+      for (const [ctxKey, headerName] of Object.entries(map.customHeaders ?? {})) {
+        const value = custom[ctxKey];
+        if (value != null) out[headerName] = String(value);
+      }
     }
     return out;
   }

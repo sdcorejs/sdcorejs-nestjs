@@ -2,22 +2,23 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 
 /**
  * Per-request context populated by `ContextMiddleware` and read by `ContextService`.
- * Consumer apps may extend this via module augmentation (declaration merging on `custom`).
+ *
+ * Lib keeps only the framework-generic fields. Domain-specific values (departmentCode,
+ * project, username, fullName, internal-secret flags, …) belong to the consumer — extend
+ * via `custom` bag or TypeScript declaration merging on this interface.
+ *
+ * @example consumer-side declaration merging:
+ *   declare module '@sdcorejs/nestjs/context' {
+ *     interface RequestContext { departmentCode?: string; }
+ *   }
  */
 export interface RequestContext {
   userId?: string;
-  username?: string;
-  fullName?: string;
   tenantCode?: string;
-  departmentCode?: string;
-  project?: string;
   lang?: 'vi' | 'en';
   token?: string;
-  internalSecret?: string;
   /** Filled by `AuthGuard` after JWT validation. Shape is consumer-defined. */
   user?: unknown;
-  isSystemAdmin?: boolean;
-  isTenantAdmin?: boolean;
   permissions?: string[];
   request?: IncomingMessage;
   response?: ServerResponse;
@@ -27,31 +28,24 @@ export interface RequestContext {
 
 /**
  * Maps a `RequestContext` key to the inbound HTTP header name that supplies its value.
- * Header names are case-insensitive — values are matched lower-cased against `req.headers`.
- * `lang` is an array (priority list); first matching header wins.
+ * Only framework-generic keys map by default. Consumer adds more via `customHeaders` to
+ * populate `custom.<key>` from a header without redeclaring `RequestContext`.
  */
 export interface HeadersConfig {
   tenantCode?: string;
-  departmentCode?: string;
-  project?: string;
-  internalSecret?: string;
   userId?: string;
-  username?: string;
-  fullName?: string;
   lang?: string[];
+  /** Extra `{ contextCustomKey: headerName }` pairs; values land in `ctx.custom`. */
+  customHeaders?: Record<string, string>;
 }
 
 /**
- * Default header names from `be-masterdata/core-be`. Override individual keys via
- * `SdCoreModule.forRoot({ context: { headers: { ... } } })`.
+ * Default header names. Only the multi-tenancy + user identity + language headers are
+ * canonical here; everything else is a consumer concern.
  */
-export const DEFAULT_HEADERS_CONFIG: Required<HeadersConfig> = {
+export const DEFAULT_HEADERS_CONFIG: Required<Omit<HeadersConfig, 'customHeaders'>> & Pick<HeadersConfig, 'customHeaders'> = {
   tenantCode: 'x-tenant-code',
-  departmentCode: 'x-department-code',
-  project: 'x-project',
-  internalSecret: 'x-internal-secret',
   userId: 'x-user-id',
-  username: 'x-username',
-  fullName: 'x-full-name',
   lang: ['accept-language', 'x-language'],
+  customHeaders: {},
 };

@@ -6,7 +6,7 @@ import type { ITenancyStrategy } from '../../src/tenancy/strategy.interface';
 import type { IAuditStrategy } from '../../src/audit/strategy.interface';
 import type { IPermissionStrategy } from '../../src/permission/strategy.interface';
 
-/** Sample tenancy strategy reading `tenantCode` + `departmentCode` from context. */
+/** Sample tenancy strategy reading `tenantCode` from context; bypass via `ctx.custom.isSystemAdmin`. */
 @Injectable()
 export class SampleTenancyStrategy implements ITenancyStrategy {
   constructor(@Optional() @Inject(ContextService) private readonly ctx?: ContextService) {}
@@ -14,7 +14,7 @@ export class SampleTenancyStrategy implements ITenancyStrategy {
     return { tenantCode: ctx.tenantCode ?? this.ctx?.tenantCode };
   }
   shouldBypass(ctx: RequestContext): boolean {
-    return ctx.isSystemAdmin === true;
+    return ctx.custom?.isSystemAdmin === true;
   }
 }
 

@@ -24,27 +24,20 @@ export class ContextMiddleware implements NestMiddleware {
       return Array.isArray(raw) ? raw[0] : raw;
     };
 
-    const safeDecode = (v?: string): string | undefined => {
-      if (v === undefined) return undefined;
-      try {
-        return decodeURIComponent(v);
-      } catch {
-        return v;
-      }
-    };
+    const custom: Record<string, unknown> = {};
+    for (const [ctxKey, headerName] of Object.entries(this.headers.customHeaders ?? {})) {
+      const value = read(headerName);
+      if (value !== undefined) custom[ctxKey] = value;
+    }
 
     return {
       tenantCode: read(this.headers.tenantCode),
-      departmentCode: read(this.headers.departmentCode),
-      project: read(this.headers.project),
-      internalSecret: read(this.headers.internalSecret),
       userId: read(this.headers.userId),
-      username: safeDecode(read(this.headers.username)),
-      fullName: safeDecode(read(this.headers.fullName)),
       lang: this.detectLang(req),
       token: this.extractToken(req),
       request: req,
       response: res,
+      custom: Object.keys(custom).length > 0 ? custom : undefined,
     };
   }
 

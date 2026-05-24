@@ -6,12 +6,11 @@ import type { RequestContext } from './context.types';
  * Singleton request-context accessor backed by Node's native `AsyncLocalStorage`.
  * Replaces the legacy static `SdContext` + `cls-hooked` pair from `be-masterdata/core-be`.
  *
- * `ContextMiddleware` calls `run(store, next)` once per HTTP request — every code path
- * reachable from that callback (including nested `await`, `Promise.all`, `setImmediate`,
- * `setTimeout`) reads the same store via `als.getStore()`.
+ * Scope is `DEFAULT` (singleton) — ALS gives per-request isolation without forcing the DI
+ * graph into request-scope (perf cliff).
  *
- * Scope is `DEFAULT` (singleton) — not `REQUEST` — so that other singletons can inject
- * it without forcing the entire DI graph to become request-scoped (perf cliff).
+ * Accessors only cover framework-generic fields. Domain values live in `store.custom` or
+ * via declaration-merged `RequestContext` extensions in your app.
  */
 @Injectable()
 export class ContextService {
@@ -35,19 +34,17 @@ export class ContextService {
     if (store) store[key] = value;
   }
 
+  /** Read a consumer-defined value from `ctx.custom`. */
+  getCustom<T = unknown>(key: string): T | undefined {
+    return this.als.getStore()?.custom?.[key] as T | undefined;
+  }
+
   get userId(): string | undefined { return this.get('userId'); }
-  get username(): string | undefined { return this.get('username'); }
-  get fullName(): string | undefined { return this.get('fullName'); }
   get tenantCode(): string | undefined { return this.get('tenantCode'); }
-  get departmentCode(): string | undefined { return this.get('departmentCode'); }
-  get project(): string | undefined { return this.get('project'); }
   /** Resolved language, defaults to `'vi'` if not set. */
   get lang(): 'vi' | 'en' { return this.get('lang') ?? 'vi'; }
   get token(): string | undefined { return this.get('token'); }
-  get internalSecret(): string | undefined { return this.get('internalSecret'); }
   get user(): unknown { return this.get('user'); }
-  get isSystemAdmin(): boolean { return !!this.get('isSystemAdmin'); }
-  get isTenantAdmin(): boolean { return !!this.get('isTenantAdmin'); }
   get permissions(): string[] { return this.get('permissions') ?? []; }
 
   hasPermission(code: string): boolean {

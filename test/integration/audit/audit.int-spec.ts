@@ -47,16 +47,18 @@ describe('BaseRepository audit integration', () => {
     expect(e.createdBy).toBeNull();
   });
 
-  it('with DefaultAuditStrategy + ctx → fills createdBy + modifier snapshot on create', async () => {
+  it('with DefaultAuditStrategy + ctx → fills createdBy + modifiedBy on create', async () => {
     const strategy = new DefaultAuditStrategy(ctx);
     const repo = new AuditRepo(ds, { auditStrategy: strategy, contextService: ctx });
     await ctx.run(
-      { userId: '00000000-0000-4000-a000-000000000001', username: 'nghia', fullName: 'Nghia Tran', permissions: [] },
+      { userId: '00000000-0000-4000-a000-000000000001', permissions: [] },
       async () => {
         const e = await repo.create({ name: 'X' });
         expect(e.createdBy).toBe('00000000-0000-4000-a000-000000000001');
-        expect(e.creator).toEqual({ id: '00000000-0000-4000-a000-000000000001', username: 'nghia', fullName: 'Nghia Tran' });
         expect(e.modifiedBy).toBe('00000000-0000-4000-a000-000000000001');
+        // creator / modifier snapshots are NOT filled by DefaultAuditStrategy — domain concern.
+        expect(e.creator).toBeNull();
+        expect(e.modifier).toBeNull();
       },
     );
   });
@@ -72,7 +74,7 @@ describe('BaseRepository audit integration', () => {
   it('WithTimestamps-only entity gets timestamps but no audit user fields', async () => {
     const strategy = new DefaultAuditStrategy(ctx);
     const repo = new TsOnlyRepo(ds, { auditStrategy: strategy, contextService: ctx });
-    await ctx.run({ userId: '00000000-0000-4000-a000-000000000001', username: 'n', fullName: 'N' }, async () => {
+    await ctx.run({ userId: '00000000-0000-4000-a000-000000000001' }, async () => {
       const e = await repo.create({ name: 'X' });
       expect(e.createdAt).toBeDefined();
       // No createdBy/modifier columns exist on this entity.
@@ -84,11 +86,11 @@ describe('BaseRepository audit integration', () => {
     const strategy = new DefaultAuditStrategy(ctx);
     const repo = new AuditRepo(ds, { auditStrategy: strategy, contextService: ctx });
     const created = await ctx.run(
-      { userId: '00000000-0000-4000-a000-000000000001', username: 'a', fullName: 'A' },
+      { userId: '00000000-0000-4000-a000-000000000001' },
       async () => repo.create({ name: 'orig' }),
     );
     await ctx.run(
-      { userId: '00000000-0000-4000-a000-000000000002', username: 'b', fullName: 'B' },
+      { userId: '00000000-0000-4000-a000-000000000002' },
       async () => repo.update({ id: created.id, name: 'changed' } as never),
     );
     const reloaded = await ds.getRepository(AuditProduct).findOneBy({ id: created.id });

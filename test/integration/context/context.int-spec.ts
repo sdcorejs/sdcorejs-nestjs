@@ -97,11 +97,17 @@ describe('ContextService — AsyncLocalStorage preservation', () => {
     });
   });
 
-  it('isSystemAdmin / isTenantAdmin default false', () => {
-    expect(service.isSystemAdmin).toBe(false);
-    expect(service.isTenantAdmin).toBe(false);
-    service.run({ isSystemAdmin: true }, () => {
-      expect(service.isSystemAdmin).toBe(true);
+  it('custom bag reads via getCustom', () => {
+    service.run({ custom: { departmentCode: 'D1', isAdmin: true } }, () => {
+      expect(service.getCustom('departmentCode')).toBe('D1');
+      expect(service.getCustom<boolean>('isAdmin')).toBe(true);
+    });
+  });
+
+  it('getCustom returns undefined when no store / no custom key', () => {
+    expect(service.getCustom('any')).toBeUndefined();
+    service.run({}, () => {
+      expect(service.getCustom('any')).toBeUndefined();
     });
   });
 });
@@ -137,10 +143,7 @@ describe('ContextMiddleware — header reading', () => {
     const req = {
       headers: {
         'x-tenant-code': 'T-ABC',
-        'x-department-code': 'D-1',
         'x-user-id': 'u-42',
-        'x-username': encodeURIComponent('nghiatt15'),
-        'x-full-name': encodeURIComponent('Trần Thuận Nghĩa'),
         'accept-language': 'en-US,vi;q=0.9',
         'authorization': 'Bearer xyz',
       },
@@ -148,12 +151,27 @@ describe('ContextMiddleware — header reading', () => {
     await new Promise<void>((resolve) => {
       mw.use(req as never, {} as never, () => {
         expect(ctx.tenantCode).toBe('T-ABC');
-        expect(ctx.departmentCode).toBe('D-1');
         expect(ctx.userId).toBe('u-42');
-        expect(ctx.username).toBe('nghiatt15');
-        expect(ctx.fullName).toBe('Trần Thuận Nghĩa');
         expect(ctx.lang).toBe('en');
         expect(ctx.token).toBe('Bearer xyz');
+        resolve();
+      });
+    });
+  });
+
+  it('customHeaders pushes values into ctx.custom', async () => {
+    const ctx = new ContextService();
+    const mw = new ContextMiddleware(ctx, {
+      ...DEFAULT_HEADERS_CONFIG,
+      customHeaders: { departmentCode: 'x-department-code', project: 'x-project' },
+    });
+    const req = {
+      headers: { 'x-department-code': 'D-1', 'x-project': 'PRJ' },
+    };
+    await new Promise<void>((resolve) => {
+      mw.use(req as never, {} as never, () => {
+        expect(ctx.getCustom('departmentCode')).toBe('D-1');
+        expect(ctx.getCustom('project')).toBe('PRJ');
         resolve();
       });
     });
@@ -177,20 +195,6 @@ describe('ContextMiddleware — header reading', () => {
         {} as never,
         () => {
           expect(ctx.lang).toBe('en');
-          resolve();
-        },
-      );
-    });
-  });
-
-  it('safe-decodes malformed URI-encoded values', async () => {
-    const { ctx, mw } = buildMw();
-    await new Promise<void>((resolve) => {
-      mw.use(
-        { headers: { 'x-full-name': '%E0%A4%A' } } as never, // malformed
-        {} as never,
-        () => {
-          expect(ctx.fullName).toBe('%E0%A4%A');
           resolve();
         },
       );
