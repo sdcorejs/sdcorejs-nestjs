@@ -1,4 +1,7 @@
 export * from './types';
+export * from './backends/cache-backend';
+export * from './backends/memory-cache.backend';
+export * from './backends/redis-cache.backend';
 export * from './cache.service';
 export * from './cache.interceptor';
 export * from './request-cache.middleware';

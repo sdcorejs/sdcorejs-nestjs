@@ -36,11 +36,19 @@ describe('CacheInterceptor', () => {
     expect(result1).toBe(10);
     expect(service.callCount).toBe(1);
 
-    const handler2: CallHandler = { handle: () => of(service.expensive(5)) };
+    // Allow microtask queue to flush the fire-and-forget cache.set in `tap`
+    await Promise.resolve();
+
+    let handler2Called = false;
+    const handler2: CallHandler = {
+      handle: () => {
+        handler2Called = true;
+        return of(service.expensive(5));
+      },
+    };
     const result2 = await firstValueFrom(interceptor.intercept(buildExecCtx(service, 'expensive', [5]), handler2));
     expect(result2).toBe(10);
-    // Second call hit cache — handler.handle not invoked, but service.expensive was called once eagerly above
-    // (eager call is test-side noise; the real point is cache returned without calling handler)
+    expect(handler2Called).toBe(false);
   });
 
   it('bypasses cache when method is NOT @Cached', async () => {
@@ -50,7 +58,7 @@ describe('CacheInterceptor', () => {
     const handler: CallHandler = { handle: () => of(service.uncached()) };
     const result = await firstValueFrom(interceptor.intercept(buildExecCtx(service, 'uncached', []), handler));
     expect(result).toBe('plain');
-    expect(cache.size()).toBe(0);
+    await expect(cache.size()).resolves.toBe(0);
   });
 
   it('separates cache by argument hash', async () => {
@@ -62,6 +70,7 @@ describe('CacheInterceptor', () => {
 
     await firstValueFrom(interceptor.intercept(buildExecCtx(service, 'expensive', [1]), makeHandler(++counter)));
     await firstValueFrom(interceptor.intercept(buildExecCtx(service, 'expensive', [2]), makeHandler(++counter)));
-    expect(cache.size()).toBe(2);
+    await Promise.resolve();
+    await expect(cache.size()).resolves.toBe(2);
   });
 });
