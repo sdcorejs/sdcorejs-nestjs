@@ -1,4 +1,4 @@
-import { Body, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { Body, Delete, Get, Param, Post, Query } from '@nestjs/common';
 import type { ObjectLiteral } from 'typeorm';
 import type { Filter, PagingReq } from '@sdcorejs/utils/models';
 import type { BaseService } from './base-service';
@@ -9,17 +9,17 @@ import { ApiResponse } from './types/api-response.types';
  * REST controller skeleton paired with `BaseService<T, TDto>`. Subclass with `@Controller('path')`
  * to mount the standard endpoint set:
  *
- *   POST   /search           → service.search(keyword, filters)
- *   POST   /paging           → service.paging(req)
- *   POST   /paging/deleted   → service.pagingDeleted(req)
- *   GET    /all              → service.all()
- *   GET    /:id              → service.detail(id)
- *   DELETE /:id              → service.delete(id)
- *   DELETE /:id/soft         → service.softDelete(id)
- *   PUT    /:id/restore      → service.restore(id)
+ *   POST   /search    → service.search(keyword, filters)
+ *   POST   /paging    → service.paging(req)
+ *   GET    /all       → service.all()
+ *   GET    /:id       → service.detail(id)
+ *   DELETE /:id       → service.delete(id)
+ *
+ * Soft-delete, restore, and paging-deleted live on `BaseService` for code paths that need them
+ * (e.g. admin tools) but are not exposed by default at the controller layer.
  *
  * Add `@HasPermission(...)` per endpoint in your subclass (override + super-call) to enforce
- * permission checks per route — Phase 8 introduces the decorator.
+ * permission checks per route.
  */
 export abstract class BaseController<T extends ObjectLiteral, TDto extends Dto> {
   constructor(protected readonly baseService: BaseService<T, TDto>) {}
@@ -32,11 +32,6 @@ export abstract class BaseController<T extends ObjectLiteral, TDto extends Dto> 
   @Post('paging')
   async paging(@Body() req: PagingReq<T>) {
     return ApiResponse.ok(await this.baseService.paging(req));
-  }
-
-  @Post('paging/deleted')
-  async pagingDeleted(@Body() req: PagingReq<T>) {
-    return ApiResponse.ok(await this.baseService.pagingDeleted(req));
   }
 
   @Get('all')
@@ -52,18 +47,6 @@ export abstract class BaseController<T extends ObjectLiteral, TDto extends Dto> 
   @Delete(':id')
   async delete(@Param('id') id: string) {
     await this.baseService.delete(id);
-    return ApiResponse.noContent();
-  }
-
-  @Delete(':id/soft')
-  async softDelete(@Param('id') id: string) {
-    await this.baseService.softDelete(id);
-    return ApiResponse.noContent();
-  }
-
-  @Put(':id/restore')
-  async restore(@Param('id') id: string) {
-    await this.baseService.restore(id);
     return ApiResponse.noContent();
   }
 }

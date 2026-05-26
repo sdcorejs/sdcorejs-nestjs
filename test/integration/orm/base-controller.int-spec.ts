@@ -91,26 +91,4 @@ describe('BaseController (HTTP integration)', () => {
     expect(res.status).toBe(201);
     expect(res.body.data).toHaveLength(1);
   });
-
-  it('DELETE /test-products/:id/soft returns noContent envelope', async () => {
-    const [first] = await ds.getRepository(TestProduct).find();
-    const res = await request(app.getHttpServer()).delete(`/test-products/${first.id}/soft`);
-    expect(res.status).toBe(200);
-    expect(res.body.data).toBeNull();
-  });
-
-  it('POST /test-products/paging/deleted includes the soft-deleted row', async () => {
-    const res = await request(app.getHttpServer())
-      .post('/test-products/paging/deleted')
-      .send({ pageNumber: 0, pageSize: 10 });
-    expect(res.status).toBe(201);
-    expect(res.body.data.total).toBe(2);
-  });
-
-  it('PUT /test-products/:id/restore returns noContent', async () => {
-    const [first] = await ds.getRepository(TestProduct).find();
-    const res = await request(app.getHttpServer()).put(`/test-products/${first.id}/restore`);
-    expect(res.status).toBe(200);
-    expect(res.body.data).toBeNull();
-  });
 });
