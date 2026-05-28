@@ -11,6 +11,7 @@ const entryMap: Record<string, string> = {
   'http/index': 'src/http/index.ts',
   'jwt/index': 'src/jwt/index.ts',
   'validation/index': 'src/validation/index.ts',
+  'queue/index': 'src/queue/index.ts',
 };
 
 const external = [
@@ -26,6 +27,8 @@ const external = [
   'zod',
   'jwks-rsa',
   'jsonwebtoken',
+  '@nestjs/bullmq',
+  'bullmq',
 ];
 
 const baseConfig: Options = {

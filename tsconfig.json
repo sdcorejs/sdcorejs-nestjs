@@ -33,7 +33,9 @@
       "@sdcorejs/nestjs/permission": ["src/permission/index.ts"],
       "@sdcorejs/nestjs/cache": ["src/cache/index.ts"],
       "@sdcorejs/nestjs/http": ["src/http/index.ts"],
-      "@sdcorejs/nestjs/jwt": ["src/jwt/index.ts"]
+      "@sdcorejs/nestjs/jwt": ["src/jwt/index.ts"],
+      "@sdcorejs/nestjs/validation": ["src/validation/index.ts"],
+      "@sdcorejs/nestjs/queue": ["src/queue/index.ts"]
     }
   },
   "include": ["src/**/*", "test/**/*"],

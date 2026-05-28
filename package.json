@@ -40,7 +40,8 @@
       "cache": ["./dist/types/cache/index.d.ts"],
       "http": ["./dist/types/http/index.d.ts"],
       "jwt": ["./dist/types/jwt/index.d.ts"],
-      "validation": ["./dist/types/validation/index.d.ts"]
+      "validation": ["./dist/types/validation/index.d.ts"],
+      "queue": ["./dist/types/queue/index.d.ts"]
     }
   },
   "files": [
@@ -99,6 +100,11 @@
       "types": "./dist/types/validation/index.d.ts",
       "import": "./dist/esm/validation/index.mjs",
       "require": "./dist/cjs/validation/index.cjs"
+    },
+    "./queue": {
+      "types": "./dist/types/queue/index.d.ts",
+      "import": "./dist/esm/queue/index.mjs",
+      "require": "./dist/cjs/queue/index.cjs"
     }
   },
   "scripts": {
@@ -118,10 +124,12 @@
     "clean": "rimraf dist coverage"
   },
   "peerDependencies": {
+    "@nestjs/bullmq": "^11.0.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/passport": "^11.0.0",
     "@sdcorejs/utils": "^1.1.0",
+    "bullmq": "^5.0.0",
     "jsonwebtoken": "^9.0.0",
     "jwks-rsa": "^3.0.0",
     "reflect-metadata": "^0.2.0",
@@ -130,6 +138,12 @@
     "zod": "^3.23.0"
   },
   "peerDependenciesMeta": {
+    "@nestjs/bullmq": {
+      "optional": true
+    },
+    "bullmq": {
+      "optional": true
+    },
     "ioredis": {
       "optional": true
     },
@@ -150,6 +164,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.0",
+    "@nestjs/bullmq": "^11.0.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/passport": "^11.0.0",
@@ -164,6 +179,7 @@
     "@types/supertest": "^6.0.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
+    "bullmq": "^5.0.0",
     "eslint": "^8.57.0",
     "jest": "^29.7.0",
     "jsonwebtoken": "^9.0.0",

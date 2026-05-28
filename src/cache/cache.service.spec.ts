@@ -1,6 +1,14 @@
 import type { CacheBackend } from './backends/cache-backend';
 import { CacheService } from './cache.service';
 
+// `ioredis` is an OPTIONAL peer of this lib, but it is now present in node_modules transitively
+// (bullmq depends on it). The construction/fallback tests below assert the "ioredis not installed"
+// path, so we simulate its absence by making `require('ioredis')` throw — keeping those tests
+// deterministic regardless of what else pulls ioredis into the tree.
+jest.mock('ioredis', () => {
+  throw new Error("Cannot find module 'ioredis'");
+});
+
 /** Replace the private backend of a CacheService with a stub. Test-only escape hatch. */
 const setBackend = (svc: CacheService, backend: CacheBackend): void => {
   (svc as unknown as { backend: CacheBackend }).backend = backend;
