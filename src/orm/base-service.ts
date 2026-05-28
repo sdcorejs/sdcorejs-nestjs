@@ -2,6 +2,7 @@ import { type FindOptionsWhere, In, type ObjectLiteral, type QueryRunner } from 
 import type { DeepPartial } from 'typeorm';
 import type { Filter, PagingReq, PagingRes } from '@sdcorejs/utils/models';
 import type { IBaseRepository } from './base-repository.interface';
+import type { IBaseService } from './base-service.interface';
 import type { BaseRepositoryArgs } from './types/repository-args.types';
 import type { Dto } from './types/dto.types';
 import type { ClassRef } from './types/class-ref.types';
@@ -13,7 +14,7 @@ import { getSchema, getSchemaProps, type SchemaOptions, type SchemaPropOptions }
  *
  * Controllers stay thin — services own the business logic and DTO contract.
  */
-export abstract class BaseService<T extends ObjectLiteral, TDto extends Dto> {
+export abstract class BaseService<T extends ObjectLiteral, TDto extends Dto> implements IBaseService<T, TDto> {
   constructor(protected readonly repository: IBaseRepository<T>) {}
 
   abstract mapDTO(entity: T | undefined | null): TDto | undefined | null;

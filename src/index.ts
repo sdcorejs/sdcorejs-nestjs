@@ -12,6 +12,7 @@ export { HasPermission, HasAnyPermission } from './permission/decorators';
 export { INTERNAL_SECRET_PROVIDER, type IInternalSecretProvider } from './permission/internal-secret.provider';
 export { InternalGuard, INTERNAL_SECRET_HEADER } from './permission/internal.guard';
 export { apiError, ApiResponse, type ApiErrorBody, type ApiResponseEnvelope } from './orm/types/api-response.types';
+export { ZodValidationGuard, parseZod, type ZodSource, type ZodIssueDetail } from './validation';
 export type { ITenancyStrategy } from './tenancy/strategy.interface';
 export type { IAuditStrategy } from './audit/strategy.interface';
 export type { IPermissionStrategy } from './permission/strategy.interface';

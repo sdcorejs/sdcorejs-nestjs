@@ -5,6 +5,7 @@ export * from './decorators';
 export * from './base-repository';
 export * from './base-repository.interface';
 export * from './base-service';
+export * from './base-service.interface';
 export * from './base-controller';
 
 // Ergonomic re-exports of common @sdcorejs/utils helpers used by ORM consumers.

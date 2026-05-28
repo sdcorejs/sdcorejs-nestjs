@@ -1,7 +1,7 @@
 import { Body, Delete, Get, Param, Post, Query } from '@nestjs/common';
 import type { ObjectLiteral } from 'typeorm';
 import type { Filter, PagingReq } from '@sdcorejs/utils/models';
-import type { BaseService } from './base-service';
+import type { IBaseService } from './base-service.interface';
 import type { Dto } from './types/dto.types';
 import { ApiResponse } from './types/api-response.types';
 
@@ -22,7 +22,7 @@ import { ApiResponse } from './types/api-response.types';
  * permission checks per route.
  */
 export abstract class BaseController<T extends ObjectLiteral, TDto extends Dto> {
-  constructor(protected readonly baseService: BaseService<T, TDto>) {}
+  constructor(protected readonly baseService: IBaseService<T, TDto>) {}
 
   @Post('search')
   async search(@Query('keyword') keyword: string, @Body() filters: Filter<T>[]) {

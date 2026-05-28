@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, type JwtFromRequestFunction, Strategy, type StrategyOptions } from 'passport-jwt';
+import { ExtractJwt, type JwtFromRequestFunction, Strategy, type StrategyOptionsWithoutRequest } from 'passport-jwt';
 import { JWT_CONFIG, type JwtConfig } from './types';
 
 /**
@@ -10,12 +10,15 @@ import { JWT_CONFIG, type JwtConfig } from './types';
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(@Inject(JWT_CONFIG) cfg: JwtConfig) {
+    if (!cfg.secret) {
+      throw new Error("JwtConfig.secret is required for the symmetric JwtStrategy; use 'jwks' for OIDC/Keycloak.");
+    }
     const extractors: JwtFromRequestFunction[] = [ExtractJwt.fromAuthHeaderAsBearerToken()];
     if (cfg.cookieName) {
       const cookieName = cfg.cookieName;
       extractors.push((req: { cookies?: Record<string, string> }) => req?.cookies?.[cookieName] ?? null);
     }
-    const options: StrategyOptions = {
+    const options: StrategyOptionsWithoutRequest = {
       jwtFromRequest: ExtractJwt.fromExtractors(extractors),
       ignoreExpiration: false,
       secretOrKey: cfg.secret,

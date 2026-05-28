@@ -10,6 +10,7 @@ const entryMap: Record<string, string> = {
   'cache/index': 'src/cache/index.ts',
   'http/index': 'src/http/index.ts',
   'jwt/index': 'src/jwt/index.ts',
+  'validation/index': 'src/validation/index.ts',
 };
 
 const external = [
@@ -22,6 +23,9 @@ const external = [
   'passport',
   'passport-jwt',
   'axios',
+  'zod',
+  'jwks-rsa',
+  'jsonwebtoken',
 ];
 
 const baseConfig: Options = {

@@ -2,10 +2,12 @@ node_modules/
 dist/
 coverage/
 *.tsbuildinfo
+*.tgz
 *.log
 .DS_Store
 .env
 .env.*
 .idea/
 .vscode/
+.claude/
 .cache/

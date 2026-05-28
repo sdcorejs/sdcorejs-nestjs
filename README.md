@@ -18,6 +18,10 @@ Peer dependencies:
 - `reflect-metadata` `^0.2.0`
 - `rxjs` `^7.8`
 
+Optional peer dependencies (install only when you use the feature):
+- `ioredis` `^5.0.0` — redis cache backend (`@sdcorejs/nestjs/cache`)
+- `zod` `^3.23.0` — request validation (`@sdcorejs/nestjs/validation`)
+
 Engines: `node >=18.18`.
 
 ## Sub-paths
@@ -33,6 +37,7 @@ Engines: `node >=18.18`.
 | `@sdcorejs/nestjs/cache` | `CacheService`, `CacheInterceptor`, `@Cached` |
 | `@sdcorejs/nestjs/http` | `HttpService` (axios-based, context-aware) |
 | `@sdcorejs/nestjs/jwt` | `JwtModule`, `JwtStrategy` (passport) |
+| `@sdcorejs/nestjs/validation` | `ZodValidationGuard(schema, source)`, `parseZod(schema, payload)` (Zod-based request validation) |
 
 ## Quick start
 
