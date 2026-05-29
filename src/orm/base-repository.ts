@@ -15,7 +15,7 @@ import type { ContextService } from '../context/context.service';
 import type { RequestContext } from '../context/context.types';
 import type { IAuditStrategy } from '../audit/strategy.interface';
 import type { ITenancyStrategy } from '../tenancy/strategy.interface';
-import { applyScopeToEntity, buildScopeFilters, getScopedColumns } from '../tenancy/tenancy.helpers';
+import { applyScopeToEntity, buildScopeFilters, buildScopeWhere, getScopedColumns } from '../tenancy/tenancy.helpers';
 import { isAuditEnabled } from './mixins/with-audit';
 import type { ClassRef } from './types/class-ref.types';
 import { getSearchableConfig } from './decorators/searchable-fields.decorator';
@@ -82,6 +82,17 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
     if (!cols.length) return cleaned;
     const scope = ts.getCurrentScope(ctx);
     return [...cleaned, ...buildScopeFilters<T>(scope, cols)];
+  }
+
+  /** Build a `findOne` where-fragment that scopes by tenancy, or `{}` when tenancy is inactive. */
+  protected scopeWhere(): Record<string, unknown> {
+    const ts = this.options?.tenancyStrategy;
+    if (!ts) return {};
+    const ctx = this.ctx;
+    if (ts.shouldBypass(ctx)) return {};
+    const cols = getScopedColumns(this._target as ClassRef);
+    if (!cols.length) return {};
+    return buildScopeWhere(ts.getCurrentScope(ctx), cols);
   }
 
   /** Auto-fill tenancy columns from current scope unless strategy says bypass. */
@@ -260,7 +271,7 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
     const uniqueRelations = Array.from(new Set(args?.relations ?? []));
     return this.repository.findOne({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      where: { id } as any,
+      where: { id, ...this.scopeWhere() } as any,
       relations: uniqueRelations,
       withDeleted: args?.withDeleted ?? true,
     });

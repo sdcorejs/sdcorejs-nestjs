@@ -5,6 +5,7 @@ import { AuthGuard } from '../../../src/permission/auth.guard';
 import { HasPermission } from '../../../src/permission/decorators/has-permission.decorator';
 import { HasAnyPermission } from '../../../src/permission/decorators/has-any-permission.decorator';
 import type { IPermissionStrategy } from '../../../src/permission/strategy.interface';
+import { ContextService } from '../../../src/context/context.service';
 
 // Stub guard that bypasses passport-jwt — exercises only the permission check pipeline.
 @Injectable()
@@ -78,6 +79,35 @@ describe('AuthGuard permission check', () => {
     const guard = new TestableAuthGuard(reflector, strategy);
     const ok = await guard.canActivate(buildExecCtx(C.prototype.m, C));
     expect(ok).toBe(true);
+  });
+
+  it('syncs loaded permissions into ContextService', async () => {
+    const strategy: IPermissionStrategy = { load: async () => ['product:create'] };
+    const ctx = new ContextService();
+    class C {
+      @HasPermission('product:create')
+      m() {}
+    }
+    const guard = new TestableAuthGuard(reflector, strategy, ctx);
+    await ctx.run({}, async () => {
+      await guard.canActivate(buildExecCtx(C.prototype.m, C, {}));
+      expect(ctx.permissions).toEqual(['product:create']);
+      expect(ctx.hasPermission('product:create')).toBe(true);
+    });
+  });
+
+  it('syncs authenticated user into ContextService', async () => {
+    const strategy: IPermissionStrategy = { load: async () => [] };
+    const ctx = new ContextService();
+    class C {
+      m() {}
+    }
+    const guard = new TestableAuthGuard(reflector, strategy, ctx);
+    const req = { user: { id: 'u1', email: 'a@b.c' } };
+    await ctx.run({}, async () => {
+      await guard.canActivate(buildExecCtx(C.prototype.m, C, req));
+      expect(ctx.user).toEqual({ id: 'u1', email: 'a@b.c' });
+    });
   });
 
   it('custom check function overrides default Array.includes', async () => {

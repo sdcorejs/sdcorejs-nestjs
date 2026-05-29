@@ -48,4 +48,49 @@ describe('InternalGuard', () => {
       ForbiddenException,
     );
   });
+
+  it('accepts a match against any key from getKeys (rotation)', async () => {
+    const guard = new InternalGuard({ getKey: () => 'new', getKeys: () => ['old-key', 'new'] });
+    expect(await guard.canActivate(buildExecCtx({ 'x-internal-secret': 'old-key' }))).toBe(true);
+    expect(await guard.canActivate(buildExecCtx({ 'x-internal-secret': 'new' }))).toBe(true);
+  });
+
+  it('rejects when secret matches none of getKeys', async () => {
+    const guard = new InternalGuard({ getKey: () => 'new', getKeys: () => ['old-key', 'new'] });
+    await expect(guard.canActivate(buildExecCtx({ 'x-internal-secret': 'bad' }))).rejects.toMatchObject({
+      response: { code: 'core.permission.internal-secret-mismatch' },
+    });
+  });
+
+  it('supports async getKeys', async () => {
+    const guard = new InternalGuard({ getKey: () => 'x', getKeys: async () => ['a', 'b'] });
+    expect(await guard.canActivate(buildExecCtx({ 'x-internal-secret': 'b' }))).toBe(true);
+  });
+
+  it('calls context enricher after secret passes', async () => {
+    const enrich = jest.fn();
+    const guard = new InternalGuard({ getKey: () => 'k' }, { enrich });
+    await guard.canActivate(buildExecCtx({ 'x-internal-secret': 'k' }));
+    expect(enrich).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call enricher when secret fails', async () => {
+    const enrich = jest.fn();
+    const guard = new InternalGuard({ getKey: () => 'k' }, { enrich });
+    await expect(guard.canActivate(buildExecCtx({ 'x-internal-secret': 'wrong' }))).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(enrich).not.toHaveBeenCalled();
+  });
+
+  it('awaits async enricher', async () => {
+    const order: string[] = [];
+    const enrich = jest.fn(async () => {
+      await Promise.resolve();
+      order.push('enriched');
+    });
+    const guard = new InternalGuard({ getKey: () => 'k' }, { enrich });
+    await guard.canActivate(buildExecCtx({ 'x-internal-secret': 'k' }));
+    expect(order).toEqual(['enriched']);
+  });
 });

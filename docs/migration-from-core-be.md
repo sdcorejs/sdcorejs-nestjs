@@ -17,21 +17,43 @@ Drop runtime deps no longer needed: `cls-hooked` (replaced by `AsyncLocalStorage
 
 The lib does not ship SD-specific tenancy/audit/permission. Implement them in your app and register via `SdCoreModule.forRoot`.
 
+> The library's `RequestContext` only has framework-generic keys (`userId`, `tenant`, `lang`, `token`, `user`, `permissions`, `custom`). Domain values like `departmentCode` / `isSystemAdmin` live in `ctx.custom` or via declaration merging — see [§7](#7-domain-fields--consumer). Read them from `custom` (or your merged fields), NOT from non-existent top-level keys.
+
 ```ts
 // app/strategies/tenancy.strategy.ts
 @Injectable()
 export class SdTenancyStrategy implements ITenancyStrategy {
-  constructor(private readonly ctx: ContextService) {}
-  getCurrentScope(rc: RequestContext) {
-    return { tenantCode: rc.tenantCode, departmentCode: rc.departmentCode };
+  getCurrentScope(rc: RequestContext): Record<string, unknown> {
+    return {
+      tenantCode: rc.tenant,                            // scalar  → EQUAL filter
+      departmentCode: rc.custom?.['departmentCodes'],   // array   → IN filter (multi-department)
+    };
   }
-  shouldBypass(rc: RequestContext) {
-    return rc.isSystemAdmin === true;
+  shouldBypass(rc: RequestContext): boolean {
+    return rc.custom?.['isSystemAdmin'] === true || rc.custom?.['isInternalCall'] === true;
   }
 }
 ```
 
-Mirror for `SdAuditStrategy` (fill `createdBy`, `creator`, `modifiedBy`, `modifier` from your `UserDTO`) and `SdPermissionStrategy` (load codes from your `PagePermissionService`).
+> **Array scope = `IN`.** Returning an array for a scoped column (e.g. a user spanning several departments) now emits an `IN (...)` filter instead of `EQUAL`. Empty arrays / `null` / `undefined` are skipped. This applies to list reads AND `detail(id)`.
+
+Mirror for `SdAuditStrategy` (fill `createdBy`, `creator`, `modifiedBy`, `modifier` from your `UserDTO`) and `SdPermissionStrategy`:
+
+```ts
+@Injectable()
+export class SdPermissionStrategy implements IPermissionStrategy {
+  constructor(private readonly pages: PagePermissionService) {}
+  async load(rc: RequestContext): Promise<string[]> {
+    return this.pages.codesForUser(rc.userId);
+  }
+  // Optional: override default Array.includes for wildcard/hierarchy support.
+  check(codes: string[], required: string): boolean {
+    return codes.some((c) => c === required || (c.endsWith(':*') && required.startsWith(c.slice(0, -1))));
+  }
+}
+```
+
+`AuthGuard` mirrors the authenticated `user` and the resolved `permissions` into `ContextService` after auth — so `contextService.hasPermission(code)` works in any downstream service without re-loading. In `core-be` this was a manual `SdContext.set`; it is now automatic.
 
 ## 3. Bootstrap
 
@@ -48,7 +70,11 @@ Mirror for `SdAuditStrategy` (fill `createdBy`, `creator`, `modifiedBy`, `modifi
       permission: { strategy: SdPermissionStrategy },
       cache:      { ttl: 60 },
       http:       { baseURL: process.env.UPSTREAM_API },
-      jwt:        { secret: process.env.JWT_SECRET! },
+      jwt:        { jwks: { allowedIssuers: [process.env.KEYCLOAK_ISSUER!] } },
+      providers: [
+        { provide: INTERNAL_SECRET_PROVIDER,  useClass: SdInternalSecretProvider },
+        { provide: INTERNAL_CONTEXT_ENRICHER, useClass: SdInternalEnricher },
+      ],
     }),
     // your domain modules...
   ],
@@ -56,13 +82,73 @@ Mirror for `SdAuditStrategy` (fill `createdBy`, `creator`, `modifiedBy`, `modifi
 export class AppModule {}
 ```
 
+### 3a. Keycloak JWT
+
+`core-be` verified Keycloak tokens with a bespoke guard. The lib wires `KeycloakJwtStrategy` automatically when `jwt.jwks` is set — signing keys are fetched per-token from each issuer's JWKS endpoint (multi-realm, no shared secret). Requires `jwks-rsa` + `jsonwebtoken`.
+
+Subclass to turn the verified token into your user object:
+
+```ts
+@Injectable()
+export class AppJwtStrategy extends KeycloakJwtStrategy {
+  constructor(@Inject(JWT_CONFIG) cfg: JwtConfig, private readonly users: UserService) {
+    super(cfg);
+  }
+  async validate(payload: JwtPayload) {
+    const user = await this.users.byKeycloakId(payload.sub);
+    if (!user) throw new UnauthorizedException();
+    return user; // becomes req.user → mirrored into ContextService.user by AuthGuard
+  }
+}
+```
+
+Register it (constructor deps need their module imported):
+
+```ts
+JwtModule.forRoot(
+  { jwks: { allowedIssuers: [process.env.KEYCLOAK_ISSUER!] } },
+  { strategy: AppJwtStrategy, imports: [UserModule] },
+)
+```
+
+Symmetric secret instead of JWKS: pass `jwt: { secret: process.env.JWT_SECRET! }` (omit `jwks`) → the symmetric `JwtStrategy` is wired.
+
+### 3b. Internal service-to-service calls
+
+`core-be` used an ad-hoc internal-secret check. The lib's `InternalGuard` reads `X-Internal-Secret`, compares constant-time, and exposes two DI hooks:
+
+```ts
+@Injectable()
+export class SdInternalSecretProvider implements IInternalSecretProvider {
+  getKey(): string { return process.env.INTERNAL_SECRET!; }
+  // Optional zero-downtime rotation — accept old + new during the transition window:
+  getKeys(): string[] {
+    return [process.env.INTERNAL_SECRET!, process.env.INTERNAL_SECRET_NEXT!].filter(Boolean);
+  }
+}
+
+// Optional — runs ONLY after the secret check passes, so trusting inbound headers is safe:
+@Injectable()
+export class SdInternalEnricher implements IInternalContextEnricher {
+  constructor(private readonly ctx: ContextService) {}
+  enrich(req: IncomingMessage): void {
+    const h = req.headers;
+    this.ctx.set('tenant', h['x-tenant'] as string);
+    this.ctx.set('userId', h['x-user-id'] as string);
+    this.ctx.set('custom', { isInternalCall: true, caller: h['x-caller'] });
+  }
+}
+```
+
+Apply with `@UseGuards(InternalGuard)`. The enricher's `custom.isInternalCall` is what `SdTenancyStrategy.shouldBypass()` reads to skip tenant filtering on internal traffic.
+
 ## 4. Import path swap
 
 | Old (`core-be/`) | New |
 |---|---|
 | `@core/base` (BaseEntity, BaseRepository, BaseService, BaseController) | `@sdcorejs/nestjs/orm` |
 | `@core/decorators` (HasPermission, Schema, SchemaProp) | `@sdcorejs/nestjs/orm` + `@sdcorejs/nestjs/permission` |
-| `@core/guards` (AuthGuard) | `@sdcorejs/nestjs/permission` |
+| `@core/guards` (AuthGuard, InternalGuard) | `@sdcorejs/nestjs/permission` |
 | `@core/modules/api/context` (SdContext) | `@sdcorejs/nestjs/context` (now `ContextService`, injectable) |
 | `@core/modules/cache` | `@sdcorejs/nestjs/cache` |
 | `@core/modules/http` | `@sdcorejs/nestjs/http` |
@@ -96,7 +182,7 @@ sed -i 's/NOT_END_WIDTH/NOT_END_WITH/g' src/**/*.ts
 
 ## 7. Domain fields → consumer
 
-Lib's `RequestContext` keeps only framework-generic keys: `userId, tenantCode, lang, token, user, permissions, request, response, custom`.
+Lib's `RequestContext` keeps only framework-generic keys: `userId, tenant, lang, token, user, permissions, request, response, custom`. (Note: `tenant`, NOT `tenantCode` — `tenant` is the framework-level identifier *value*; your entity column name is whatever you mark with `@TenantScoped()`.)
 
 Domain values from `be-masterdata` (`departmentCode, project, internalSecret, username, fullName, isSystemAdmin, isTenantAdmin`) MUST move into your app.
 
@@ -143,6 +229,7 @@ export class SdAuditStrategy extends DefaultAuditStrategy {
 
 - **Mixin metadata**: TypeORM picks up columns from `WithAudit(BaseEntity)` because the mixin class still has decorators. If you see "Entity X is missing column Y" after migration, verify the mixin chain order matches the example: `WithAudit(BaseEntity)`, NOT `WithAudit(WithTimestamps(BaseEntity))` (which double-adds timestamps).
 - **`AsyncLocalStorage` vs `cls-hooked`**: ALS preserves context across `await` chains automatically. Manual `session.run(...)` is now `contextService.run(store, fn)`. The cls-hooked `getNamespace` pattern is gone — use `ContextService` accessors.
+- **`detail(id)` is tenancy-scoped**: unlike `core-be` (which fetched by id alone), `BaseRepository.detail(id)` injects the tenant scope into the `findOne` where-clause. A valid UUID belonging to another tenant returns `null`. If a flow relied on cross-tenant id fetches, route it through a `shouldBypass`-true context or a dedicated internal endpoint.
 - **ActionHistory**: not yet abstracted. If you used `BaseRepository.options.logHistory = true`, that flag is parsed but no-op in `v0.1`. Wire your own subscriber or wait for `v0.2`.
 - **FileStorage**: not in `v0.1`. Continue using the local `core-be/modules/file-storage` until the lib version ships.
 

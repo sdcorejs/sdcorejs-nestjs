@@ -51,6 +51,16 @@ describe('Tenancy helpers (pure)', () => {
     expect(filters[0]).toEqual({ field: 'tenantCode', operator: 'EQUAL', data: 'A' });
   });
 
+  it('buildScopeFilters emits IN for array scope value', () => {
+    const filters = buildScopeFilters({ departmentCode: ['D1', 'D2'] }, ['departmentCode']);
+    expect(filters).toEqual([{ field: 'departmentCode', operator: 'IN', data: ['D1', 'D2'] }]);
+  });
+
+  it('buildScopeFilters skips empty array scope value', () => {
+    const filters = buildScopeFilters({ departmentCode: [] }, ['departmentCode']);
+    expect(filters).toEqual([]);
+  });
+
   it('applyScopeToEntity writes scope values into entity', () => {
     const e: Record<string, unknown> = { name: 'x' };
     applyScopeToEntity(e, { tenantCode: 'A', departmentCode: 'D' }, ['tenantCode', 'departmentCode']);
@@ -110,6 +120,15 @@ describe('BaseRepository tenancy integration', () => {
     expect(r.items[0].name).toBe('A2');
   });
 
+  it('array scope value filters via IN (multi-department user)', async () => {
+    const repo = new ScopedRepo(ds, {
+      tenancyStrategy: buildStrategy({ tenantCode: 'T1', departmentCode: ['D1', 'D2'] }),
+      contextService: ctx,
+    });
+    const r = await repo.paging({ pageNumber: 0, pageSize: 10 });
+    expect(r.total).toBe(2);
+  });
+
   it('shouldBypass=true skips filter injection', async () => {
     const repo = new ScopedRepo(ds, {
       tenancyStrategy: buildStrategy({ tenantCode: 'T1' }, true),
@@ -126,6 +145,46 @@ describe('BaseRepository tenancy integration', () => {
     });
     const r = await repo.paging({ pageNumber: 0, pageSize: 10 });
     expect(r.total).toBe(1);
+  });
+
+  it('detail returns an in-scope row', async () => {
+    const row = await ds.getRepository(ScopedProduct).findOneBy({ name: 'A1' });
+    const repo = new ScopedRepo(ds, {
+      tenancyStrategy: buildStrategy({ tenantCode: 'T1' }),
+      contextService: ctx,
+    });
+    const found = await repo.detail(row!.id);
+    expect(found?.name).toBe('A1');
+  });
+
+  it('detail returns null for an out-of-scope row (no cross-tenant id leak)', async () => {
+    const row = await ds.getRepository(ScopedProduct).findOneBy({ name: 'B1' }); // tenant T2
+    const repo = new ScopedRepo(ds, {
+      tenancyStrategy: buildStrategy({ tenantCode: 'T1' }),
+      contextService: ctx,
+    });
+    const found = await repo.detail(row!.id);
+    expect(found).toBeNull();
+  });
+
+  it('detail with array scope honours IN', async () => {
+    const row = await ds.getRepository(ScopedProduct).findOneBy({ name: 'A2' }); // T1/D2
+    const repo = new ScopedRepo(ds, {
+      tenancyStrategy: buildStrategy({ tenantCode: 'T1', departmentCode: ['D1', 'D2'] }),
+      contextService: ctx,
+    });
+    const found = await repo.detail(row!.id);
+    expect(found?.name).toBe('A2');
+  });
+
+  it('detail with shouldBypass ignores scope', async () => {
+    const row = await ds.getRepository(ScopedProduct).findOneBy({ name: 'B1' }); // tenant T2
+    const repo = new ScopedRepo(ds, {
+      tenancyStrategy: buildStrategy({ tenantCode: 'T1' }, true),
+      contextService: ctx,
+    });
+    const found = await repo.detail(row!.id);
+    expect(found?.name).toBe('B1');
   });
 
   it('create auto-fills scoped columns from scope', async () => {

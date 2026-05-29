@@ -8,11 +8,16 @@ import {
   Optional,
 } from '@nestjs/common';
 import { timingSafeEqual } from 'node:crypto';
+import type { IncomingMessage } from 'node:http';
 import { apiError } from '../orm/types/api-response.types';
 import {
   type IInternalSecretProvider,
   INTERNAL_SECRET_PROVIDER,
 } from './internal-secret.provider';
+import {
+  type IInternalContextEnricher,
+  INTERNAL_CONTEXT_ENRICHER,
+} from './internal-context.enricher';
 
 /** Default header name the guard reads. Override per-instance via subclass if needed. */
 export const INTERNAL_SECRET_HEADER = 'x-internal-secret';
@@ -35,6 +40,7 @@ export const INTERNAL_SECRET_HEADER = 'x-internal-secret';
 export class InternalGuard implements CanActivate {
   constructor(
     @Optional() @Inject(INTERNAL_SECRET_PROVIDER) private readonly provider?: IInternalSecretProvider,
+    @Optional() @Inject(INTERNAL_CONTEXT_ENRICHER) private readonly enricher?: IInternalContextEnricher,
   ) {}
 
   async canActivate(execCtx: ExecutionContext): Promise<boolean> {
@@ -46,7 +52,7 @@ export class InternalGuard implements CanActivate {
         ),
       );
     }
-    const req = execCtx.switchToHttp().getRequest<{ headers: Record<string, string | string[] | undefined> }>();
+    const req = execCtx.switchToHttp().getRequest<IncomingMessage>();
     const raw = req.headers[INTERNAL_SECRET_HEADER];
     const provided = Array.isArray(raw) ? raw[0] : raw;
     if (!provided) {
@@ -54,10 +60,13 @@ export class InternalGuard implements CanActivate {
         apiError('core.permission.internal-secret-missing', `Missing ${INTERNAL_SECRET_HEADER} header`),
       );
     }
-    const expected = await this.provider.getKey();
-    if (!this.safeEqual(provided, expected)) {
+    const expected = this.provider.getKeys
+      ? await this.provider.getKeys()
+      : [await this.provider.getKey()];
+    if (!expected.some((key) => this.safeEqual(provided, key))) {
       throw new ForbiddenException(apiError('core.permission.internal-secret-mismatch', 'Invalid internal secret'));
     }
+    if (this.enricher) await this.enricher.enrich(req);
     return true;
   }
 
