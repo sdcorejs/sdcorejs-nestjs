@@ -6,6 +6,7 @@ import type { PermissionModuleOptions } from './permission/permission.module';
 import type { CacheConfig } from './cache/types';
 import type { HttpClientConfig } from './http/types';
 import type { JwtConfig } from './jwt/types';
+import type { I18nModuleOptions } from './i18n/i18n.module';
 
 export interface SdCoreModuleOptions {
   context?: ContextModuleOptions;
@@ -16,6 +17,12 @@ export interface SdCoreModuleOptions {
   http?: HttpClientConfig;
   /** JWT is opt-in — omit to skip wiring passport-jwt. */
   jwt?: JwtConfig;
+  /**
+   * i18n is opt-in — omit to leave error envelopes untranslated (raw `code` + default `message`).
+   * When set, wires `SdI18nExceptionFilter` globally and a catalog-backed resolver (built-in en/vi
+   * `core.*` messages merged with your `catalogs`).
+   */
+  i18n?: I18nModuleOptions;
   /**
    * Extension providers registered globally. Use to wire DI hooks lib exposes (e.g.
    * `INTERNAL_SECRET_PROVIDER`) without nesting another module.

@@ -12,6 +12,7 @@ const entryMap: Record<string, string> = {
   'jwt/index': 'src/jwt/index.ts',
   'validation/index': 'src/validation/index.ts',
   'queue/index': 'src/queue/index.ts',
+  'i18n/index': 'src/i18n/index.ts',
 };
 
 const external = [

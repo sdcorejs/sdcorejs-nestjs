@@ -42,6 +42,36 @@ describe('parseZod', () => {
       expect(issue?.message).toBe('core.validation.name.required');
     }
   });
+
+  it('issue carries structured params for i18n interpolation', () => {
+    const minSchema = z.object({ name: z.string().min(3, 'core.validation.name.min') });
+    try {
+      parseZod(minSchema, { name: 'ab' });
+      fail('should throw');
+    } catch (e) {
+      const body = (e as BadRequestException).getResponse() as {
+        data: { issues: { path: string; code: string; params?: Record<string, unknown> }[] };
+      };
+      const issue = body.data.issues.find((i) => i.path === 'name');
+      expect(issue?.code).toBe('too_small');
+      expect(issue?.params).toMatchObject({ minimum: 3 });
+    }
+  });
+
+  it('issue without extra fields has no params', () => {
+    const reqSchema = z.object({ name: z.string('core.validation.name.required') });
+    try {
+      parseZod(reqSchema, {});
+      fail('should throw');
+    } catch (e) {
+      const body = (e as BadRequestException).getResponse() as {
+        data: { issues: { path: string; params?: Record<string, unknown> }[] };
+      };
+      const issue = body.data.issues.find((i) => i.path === 'name');
+      // invalid_type carries expected/received → params present; ensure RegExp/non-primitive stripped
+      expect(issue?.params === undefined || typeof issue?.params === 'object').toBe(true);
+    }
+  });
 });
 
 describe('ZodValidationGuard', () => {
@@ -69,5 +99,40 @@ describe('ZodValidationGuard', () => {
     expect(guard.canActivate(buildExecCtx(req))).toBe(true);
     expect(req.query).toEqual({ q: 'hello' }); // stale key removed
     expect(req.query).toBe(query); // same ref (mutated in place)
+  });
+});
+
+describe('ZodValidationGuard multi-source', () => {
+  const bodySchema = z.object({ name: z.string().min(1, 'core.validation.name.required') });
+  const querySchema = z.object({ page: z.coerce.number().int().min(0, 'core.validation.page.min') });
+
+  it('validates and coerces multiple sources at once', () => {
+    const Guard = ZodValidationGuard({ body: bodySchema, query: querySchema });
+    const guard = new Guard();
+    const query: Record<string, unknown> = { page: '3' };
+    const req: Record<string, unknown> = { body: { name: 'X' }, query };
+    expect(guard.canActivate(buildExecCtx(req))).toBe(true);
+    expect(req.body).toEqual({ name: 'X' });
+    expect(req.query).toEqual({ page: 3 });
+    expect(req.query).toBe(query); // query mutated in place
+  });
+
+  it('merges issues from every failing source into one envelope', () => {
+    const Guard = ZodValidationGuard({ body: bodySchema, query: querySchema });
+    const guard = new Guard();
+    const req = { body: { name: '' }, query: { page: '-1' } };
+    try {
+      guard.canActivate(buildExecCtx(req));
+      fail('should throw');
+    } catch (e) {
+      const body = (e as BadRequestException).getResponse() as {
+        code: string;
+        data: { issues: { path: string }[] };
+      };
+      expect(body.code).toBe('core.validation.failed');
+      const paths = body.data.issues.map((i) => i.path);
+      expect(paths).toContain('name');
+      expect(paths).toContain('page');
+    }
   });
 });

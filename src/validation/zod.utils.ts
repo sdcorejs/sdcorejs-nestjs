@@ -11,6 +11,28 @@ export interface ZodIssueDetail {
   message: string;
   /** Zod issue code (e.g. `invalid_type`, `too_small`). */
   code: string;
+  /**
+   * JSON-safe interpolation variables from the issue (e.g. `{ minimum: 3 }`, `{ format: 'email' }`,
+   * `{ expected: 'string' }`). The i18n layer merges these into `data` for message templating.
+   * Non-primitive issue fields (RegExp `pattern`, functions) are dropped.
+   */
+  params?: Record<string, unknown>;
+}
+
+/** Pull JSON-safe interpolation params off a Zod issue (everything but path/message/code). */
+function extractParams(issue: Record<string, unknown>): Record<string, unknown> | undefined {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(issue)) {
+    if (key === 'path' || key === 'message' || key === 'code') continue;
+    const t = typeof value;
+    if (value === null || t === 'string' || t === 'number' || t === 'boolean') {
+      out[key] = value;
+    } else if (Array.isArray(value) && value.every((v) => ['string', 'number', 'boolean'].includes(typeof v))) {
+      out[key] = value;
+    }
+    // drop RegExp / objects / functions — not interpolation-safe
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 const toIssues = (error: z.ZodError, source: string): ZodIssueDetail[] =>
@@ -18,6 +40,7 @@ const toIssues = (error: z.ZodError, source: string): ZodIssueDetail[] =>
     path: issue.path.join('.') || source,
     message: issue.message,
     code: issue.code,
+    params: extractParams(issue as unknown as Record<string, unknown>),
   }));
 
 /**

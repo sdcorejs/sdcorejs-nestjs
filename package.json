@@ -32,16 +32,36 @@
   "types": "./dist/types/index.d.ts",
   "typesVersions": {
     "*": {
-      "orm": ["./dist/types/orm/index.d.ts"],
-      "context": ["./dist/types/context/index.d.ts"],
-      "tenancy": ["./dist/types/tenancy/index.d.ts"],
-      "audit": ["./dist/types/audit/index.d.ts"],
-      "permission": ["./dist/types/permission/index.d.ts"],
-      "cache": ["./dist/types/cache/index.d.ts"],
-      "http": ["./dist/types/http/index.d.ts"],
-      "jwt": ["./dist/types/jwt/index.d.ts"],
-      "validation": ["./dist/types/validation/index.d.ts"],
-      "queue": ["./dist/types/queue/index.d.ts"]
+      "orm": [
+        "./dist/types/orm/index.d.ts"
+      ],
+      "context": [
+        "./dist/types/context/index.d.ts"
+      ],
+      "tenancy": [
+        "./dist/types/tenancy/index.d.ts"
+      ],
+      "audit": [
+        "./dist/types/audit/index.d.ts"
+      ],
+      "permission": [
+        "./dist/types/permission/index.d.ts"
+      ],
+      "cache": [
+        "./dist/types/cache/index.d.ts"
+      ],
+      "http": [
+        "./dist/types/http/index.d.ts"
+      ],
+      "jwt": [
+        "./dist/types/jwt/index.d.ts"
+      ],
+      "validation": [
+        "./dist/types/validation/index.d.ts"
+      ],
+      "queue": [
+        "./dist/types/queue/index.d.ts"
+      ]
     }
   },
   "files": [
@@ -105,6 +125,11 @@
       "types": "./dist/types/queue/index.d.ts",
       "import": "./dist/esm/queue/index.mjs",
       "require": "./dist/cjs/queue/index.cjs"
+    },
+    "./i18n": {
+      "types": "./dist/types/i18n/index.d.ts",
+      "import": "./dist/esm/i18n/index.mjs",
+      "require": "./dist/cjs/i18n/index.cjs"
     }
   },
   "scripts": {
@@ -135,7 +160,7 @@
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0",
     "typeorm": "^0.3.20",
-    "zod": "^3.23.0"
+    "zod": "^4.0.0"
   },
   "peerDependenciesMeta": {
     "@nestjs/bullmq": {
@@ -195,6 +220,6 @@
     "tsup": "^8.3.0",
     "typeorm": "^0.3.20",
     "typescript": "^5.6.0",
-    "zod": "^3.23.0"
+    "zod": "^4.4.3"
   }
 }

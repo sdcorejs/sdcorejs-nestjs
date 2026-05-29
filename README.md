@@ -17,7 +17,8 @@
 - [Internal (service-to-service) calls](#internal-service-to-service-calls)
 - [Request context](#request-context)
 - [ORM base classes](#orm-base-classes)
-- [Error envelope & i18n](#error-envelope--i18n)
+- [Validation (Zod v4)](#validation-zod-v4)
+- [Internationalised errors](#internationalised-errors)
 - [Philosophy](#philosophy)
 - [License](#license)
 
@@ -44,7 +45,7 @@ Optional peer dependencies — install only when you use the feature:
 | Package | Enables |
 |---|---|
 | `ioredis` `^5` | redis cache backend (`@sdcorejs/nestjs/cache`) |
-| `zod` `^3.23` | request validation (`@sdcorejs/nestjs/validation`) |
+| `zod` `^4` | request validation (`@sdcorejs/nestjs/validation`) — **v4 only** |
 | `jwks-rsa` `^3` + `jsonwebtoken` `^9` | Keycloak / OIDC JWKS verification (`@sdcorejs/nestjs/jwt`) |
 | `passport` + `passport-jwt` | JWT auth strategies |
 | `bullmq` `^5` + `@nestjs/bullmq` `^11` | background jobs (`@sdcorejs/nestjs/queue`) |
@@ -68,8 +69,9 @@ The package has multiple entry points; import only what you use.
 | `@sdcorejs/nestjs/cache` | `CacheService`, `CacheInterceptor`, `@Cached` (memory + redis backends) |
 | `@sdcorejs/nestjs/http` | `HttpService` (axios-based, context-aware) |
 | `@sdcorejs/nestjs/jwt` | `JwtModule`, `JwtStrategy` (symmetric), `KeycloakJwtStrategy` (JWKS/OIDC) |
-| `@sdcorejs/nestjs/validation` | `ZodValidationGuard(schema, source)`, `parseZod(schema, payload)`, `ZodIssueDetail` |
+| `@sdcorejs/nestjs/validation` | `ZodValidationGuard(schema \| map, source)`, `parseZod`, query presets (`zPaging`, `zUuid`, `zBool`), `ZodIssueDetail` (Zod **v4**) |
 | `@sdcorejs/nestjs/queue` | `QueueModule`, `BaseWorker` (BullMQ + Redis) |
+| `@sdcorejs/nestjs/i18n` | `II18nResolver`, `ILanguageResolver`, `SimpleI18nResolver`, `DefaultLanguageResolver`, `SdI18nExceptionFilter`, built-in en/vi `core.*` catalogs, `I18nModule` |
 
 ---
 
@@ -96,6 +98,7 @@ import {
       cache:      { ttl: 60 },
       http:       { baseURL: process.env.UPSTREAM_API },
       jwt:        { jwks: { allowedIssuers: [process.env.KEYCLOAK_ISSUER!] } },
+      i18n:       { fallbackLanguage: 'vi' }, // wires SdI18nExceptionFilter + en/vi core.* catalogs
       providers: [
         { provide: INTERNAL_SECRET_PROVIDER,  useClass: AppInternalSecretProvider },
         { provide: INTERNAL_CONTEXT_ENRICHER, useClass: AppInternalEnricher },
@@ -390,16 +393,74 @@ export class ProductRepository extends BaseRepository<Product> {
 
 ---
 
-## Error envelope & i18n
+## Validation (Zod v4)
 
-Throw with i18n **codes**, not literal sentences. The consumer's i18n layer maps `code` + `data` to a localized message.
+> Requires `zod@^4`. Zod v3 is not supported (issue shape differs).
+
+`ZodValidationGuard` validates `request[source]` and replaces the raw input with the coerced value. Set each field's message to an i18n **code** — the i18n layer localizes it.
+
+```ts
+import { z } from 'zod';
+import { UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@sdcorejs/nestjs/permission';
+import { ZodValidationGuard, zPaging } from '@sdcorejs/nestjs/validation';
+
+const CreateProduct = z.object({
+  name: z.string().min(3, 'core.product.name.min'),
+  price: z.coerce.number().positive('core.product.price.positive'),
+});
+
+// single source
+@UseGuards(AuthGuard, ZodValidationGuard(CreateProduct))
+@Post() create(@Body() dto: z.infer<typeof CreateProduct>) {}
+
+// multiple sources at once — issues from every part merge into one envelope
+@UseGuards(AuthGuard, ZodValidationGuard({ body: CreateProduct, query: zPaging }))
+@Post('search') search() {}
+```
+
+- **Guard order**: place AFTER `AuthGuard` so unauthenticated requests never reach validation.
+- **Query presets** (params arrive as strings): `zPaging` (`{ pageNumber, pageSize }` matching `BaseRepository` caps), `zUuid(msgCode?)`, `zBool` (`'true'`/`'1'`/`'yes'` → `true`).
+- **Issue params**: each `ZodIssueDetail` carries `{ path, message, code, params? }`. `params` holds JSON-safe interpolation vars (`minimum`, `maximum`, `format`, `expected`, …) so the i18n layer can render "must be at least {minimum}".
+- Failures throw `BadRequestException(apiError('core.validation.failed', …, { issues }))`.
+
+Express 5 note: `query` / `params` are getter-only, so the guard mutates them in place; `body` is reassigned.
+
+---
+
+## Internationalised errors
+
+Producers across the library throw i18n **codes**, not sentences:
 
 ```ts
 import { apiError } from '@sdcorejs/nestjs/orm';
 throw new BadRequestException(apiError('core.validation.failed', 'Validation failed', { issues }));
 ```
 
-`ApiResponse.ok(data)` / `ApiResponse.noContent()` wrap successful responses. Zod validation failures throw `apiError('core.validation.failed', ...)` with the issue list.
+`@sdcorejs/nestjs/i18n` closes the loop end-to-end:
+
+- **`SdI18nExceptionFilter`** — catches `HttpException`s carrying an `apiError` body, localizes `message` via the resolver using the request's `ctx.lang`, emits the `{ error: { code, message, data } }` envelope. `code` is preserved for client-side handling.
+- **`SimpleI18nResolver`** — catalog lookup `catalogs[lang][code] → catalogs[fallback][code] → code`, with `{var}` interpolation from `data` (+ Zod issue `params`). For ICU / plurals, implement a custom `II18nResolver`.
+- **`DefaultLanguageResolver`** — parses the raw `Accept-Language` header (`vi-VN,vi;q=0.9,en;q=0.8`) to a supported base code, q-sorted, with fallback.
+- **Built-in catalogs** — en + vi messages for every `core.*` code the library throws, shipped in `CORE_CATALOGS`. Merge your app's catalog over them.
+
+Enable via the `i18n` key (opt-in — omit to leave envelopes untranslated):
+
+```ts
+SdCoreModule.forRoot({
+  i18n: {
+    fallbackLanguage: 'vi',
+    supportedLanguages: ['en', 'vi'],
+    catalogs: {                      // merged OVER built-in core.* (consumer wins)
+      vi: { 'app.product.name.min': 'Tên phải có ít nhất {minimum} ký tự' },
+    },
+    // resolver: MyIcuResolver,       // optional: replace SimpleI18nResolver entirely
+    // useGlobalFilter: false,        // optional: skip the global APP_FILTER
+  },
+});
+```
+
+`ApiResponse.ok(data)` / `ApiResponse.noContent()` wrap successful responses.
 
 ---
 

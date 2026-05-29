@@ -7,6 +7,7 @@ Checklist for porting an existing app off `be-masterdata/base/core-be/` to the n
 ```bash
 npm install @sdcorejs/nestjs @sdcorejs/utils
 npm install --save-dev @nestjs/passport passport passport-jwt @types/passport-jwt
+npm install zod@^4   # validation uses Zod v4 (NOT v3)
 ```
 
 Peer-deps already in your project: `@nestjs/common ^11`, `@nestjs/core ^11`, `typeorm ^0.3.20`, `reflect-metadata ^0.2`, `rxjs ^7.8`.
@@ -170,6 +171,34 @@ Apply with `@UseGuards(InternalGuard)`. The enricher's `custom.isInternalCall` i
 ```
 
 If the entity used `usedIds` / `formGeneric` / `formGenericData`, those are no longer in `BaseEntity` — declare them on the subclass yourself if you still need them.
+
+## 5a. Validation → Zod v4
+
+The lib's validation is Zod **v4** (`zod@^4`). If `core-be` used class-validator or Zod v3, swap to Zod schemas + `ZodValidationGuard`. v4 differs from v3 (issue shape, `z.email()`/`z.uuid()` top-level) — pin `zod@^4`.
+
+```ts
+const CreateProduct = z.object({ name: z.string().min(3, 'core.product.name.min') });
+
+@UseGuards(AuthGuard, ZodValidationGuard(CreateProduct))           // single source
+@UseGuards(AuthGuard, ZodValidationGuard({ body: CreateProduct, query: zPaging })) // multi-source
+```
+
+Query params are strings → use presets (`zPaging`, `zUuid`, `zBool`) or `z.coerce.*`. Each validation issue now carries `params` (e.g. `{ minimum: 3 }`) for i18n interpolation.
+
+## 5b. i18n end-to-end
+
+`core-be` translated errors in a hand-rolled filter. The lib ships the full chain — enable with the `i18n` key:
+
+```ts
+SdCoreModule.forRoot({
+  i18n: {
+    fallbackLanguage: 'vi',
+    catalogs: { vi: { 'app.x': 'Thông điệp {var}' } }, // merged over built-in core.* en/vi
+  },
+});
+```
+
+This wires `SdI18nExceptionFilter` (catches `apiError` HttpExceptions, localizes `message` from `ctx.lang`, keeps `code`), `SimpleI18nResolver` (catalog + `{var}` interpolation), and `DefaultLanguageResolver` (Accept-Language parser). The lib's own `core.*` codes have built-in en/vi messages — you only add app codes. Bridge to your existing i18n by providing a custom `resolver`. Drop the old `core-be` exception filter + manual translate calls.
 
 ## 6. Operator rename
 

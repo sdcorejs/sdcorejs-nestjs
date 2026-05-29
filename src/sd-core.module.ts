@@ -6,6 +6,7 @@ import { PermissionModule } from './permission/permission.module';
 import { CacheModule } from './cache/cache.module';
 import { HttpClientModule } from './http/http.module';
 import { JwtModule } from './jwt/jwt.module';
+import { I18nModule } from './i18n/i18n.module';
 import type { SdCoreModuleOptions } from './sd-core.types';
 
 /**
@@ -39,6 +40,7 @@ export class SdCoreModule {
       HttpClientModule.forRoot(options.http),
     ];
     if (options.jwt) imports.push(JwtModule.forRoot(options.jwt));
+    if (options.i18n) imports.push(I18nModule.forRoot(options.i18n));
     const providers: Provider[] = options.providers ?? [];
     return {
       module: SdCoreModule,
