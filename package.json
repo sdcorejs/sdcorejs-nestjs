@@ -64,6 +64,15 @@
       ],
       "i18n": [
         "./dist/types/i18n/index.d.ts"
+      ],
+      "action-history": [
+        "./dist/types/action-history/index.d.ts"
+      ],
+      "file-storage": [
+        "./dist/types/file-storage/index.d.ts"
+      ],
+      "job-scheduler": [
+        "./dist/types/job-scheduler/index.d.ts"
       ]
     }
   },
@@ -133,6 +142,21 @@
       "types": "./dist/types/i18n/index.d.ts",
       "import": "./dist/esm/i18n/index.mjs",
       "require": "./dist/cjs/i18n/index.cjs"
+    },
+    "./action-history": {
+      "types": "./dist/types/action-history/index.d.ts",
+      "import": "./dist/esm/action-history/index.mjs",
+      "require": "./dist/cjs/action-history/index.cjs"
+    },
+    "./file-storage": {
+      "types": "./dist/types/file-storage/index.d.ts",
+      "import": "./dist/esm/file-storage/index.mjs",
+      "require": "./dist/cjs/file-storage/index.cjs"
+    },
+    "./job-scheduler": {
+      "types": "./dist/types/job-scheduler/index.d.ts",
+      "import": "./dist/esm/job-scheduler/index.mjs",
+      "require": "./dist/cjs/job-scheduler/index.cjs"
     }
   },
   "scripts": {
@@ -156,7 +180,9 @@
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/passport": "^11.0.0",
+    "@nestjs/typeorm": "^11.0.0",
     "@sdcorejs/utils": "^1.1.0",
+    "aws-sdk": "^2.0.0",
     "bullmq": "^5.0.0",
     "jsonwebtoken": "^9.0.0",
     "jwks-rsa": "^3.0.0",
@@ -167,6 +193,12 @@
   },
   "peerDependenciesMeta": {
     "@nestjs/bullmq": {
+      "optional": true
+    },
+    "@nestjs/typeorm": {
+      "optional": true
+    },
+    "aws-sdk": {
       "optional": true
     },
     "bullmq": {
@@ -198,6 +230,7 @@
     "@nestjs/passport": "^11.0.0",
     "@nestjs/platform-express": "^11.1.23",
     "@nestjs/testing": "^11.0.0",
+    "@nestjs/typeorm": "^11.0.1",
     "@sdcorejs/utils": "^1.1.0",
     "@types/jest": "^29.5.0",
     "@types/jsonwebtoken": "^9.0.0",
@@ -209,6 +242,7 @@
     "@typescript-eslint/parser": "^8.0.0",
     "bullmq": "^5.0.0",
     "eslint": "^8.57.0",
+    "ioredis": "^5.11.0",
     "jest": "^29.7.0",
     "jsonwebtoken": "^9.0.0",
     "jwks-rsa": "^3.0.0",

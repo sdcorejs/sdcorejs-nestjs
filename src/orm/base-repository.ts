@@ -4,6 +4,7 @@ import {
   type DataSource,
   type DeepPartial,
   type EntityTarget,
+  In,
   type ObjectLiteral,
   type QueryRunner,
   type Repository,
@@ -18,6 +19,7 @@ import type { ITenancyStrategy } from '../tenancy/strategy.interface';
 import { applyScopeToEntity, buildScopeFilters, buildScopeWhere, getScopedColumns } from '../tenancy/tenancy.helpers';
 import { isAuditEnabled } from './mixins/with-audit';
 import type { ClassRef } from './types/class-ref.types';
+import { getHistoryRecorder, type HistoryActionType, type IHistoryRecorder } from './history';
 import { getSearchableConfig } from './decorators/searchable-fields.decorator';
 import { apiError } from './types/api-response.types';
 import type { BaseRepositoryArgs } from './types/repository-args.types';
@@ -26,10 +28,13 @@ import { applyFilterToQuery, prepareFilter, prepareSorts, resolveSortColumn } fr
 const { isUuid } = ValidationUtilities;
 
 export interface BaseRepositoryOptions {
+  /** When true, create/update/delete emit a {@link HistoryEntry} to the history recorder. */
   logHistory?: boolean;
   tenancyStrategy?: ITenancyStrategy;
   auditStrategy?: IAuditStrategy;
   contextService?: ContextService;
+  /** Recorder to use when `logHistory` is set. Defaults to the globally-registered recorder. */
+  historyRecorder?: IHistoryRecorder;
 }
 
 /**
@@ -279,25 +284,69 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
 
   // --- CUD ------------------------------------------------------------------
 
+  /** Resolve the effective history recorder (explicit option wins over the global one). */
+  private get historyRecorder(): IHistoryRecorder | undefined {
+    if (!this.options?.logHistory) return undefined;
+    return this.options.historyRecorder ?? getHistoryRecorder();
+  }
+
+  /** Emit one history entry when `logHistory` is enabled and a recorder is available. */
+  private async recordHistory(
+    type: HistoryActionType,
+    tableId: string,
+    fromData: unknown,
+    toData: unknown,
+    qr?: QueryRunner,
+  ): Promise<void> {
+    const recorder = this.historyRecorder;
+    if (!recorder || !tableId) return;
+    await recorder.record({
+      table: this.getRepository(qr).metadata.tableName,
+      tableId,
+      type,
+      fromData,
+      toData,
+      queryRunner: qr,
+    });
+  }
+
   create = async (entity: DeepPartial<T>, qr?: QueryRunner): Promise<T> => {
     const repo = this.getRepository(qr);
     this.fillTenancy(entity);
     this.fillAuditOnCreate(entity);
     const e = repo.create(entity);
-    return repo.save(e);
+    const saved = await repo.save(e);
+    await this.recordHistory('CREATE', (saved as { id?: string }).id ?? '', null, saved, qr);
+    return saved;
   };
 
   update = async (entity: DeepPartial<T>, qr?: QueryRunner): Promise<T> => {
     const repo = this.getRepository(qr);
     this.fillAuditOnUpdate(entity);
+    const id = (entity as { id?: string }).id;
+    let oldData: T | null = null;
+    if (this.historyRecorder && id) {
+      oldData = await repo.findOne({ where: { id } as never, withDeleted: true });
+    }
     const e = repo.create(entity);
-    return repo.save(e);
+    const saved = await repo.save(e);
+    const toData = oldData ? { ...oldData, ...saved } : saved;
+    await this.recordHistory('UPDATE', (saved as { id?: string }).id ?? '', oldData, toData, qr);
+    return saved;
   };
 
   delete = async (id: string | string[], qr?: QueryRunner): Promise<boolean> => {
     const ids = this.parseIds(id);
     if (!ids.length) return false;
+    const olds = this.historyRecorder
+      ? await this.repository.find({ where: { id: In(ids) } as never, withDeleted: true })
+      : [];
     const result = qr ? await qr.manager.delete(this._target, ids) : await this.repository.delete(ids);
+    if (result.affected) {
+      for (const old of olds) {
+        await this.recordHistory('DELETE', (old as { id?: string }).id ?? '', old, null, qr);
+      }
+    }
     return !!result.affected;
   };
 
