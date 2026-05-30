@@ -1,3 +1,4 @@
+import { esbuildDecorators } from '@anatine/esbuild-decorators';
 import { defineConfig, type Options } from 'tsup';
 
 const entryMap: Record<string, string> = {
@@ -46,6 +47,9 @@ const baseConfig: Options = {
   treeshake: true,
   external,
   keepNames: true,
+  // esbuild drops `emitDecoratorMetadata`; this plugin restores it so NestJS type-based DI
+  // and TypeORM column-type inference work in the bundled output.
+  esbuildPlugins: [esbuildDecorators({ tsconfig: 'tsconfig.json' })],
 };
 
 export default defineConfig([

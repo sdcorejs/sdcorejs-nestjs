@@ -31,7 +31,7 @@ export class UploadedFile {
   @Column({ type: 'uuid', nullable: true, update: false })
   userId!: string;
 
-  @Column({ default: false, nullable: true })
+  @Column({ type: 'boolean', default: false, nullable: true })
   isUsed!: boolean;
 
   @Column({ type: 'varchar', length: 64, nullable: true })
