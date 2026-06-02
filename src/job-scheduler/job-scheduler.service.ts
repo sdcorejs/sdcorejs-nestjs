@@ -29,18 +29,28 @@ export class JobSchedulerService {
 
   /**
    * Atomically claim the lock for a run. Returns `{ acquired: true, id }` for the single winner,
-   * `{ acquired: false }` for every node that lost the race (or a prior run already took it).
+   * `{ acquired: false }` for every node that lost the race.
    *
-   * Uses `INSERT ... ON CONFLICT DO NOTHING RETURNING id` — the uniqueness of `lockKey` is the lock;
-   * there is NO read-then-write window, so it is safe under concurrency across processes/nodes.
+   * Two-step claim:
+   *  1. `INSERT ... ON CONFLICT DO NOTHING RETURNING id` — wins if no row exists for `lockKey`.
+   *  2. On conflict, **re-claim only if the previous run FAILED**: a conditional
+   *     `UPDATE ... SET status=RUNNING WHERE status=FAIL RETURNING id`. A `SUCCESS` run stays locked
+   *     (run-once semantics for INITIAL jobs), and a `RUNNING` row is left alone (another node owns it).
+   *
+   * This lets a transient failure (e.g. a dependency not ready at boot) be retried on the next call
+   * instead of being permanently locked, while keeping single-winner safety: the insert is atomic,
+   * and only one node can match-and-return the conditional update for a given FAIL row.
    */
   async acquire(opts: JobAcquireOptions): Promise<JobAcquireResult> {
-    const result = await this.repository
+    const lockKey = this.lockKey(opts);
+
+    // 1. Try to claim fresh (keeps TypeORM's generated id + audit columns).
+    const inserted = await this.repository
       .createQueryBuilder()
       .insert()
       .into(JobScheduler)
       .values({
-        lockKey: this.lockKey(opts),
+        lockKey,
         code: opts.code,
         name: opts.name,
         type: opts.type ?? JobSchedulerType.SCHEDULE,
@@ -50,8 +60,20 @@ export class JobSchedulerService {
       .returning(['id'])
       .execute();
 
-    const row = (result.raw as Array<{ id: string }> | undefined)?.[0];
-    return row ? { acquired: true, id: row.id } : { acquired: false };
+    const insertedRow = (inserted.raw as Array<{ id: string }> | undefined)?.[0];
+    if (insertedRow) return { acquired: true, id: insertedRow.id };
+
+    // 2. Conflict: re-claim ONLY a previously FAILED run (SUCCESS / RUNNING stay blocked).
+    const reclaimed = await this.repository
+      .createQueryBuilder()
+      .update(JobScheduler)
+      .set({ status: JobSchedulerStatus.RUNNING, data: null } as never)
+      .where('"lockKey" = :lockKey AND status = :failed', { lockKey, failed: JobSchedulerStatus.FAIL })
+      .returning(['id'])
+      .execute();
+
+    const reclaimedRow = (reclaimed.raw as Array<{ id: string }> | undefined)?.[0];
+    return reclaimedRow ? { acquired: true, id: reclaimedRow.id } : { acquired: false };
   }
 
   /** Mark a claimed run finished. */
