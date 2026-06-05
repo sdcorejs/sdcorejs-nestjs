@@ -3,7 +3,7 @@ import axios from 'axios';
 import { createReadStream, existsSync, mkdirSync, unlink, writeFileSync } from 'node:fs';
 import type { Readable } from 'node:stream';
 import { apiError } from '../orm/types/api-response.types';
-import { FILE_STORAGE_CONFIG, type FileStorageConfig, type IFileStorageService, type UploadResult } from './types';
+import { FILE_STORAGE_CONFIG, type FileStorageConfig, type FileUploadMeta, type IFileStorageService, type UploadResult } from './types';
 import { UploadedFileService } from './uploaded-file.service';
 import { isBlank, slugify, toMb } from './utils';
 
@@ -35,14 +35,14 @@ export class LocalFileStorageService implements IFileStorageService {
     return `${this.host}file-storage/${key}`;
   }
 
-  upload(buffer: Buffer, fileName?: string): Promise<UploadResult> {
+  async upload(buffer: Buffer, fileName?: string, meta?: FileUploadMeta): Promise<UploadResult> {
     const key = `${this.folder}/${slugify(fileName || 'TEMP')}`;
     try {
       writeFileSync(`${this.basePath}/${key}`, buffer);
       const fileSize = toMb(buffer.byteLength);
       const cdn = this.cdn(key);
-      this.uploadedFileService.create({ fileName: fileName!, fileSize, key, cdn });
-      return Promise.resolve({ fileName: fileName!, fileSize, key, cdn });
+      const row = await this.uploadedFileService.create({ fileName: fileName!, fileSize, key, cdn, ...meta });
+      return { id: row.id, fileName: fileName!, fileSize, key, cdn };
     } catch (error) {
       throw new BadRequestException(apiError('core.file.upload-failed', 'File upload failed', { error: String(error) }));
     }
@@ -81,6 +81,10 @@ export class LocalFileStorageService implements IFileStorageService {
   async useFiles(keyOrCdns: string[], entity?: string, entityId?: string): Promise<void> {
     if (!Array.isArray(keyOrCdns)) return;
     await this.uploadedFileService.useFiles(this.normalizeKeys(keyOrCdns), entity, entityId);
+  }
+
+  async markUsed(ids: string[], meta?: FileUploadMeta): Promise<void> {
+    await this.uploadedFileService.markUsed(ids, meta);
   }
 
   async changeFiles(olds: string[], news: string[], entity?: string, entityId?: string): Promise<void> {

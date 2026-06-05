@@ -2,7 +2,7 @@ import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common'
 import axios from 'axios';
 import type { Readable } from 'node:stream';
 import { apiError } from '../orm/types/api-response.types';
-import { FILE_STORAGE_CONFIG, type FileStorageConfig, type IFileStorageService, type UploadResult } from './types';
+import { FILE_STORAGE_CONFIG, type FileStorageConfig, type FileUploadMeta, type IFileStorageService, type UploadResult } from './types';
 import { UploadedFileService } from './uploaded-file.service';
 import { addDays, distinct, isBlank, slugify, toMb } from './utils';
 
@@ -45,18 +45,20 @@ export class AwsFileStorageService implements IFileStorageService {
     return `${this.cdnBaseUrl}${key}`;
   }
 
-  upload(buffer: Buffer, fileName?: string): Promise<UploadResult> {
+  async upload(buffer: Buffer, fileName?: string, meta?: FileUploadMeta): Promise<UploadResult> {
     const key = `${this.folder}/${slugify(fileName || 'TEMP')}`;
     const { ContentType, ContentDisposition } = this.uploadedFileService.getContent(fileName);
-    return new Promise((resolve, reject) => {
-      this.s3.upload({ Bucket: this.bucket, ContentType, ContentDisposition, Key: key, Body: buffer }, (err) => {
-        if (err) return reject(new BadRequestException(apiError('core.file.upload-failed', 'File upload failed', { error: String(err) })));
-        const fileSize = toMb(buffer.byteLength);
-        const cdn = this.cdn(key);
-        this.uploadedFileService.create({ fileName: fileName!, fileSize, key, cdn });
-        resolve({ fileName: fileName!, fileSize, key, cdn });
-      });
+    await new Promise<void>((resolve, reject) => {
+      this.s3.upload({ Bucket: this.bucket, ContentType, ContentDisposition, Key: key, Body: buffer }, (err) =>
+        err
+          ? reject(new BadRequestException(apiError('core.file.upload-failed', 'File upload failed', { error: String(err) })))
+          : resolve(),
+      );
     });
+    const fileSize = toMb(buffer.byteLength);
+    const cdn = this.cdn(key);
+    const row = await this.uploadedFileService.create({ fileName: fileName!, fileSize, key, cdn, ...meta });
+    return { id: row.id, fileName: fileName!, fileSize, key, cdn };
   }
 
   async cloneFromUrl(url: string, fileName?: string): Promise<UploadResult> {
@@ -96,6 +98,10 @@ export class AwsFileStorageService implements IFileStorageService {
   async useFiles(keyOrCdns: string[], entity?: string, entityId?: string): Promise<void> {
     if (!Array.isArray(keyOrCdns)) return;
     await this.uploadedFileService.useFiles(this.normalizeKeys(keyOrCdns), entity, entityId);
+  }
+
+  async markUsed(ids: string[], meta?: FileUploadMeta): Promise<void> {
+    await this.uploadedFileService.markUsed(ids, meta);
   }
 
   async changeFiles(olds: string[], news: string[], entity?: string, entityId?: string): Promise<void> {
