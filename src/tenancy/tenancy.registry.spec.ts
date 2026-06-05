@@ -58,4 +58,23 @@ describe('tenancy registry', () => {
     expect(repo.addon([])).toEqual([]);
     expect(repo.where()).toEqual({});
   });
+
+  it('per-repo tenancyStrategy option overrides the global registry', () => {
+    registerTenancy(withCtx({}, strategy({ tenantCode: 'GLOBAL' })));
+    class OverrideRepo extends BaseRepository<Foo> {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      constructor() {
+        super(Foo, {} as any, {
+          tenancyStrategy: strategy({ tenantCode: 'OVERRIDE' }),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          contextService: { store: {} } as any,
+        });
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      addon(f?: any[]) {
+        return this.addonFilter(f as any);
+      }
+    }
+    expect(new OverrideRepo().addon([])).toEqual([{ field: 'tenantCode', operator: 'EQUAL', data: 'OVERRIDE' }]);
+  });
 });
