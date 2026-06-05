@@ -2,7 +2,8 @@ import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 import { ContextService } from '../context/context.service';
-import { UploadedFile } from './uploaded-file.entity';
+import { FileEntity } from './file.entity';
+import type { FileUploadMeta } from './types';
 
 /** Tracks uploaded-file rows + their usage; supplies HTTP content headers by extension. */
 @Injectable()
@@ -10,7 +11,7 @@ export class UploadedFileService {
   private readonly logger = new Logger(UploadedFileService.name);
 
   constructor(
-    @InjectRepository(UploadedFile) private readonly repository: Repository<UploadedFile>,
+    @InjectRepository(FileEntity) private readonly repository: Repository<FileEntity>,
     @Optional() private readonly context?: ContextService,
   ) {}
 
@@ -30,19 +31,18 @@ export class UploadedFileService {
     return ContentType ? { ContentType, ContentDisposition: 'inline' } : {};
   }
 
-  create(args: { fileName: string; fileSize: number; key: string; cdn: string }): void {
-    const { fileName, fileSize, key, cdn } = args;
-    const entity = this.repository.create({
-      fileName,
-      fileSize,
-      fileExtension: fileName?.split('.').pop(),
-      key,
-      cdn,
+  async create(args: {
+    fileName: string; fileSize: number; key: string; cdn: string;
+  } & FileUploadMeta): Promise<FileEntity> {
+    const { fileName, fileSize, key, cdn, module, entity, entityId, type } = args;
+    const row = this.repository.create({
+      fileName, fileSize, fileExtension: fileName?.split('.').pop(), key, cdn,
+      module, entity, entityId, type,
       tenantCode: this.context?.getCustom<string>('tenantCode') ?? this.context?.tenant,
       departmentCode: this.context?.getCustom<string>('departmentCode'),
       userId: this.context?.userId,
     });
-    void this.repository.save(entity);
+    return this.repository.save(row);
   }
 
   async useFiles(keys: string[], entity?: string, entityId?: string): Promise<void> {
@@ -53,6 +53,21 @@ export class UploadedFileService {
       .where('"deletedAt" IS NULL AND "isUsed" = :isUsed AND "key" IN (:...keys)', { isUsed: false, keys })
       .execute()
       .catch((err) => this.logger.warn(`useFiles failed: ${String(err)}`));
+  }
+
+  /** Flip `isUsed` for the given `file` ids; stamps any defined meta fields. */
+  async markUsed(ids: string[], meta?: FileUploadMeta): Promise<void> {
+    if (!ids?.length) return;
+    const set: Record<string, unknown> = { isUsed: true };
+    for (const [k, v] of Object.entries(meta ?? {})) {
+      if (v !== undefined) set[k] = v;
+    }
+    await this.repository
+      .createQueryBuilder()
+      .update(set)
+      .where('"deletedAt" IS NULL AND "id" IN (:...ids)', { ids })
+      .execute()
+      .catch((err) => this.logger.warn(`markUsed failed: ${String(err)}`));
   }
 
   async delete(keys: string[]): Promise<void> {

@@ -17,20 +17,32 @@ export interface FileStorageConfig {
 export const FILE_STORAGE_CONFIG = Symbol('FILE_STORAGE_CONFIG');
 
 export interface UploadResult {
+  /** Persisted `file` row id (UUID). */
+  id: string;
   fileName: string;
   fileSize: number;
   key: string;
   cdn: string;
 }
 
+/** Optional provenance recorded on the persisted `file` row. */
+export interface FileUploadMeta {
+  module?: string;
+  entity?: string;
+  entityId?: string;
+  type?: string;
+}
+
 /** Storage driver contract — same surface for S3 and local-disk implementations. */
 export interface IFileStorageService {
-  upload(buffer: Buffer, fileName?: string): Promise<UploadResult>;
+  upload(buffer: Buffer, fileName?: string, meta?: FileUploadMeta): Promise<UploadResult>;
   cloneFromUrl(url: string, fileName?: string): Promise<UploadResult>;
   uploadTemporary(buffer: Buffer, fileName?: string): Promise<{ key: string; cdn: string }>;
   download(key: string): Readable;
   downloadByFolder(folder: string, key: string): Readable;
   useFiles(keyOrCdns: string[], entity?: string, entityId?: string): Promise<void>;
   changeFiles(olds: string[], news: string[], entity?: string, entityId?: string): Promise<void>;
+  /** Mark the given `file` rows used (by id), optionally stamping provenance. */
+  markUsed(ids: string[], meta?: FileUploadMeta): Promise<void>;
 }
 export const IFileStorageService = Symbol('IFileStorageService');

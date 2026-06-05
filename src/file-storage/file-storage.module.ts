@@ -3,14 +3,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AwsFileStorageService } from './aws.service';
 import { LocalFileStorageService } from './local.service';
 import { FILE_STORAGE_CONFIG, type FileStorageConfig, IFileStorageService } from './types';
-import { UploadedFile } from './uploaded-file.entity';
+import { FileEntity } from './file.entity';
 import { UploadedFileService } from './uploaded-file.service';
 
 /**
  * Provides {@link IFileStorageService} (S3 or local-disk driver) + {@link UploadedFileService}.
  *
  * Driver auto-detects: S3 when `accessId`+`accessKey`+`bucket` are set, else local disk. The S3
- * driver requires the optional peer dep `aws-sdk`. The consumer MUST register {@link UploadedFile}
+ * driver requires the optional peer dep `aws-sdk`. The consumer MUST register {@link FileEntity}
  * in their TypeORM datasource `entities` array. No HTTP controller is provided — inject
  * `IFileStorageService` into your own controller to expose upload/download routes.
  *
@@ -30,7 +30,7 @@ export class FileStorageModule {
     return {
       module: FileStorageModule,
       global: true,
-      imports: [TypeOrmModule.forFeature([UploadedFile])],
+      imports: [TypeOrmModule.forFeature([FileEntity])],
       providers,
       exports: [IFileStorageService, UploadedFileService],
     };
