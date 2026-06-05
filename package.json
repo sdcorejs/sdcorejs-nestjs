@@ -1,6 +1,6 @@
 {
   "name": "@sdcorejs/nestjs",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Neutral NestJS framework library: Base classes, multi-tenancy, audit, permission, request context (AsyncLocalStorage), cache, HTTP client, JWT — all domain specifics injected via DI strategies.",
   "license": "MIT",
   "author": "Trần Thuận Nghĩa",

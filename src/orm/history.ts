@@ -25,15 +25,27 @@ export interface IHistoryRecorder {
   record(entry: HistoryEntry): Promise<void>;
 }
 
-let _recorder: IHistoryRecorder | undefined;
+/**
+ * Held on `globalThis` (not a module-level `let`) because the package ships one bundle per subpath
+ * entry with no code-splitting: the action-history entry and the orm entry would otherwise each get
+ * their OWN copy of this singleton, so `ActionHistoryModule` would register into one while
+ * `BaseRepository` read another and `logHistory` rows would silently never be written. A
+ * `Symbol.for` slot on `globalThis` is shared across every bundle copy in the process.
+ */
+const SLOT = Symbol.for('@sdcorejs/nestjs:history-recorder');
+interface Holder {
+  current?: IHistoryRecorder;
+}
+const holder: Holder = ((globalThis as Record<symbol, unknown>)[SLOT] as Holder) ?? {};
+(globalThis as Record<symbol, unknown>)[SLOT] = holder;
 
 /**
  * Register the process-wide history recorder. Called once at bootstrap by the action-history module.
  * A repository created with `{ logHistory: true }` and no explicit `historyRecorder` uses this one.
  */
 export const registerHistoryRecorder = (recorder: IHistoryRecorder): void => {
-  _recorder = recorder;
+  holder.current = recorder;
 };
 
 /** The globally-registered recorder, if any. */
-export const getHistoryRecorder = (): IHistoryRecorder | undefined => _recorder;
+export const getHistoryRecorder = (): IHistoryRecorder | undefined => holder.current;
