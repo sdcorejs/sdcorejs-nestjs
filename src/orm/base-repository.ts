@@ -17,6 +17,7 @@ import type { RequestContext } from '../context/context.types';
 import type { IAuditStrategy } from '../audit/strategy.interface';
 import type { ITenancyStrategy } from '../tenancy/strategy.interface';
 import { applyScopeToEntity, buildScopeFilters, buildScopeWhere, getScopedColumns } from '../tenancy/tenancy.helpers';
+import { getTenancy } from '../tenancy/tenancy.registry';
 import { isAuditEnabled } from './mixins/with-audit';
 import type { ClassRef } from './types/class-ref.types';
 import { getHistoryRecorder, type HistoryActionType, type IHistoryRecorder } from './history';
@@ -72,14 +73,20 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
 
   // --- Tenancy + audit integration hooks -----------------------------------
 
+  /** Effective tenancy strategy: per-repo option overrides the global registry. */
+  private get tenancyStrategy(): ITenancyStrategy | undefined {
+    return this.options?.tenancyStrategy ?? getTenancy()?.strategy;
+  }
+
   protected get ctx(): RequestContext {
-    return this.options?.contextService?.store ?? {};
+    const contextService = this.options?.contextService ?? getTenancy()?.contextService;
+    return contextService?.store ?? {};
   }
 
   /** Sanitize input filters + inject tenancy scope filters when strategy is active. */
   protected addonFilter(filters: Filter<T>[] | undefined): Filter<T>[] {
     const cleaned = prepareFilter(filters);
-    const ts = this.options?.tenancyStrategy;
+    const ts = this.tenancyStrategy;
     if (!ts) return cleaned;
     const ctx = this.ctx;
     if (ts.shouldBypass(ctx)) return cleaned;
@@ -91,7 +98,7 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
 
   /** Build a `findOne` where-fragment that scopes by tenancy, or `{}` when tenancy is inactive. */
   protected scopeWhere(): Record<string, unknown> {
-    const ts = this.options?.tenancyStrategy;
+    const ts = this.tenancyStrategy;
     if (!ts) return {};
     const ctx = this.ctx;
     if (ts.shouldBypass(ctx)) return {};
@@ -102,7 +109,7 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
 
   /** Auto-fill tenancy columns from current scope unless strategy says bypass. */
   protected fillTenancy(entity: DeepPartial<T>): void {
-    const ts = this.options?.tenancyStrategy;
+    const ts = this.tenancyStrategy;
     if (!ts) return;
     const ctx = this.ctx;
     if (ts.shouldBypass(ctx)) return;
