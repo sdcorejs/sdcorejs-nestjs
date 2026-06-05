@@ -14,11 +14,11 @@ export const TENANT_SCOPED_COLUMNS = 'sdcore:tenant:scoped-columns';
  * @example
  * @Entity()
  * class Product extends WithAudit(BaseEntity) {
- *   @Column() @TenantScoped() tenantCode!: string;
- *   @Column() @TenantScoped() departmentCode!: string;
+ *   @Column() @Scoped() tenantCode!: string;
+ *   @Column() @Scoped() departmentCode!: string;
  * }
  */
-export function TenantScoped(): PropertyDecorator {
+export function Scoped(): PropertyDecorator {
   return (target, propertyKey) => {
     Reflect.defineMetadata(TENANT_SCOPED_METADATA, true, target, propertyKey);
     const ctor = target.constructor;
@@ -28,6 +28,9 @@ export function TenantScoped(): PropertyDecorator {
     }
   };
 }
+
+/** @deprecated Renamed to {@link Scoped}. Kept for back-compat; identical behavior. */
+export const TenantScoped = Scoped;
 
 /**
  * Returns all property names on `ctor` (and its prototype chain) marked with `@TenantScoped()`.
