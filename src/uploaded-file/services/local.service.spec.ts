@@ -8,7 +8,7 @@ jest.mock('node:fs', () => ({
   unlink: jest.fn((_p: string, cb: (e: null) => void) => cb(null)),
 }));
 
-import { LocalFileStorageService } from './local.service';
+import { LocalUploadedFileStorage } from './local.service';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function makeTracking(): any {
@@ -21,10 +21,10 @@ function makeTracking(): any {
   };
 }
 
-describe('LocalFileStorageService.upload', () => {
+describe('LocalUploadedFileStorage.upload', () => {
   it('persists via tracking.create with meta and returns the row id', async () => {
     const tracking = makeTracking();
-    const svc = new LocalFileStorageService({ folder: 'core', host: 'http://h/' } as any, tracking);
+    const svc = new LocalUploadedFileStorage({ folder: 'core', host: 'http://h/' } as any, tracking);
     const res = await svc.upload(Buffer.from('x'), 'logo.png', { module: 'masterdata', entity: 'brand', type: 'logo' });
     expect(tracking.create).toHaveBeenCalledWith(
       expect.objectContaining({ module: 'masterdata', entity: 'brand', type: 'logo', key: 'core/logo.png' }),
@@ -34,7 +34,7 @@ describe('LocalFileStorageService.upload', () => {
   });
   it('markUsed delegates to tracking.markUsed', async () => {
     const tracking = makeTracking();
-    const svc = new LocalFileStorageService({ folder: 'core', host: 'http://h/' } as any, tracking);
+    const svc = new LocalUploadedFileStorage({ folder: 'core', host: 'http://h/' } as any, tracking);
     await svc.markUsed(['f1'], { entity: 'brand', entityId: 'b1' });
     expect(tracking.markUsed).toHaveBeenCalledWith(['f1'], { entity: 'brand', entityId: 'b1' });
   });

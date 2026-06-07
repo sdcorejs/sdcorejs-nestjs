@@ -177,14 +177,14 @@
         "default": "./dist/cjs/action-history/index.cjs"
       }
     },
-    "./file-storage": {
+    "./uploaded-file": {
       "import": {
-        "types": "./dist/esm/file-storage/index.d.mts",
-        "default": "./dist/esm/file-storage/index.mjs"
+        "types": "./dist/esm/uploaded-file/index.d.mts",
+        "default": "./dist/esm/uploaded-file/index.mjs"
       },
       "require": {
-        "types": "./dist/cjs/file-storage/index.d.ts",
-        "default": "./dist/cjs/file-storage/index.cjs"
+        "types": "./dist/cjs/uploaded-file/index.d.ts",
+        "default": "./dist/cjs/uploaded-file/index.cjs"
       }
     },
     "./job-scheduler": {
@@ -346,8 +346,8 @@
       "action-history": [
         "./dist/cjs/action-history/index.d.ts"
       ],
-      "file-storage": [
-        "./dist/cjs/file-storage/index.d.ts"
+      "uploaded-file": [
+        "./dist/cjs/uploaded-file/index.d.ts"
       ],
       "job-scheduler": [
         "./dist/cjs/job-scheduler/index.d.ts"

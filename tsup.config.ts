@@ -16,7 +16,7 @@ const entryMap: Record<string, string> = {
   'i18n/index': 'src/i18n/index.ts',
   'entities/index': 'src/entities/index.ts',
   'action-history/index': 'src/action-history/index.ts',
-  'file-storage/index': 'src/file-storage/index.ts',
+  'uploaded-file/index': 'src/uploaded-file/index.ts',
   'job-scheduler/index': 'src/job-scheduler/index.ts',
 };
 

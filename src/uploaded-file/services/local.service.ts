@@ -2,15 +2,15 @@ import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common'
 import axios from 'axios';
 import { createReadStream, existsSync, mkdirSync, unlink, writeFileSync } from 'node:fs';
 import type { Readable } from 'node:stream';
-import { apiError } from '../orm/types/api-response.types';
-import { FILE_STORAGE_CONFIG, type FileStorageConfig, type FileUploadMeta, type IFileStorageService, type UploadResult } from './types';
+import { apiError } from '../../orm/types/api-response.types';
+import { UPLOADED_FILE_CONFIG, type UploadedFileConfig, type UploadedFileMeta, type IUploadedFileStorage, type UploadedFileResult } from '../types';
 import { UploadedFileService } from './uploaded-file.service';
-import { isBlank, slugify, toMb } from './utils';
+import { isBlank, slugify, toMb } from '../utils';
 
-/** Local-disk {@link IFileStorageService}. Files live under `<cwd>/upload/<folder>`. */
+/** Local-disk {@link IUploadedFileStorage}. Files live under `<cwd>/upload/<folder>`. */
 @Injectable()
-export class LocalFileStorageService implements IFileStorageService {
-  private readonly logger = new Logger(LocalFileStorageService.name);
+export class LocalUploadedFileStorage implements IUploadedFileStorage {
+  private readonly logger = new Logger(LocalUploadedFileStorage.name);
   private readonly folder: string;
   private readonly host: string;
   private readonly prefixFolder = 'upload';
@@ -21,7 +21,7 @@ export class LocalFileStorageService implements IFileStorageService {
   }
 
   constructor(
-    @Inject(FILE_STORAGE_CONFIG) config: FileStorageConfig,
+    @Inject(UPLOADED_FILE_CONFIG) config: UploadedFileConfig,
     private readonly uploadedFileService: UploadedFileService,
   ) {
     this.folder = config.folder || 'core';
@@ -35,7 +35,7 @@ export class LocalFileStorageService implements IFileStorageService {
     return `${this.host}file-storage/${key}`;
   }
 
-  async upload(buffer: Buffer, fileName?: string, meta?: FileUploadMeta): Promise<UploadResult> {
+  async upload(buffer: Buffer, fileName?: string, meta?: UploadedFileMeta): Promise<UploadedFileResult> {
     const key = `${this.folder}/${slugify(fileName || 'TEMP')}`;
     try {
       writeFileSync(`${this.basePath}/${key}`, buffer);
@@ -48,7 +48,7 @@ export class LocalFileStorageService implements IFileStorageService {
     }
   }
 
-  async cloneFromUrl(url: string, fileName?: string): Promise<UploadResult> {
+  async cloneFromUrl(url: string, fileName?: string): Promise<UploadedFileResult> {
     const res = await axios.get<ArrayBuffer>(url, { responseType: 'arraybuffer' });
     return this.upload(Buffer.from(res.data), fileName || url.split('/').pop());
   }
@@ -81,7 +81,7 @@ export class LocalFileStorageService implements IFileStorageService {
     await this.uploadedFileService.useFiles(this.normalizeKeys(keyOrCdns), entity, entityId);
   }
 
-  async markUsed(ids: string[], meta?: FileUploadMeta): Promise<void> {
+  async markUsed(ids: string[], meta?: UploadedFileMeta): Promise<void> {
     await this.uploadedFileService.markUsed(ids, meta);
   }
 

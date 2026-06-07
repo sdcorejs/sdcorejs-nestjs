@@ -1,7 +1,7 @@
 import type { Readable } from 'node:stream';
 
-/** Runtime configuration for the file-storage module. */
-export interface FileStorageConfig {
+/** Runtime configuration for the uploaded-file module. */
+export interface UploadedFileConfig {
   /** `'s3'` when S3 creds are present, else `'local'`. Auto-detected from creds when omitted. */
   driver?: 's3' | 'local';
   accessId?: string;
@@ -14,10 +14,10 @@ export interface FileStorageConfig {
   /** Public CDN base URL used to build the returned `cdn` field for the S3 driver. */
   cdnBaseUrl?: string;
 }
-export const FILE_STORAGE_CONFIG = Symbol('FILE_STORAGE_CONFIG');
+export const UPLOADED_FILE_CONFIG = Symbol('UPLOADED_FILE_CONFIG');
 
-export interface UploadResult {
-  /** Persisted `file` row id (UUID). */
+export interface UploadedFileResult {
+  /** Persisted `uploaded_file` row id (UUID). */
   id: string;
   fileName: string;
   fileSize: number;
@@ -25,8 +25,8 @@ export interface UploadResult {
   cdn: string;
 }
 
-/** Optional provenance recorded on the persisted `file` row. */
-export interface FileUploadMeta {
+/** Optional provenance recorded on the persisted `uploaded_file` row. */
+export interface UploadedFileMeta {
   module?: string;
   entity?: string;
   entityId?: string;
@@ -34,15 +34,15 @@ export interface FileUploadMeta {
 }
 
 /** Storage driver contract — same surface for S3 and local-disk implementations. */
-export interface IFileStorageService {
-  upload(buffer: Buffer, fileName?: string, meta?: FileUploadMeta): Promise<UploadResult>;
-  cloneFromUrl(url: string, fileName?: string): Promise<UploadResult>;
+export interface IUploadedFileStorage {
+  upload(buffer: Buffer, fileName?: string, meta?: UploadedFileMeta): Promise<UploadedFileResult>;
+  cloneFromUrl(url: string, fileName?: string): Promise<UploadedFileResult>;
   uploadTemporary(buffer: Buffer, fileName?: string): Promise<{ key: string; cdn: string }>;
   download(key: string): Readable;
   downloadByFolder(folder: string, key: string): Readable;
   useFiles(keyOrCdns: string[], entity?: string, entityId?: string): Promise<void>;
   changeFiles(olds: string[], news: string[], entity?: string, entityId?: string): Promise<void>;
-  /** Mark the given `file` rows used (by id), optionally stamping provenance. */
-  markUsed(ids: string[], meta?: FileUploadMeta): Promise<void>;
+  /** Mark the given `uploaded_file` rows used (by id), optionally stamping provenance. */
+  markUsed(ids: string[], meta?: UploadedFileMeta): Promise<void>;
 }
-export const IFileStorageService = Symbol('IFileStorageService');
+export const IUploadedFileStorage = Symbol('IUploadedFileStorage');

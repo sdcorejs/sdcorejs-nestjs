@@ -1,6 +1,6 @@
 import { addDays, isBlank, slugify, toMb } from './utils';
 
-describe('file-storage/utils', () => {
+describe('uploaded-file/utils', () => {
   describe('slugify', () => {
     it('lowercases, strips Vietnamese diacritics, keeps the extension dot', () => {
       expect(slugify('Hợp Đồng.PDF')).toBe('hop-dong.pdf');

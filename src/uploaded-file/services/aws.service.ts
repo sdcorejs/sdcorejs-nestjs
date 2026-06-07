@@ -1,11 +1,11 @@
 import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import type { Readable } from 'node:stream';
-import { apiError } from '../orm/types/api-response.types';
-import { FILE_STORAGE_CONFIG, type FileStorageConfig, type FileUploadMeta, type IFileStorageService, type UploadResult } from './types';
+import { apiError } from '../../orm/types/api-response.types';
+import { UPLOADED_FILE_CONFIG, type UploadedFileConfig, type UploadedFileMeta, type IUploadedFileStorage, type UploadedFileResult } from '../types';
 import { UploadedFileService } from './uploaded-file.service';
 import { ArrayUtilities } from '@sdcorejs/utils/fns';
-import { addDays, isBlank, slugify, toMb } from './utils';
+import { addDays, isBlank, slugify, toMb } from '../utils';
 
 /** Minimal slice of the aws-sdk v2 S3 client used here (lazy-loaded — optional peer dep). */
 interface S3Like {
@@ -14,10 +14,10 @@ interface S3Like {
   deleteObjects(params: Record<string, unknown>, cb: (err: Error | null, data: unknown) => void): void;
 }
 
-/** S3-backed {@link IFileStorageService}. Requires the optional peer dep `aws-sdk`. */
+/** S3-backed {@link IUploadedFileStorage}. Requires the optional peer dep `aws-sdk`. */
 @Injectable()
-export class AwsFileStorageService implements IFileStorageService {
-  private readonly logger = new Logger(AwsFileStorageService.name);
+export class AwsUploadedFileStorage implements IUploadedFileStorage {
+  private readonly logger = new Logger(AwsUploadedFileStorage.name);
   private readonly s3: S3Like;
   private readonly bucket: string;
   private readonly folder: string;
@@ -25,7 +25,7 @@ export class AwsFileStorageService implements IFileStorageService {
   private readonly cdnBaseUrl: string;
 
   constructor(
-    @Inject(FILE_STORAGE_CONFIG) config: FileStorageConfig,
+    @Inject(UPLOADED_FILE_CONFIG) config: UploadedFileConfig,
     private readonly uploadedFileService: UploadedFileService,
   ) {
     const { accessId, accessKey, bucket, folder, cdnBaseUrl } = config;
@@ -37,7 +37,7 @@ export class AwsFileStorageService implements IFileStorageService {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       S3Ctor = (require('aws-sdk') as { S3: new (o: Record<string, unknown>) => S3Like }).S3;
     } catch {
-      throw new Error("@sdcorejs/nestjs file-storage S3 driver requires 'aws-sdk'. Install it: npm i aws-sdk");
+      throw new Error("@sdcorejs/nestjs uploaded-file S3 driver requires 'aws-sdk'. Install it: npm i aws-sdk");
     }
     this.s3 = new S3Ctor({ accessKeyId: accessId, secretAccessKey: accessKey });
   }
@@ -46,7 +46,7 @@ export class AwsFileStorageService implements IFileStorageService {
     return `${this.cdnBaseUrl}${key}`;
   }
 
-  async upload(buffer: Buffer, fileName?: string, meta?: FileUploadMeta): Promise<UploadResult> {
+  async upload(buffer: Buffer, fileName?: string, meta?: UploadedFileMeta): Promise<UploadedFileResult> {
     const key = `${this.folder}/${slugify(fileName || 'TEMP')}`;
     const { ContentType, ContentDisposition } = this.uploadedFileService.getContent(fileName);
     await new Promise<void>((resolve, reject) => {
@@ -62,7 +62,7 @@ export class AwsFileStorageService implements IFileStorageService {
     return { id: row.id, fileName: fileName!, fileSize, key, cdn };
   }
 
-  async cloneFromUrl(url: string, fileName?: string): Promise<UploadResult> {
+  async cloneFromUrl(url: string, fileName?: string): Promise<UploadedFileResult> {
     const res = await axios.get<ArrayBuffer>(url, { responseType: 'arraybuffer' });
     return this.upload(Buffer.from(res.data), fileName || url.split('/').pop());
   }
@@ -100,7 +100,7 @@ export class AwsFileStorageService implements IFileStorageService {
     await this.uploadedFileService.useFiles(this.normalizeKeys(keyOrCdns), entity, entityId);
   }
 
-  async markUsed(ids: string[], meta?: FileUploadMeta): Promise<void> {
+  async markUsed(ids: string[], meta?: UploadedFileMeta): Promise<void> {
     await this.uploadedFileService.markUsed(ids, meta);
   }
 

@@ -1,9 +1,9 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
-import { ContextService } from '../context/context.service';
-import { FileEntity } from './file.entity';
-import type { FileUploadMeta } from './types';
+import { ContextService } from '../../context/context.service';
+import { UploadedFile } from '../../entities/uploaded-file.entity';
+import type { UploadedFileMeta } from '../types';
 
 /** Tracks uploaded-file rows + their usage; supplies HTTP content headers by extension. */
 @Injectable()
@@ -11,7 +11,7 @@ export class UploadedFileService {
   private readonly logger = new Logger(UploadedFileService.name);
 
   constructor(
-    @InjectRepository(FileEntity) private readonly repository: Repository<FileEntity>,
+    @InjectRepository(UploadedFile) private readonly repository: Repository<UploadedFile>,
     @Optional() private readonly context?: ContextService,
   ) {}
 
@@ -37,8 +37,8 @@ export class UploadedFileService {
       fileSize: number;
       key: string;
       cdn: string;
-    } & FileUploadMeta,
-  ): Promise<FileEntity> {
+    } & UploadedFileMeta,
+  ): Promise<UploadedFile> {
     const { fileName, fileSize, key, cdn, module, entity, entityId, type } = args;
     const row = this.repository.create({
       fileName,
@@ -67,8 +67,8 @@ export class UploadedFileService {
       .catch((err) => this.logger.warn(`useFiles failed: ${String(err)}`));
   }
 
-  /** Flip `isUsed` for the given `file` ids; stamps any defined meta fields. */
-  async markUsed(ids: string[], meta?: FileUploadMeta): Promise<void> {
+  /** Flip `isUsed` for the given `uploaded_file` ids; stamps any defined meta fields. */
+  async markUsed(ids: string[], meta?: UploadedFileMeta): Promise<void> {
     if (!ids?.length) return;
     const set: Record<string, unknown> = { isUsed: true };
     for (const [k, v] of Object.entries(meta ?? {})) {

@@ -1,12 +1,12 @@
 import { Column, CreateDateColumn, DeleteDateColumn, Entity, Generated, Index, PrimaryColumn, UpdateDateColumn } from 'typeorm';
 
 /**
- * Tracks uploaded files for usage/cleanup. Table `file`; lives in the consumer's default schema
- * (the consumer sets it via their TypeORM datasource — this lib stays schema-agnostic). Consumers
- * register this entity in their datasource (or use `autoLoadEntities`).
+ * Tracks uploaded files for usage/cleanup. Table `uploaded_file`; lives in the consumer's default
+ * schema (the consumer sets it via their TypeORM datasource — this lib stays schema-agnostic).
+ * Consumers register this entity in their datasource (or use `autoLoadEntities`).
  */
-@Entity('file')
-export class FileEntity {
+@Entity('uploaded_file')
+export class UploadedFile {
   @PrimaryColumn({ type: 'uuid' })
   @Generated('uuid')
   id!: string;
