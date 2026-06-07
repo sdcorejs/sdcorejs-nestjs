@@ -72,17 +72,7 @@ The package has multiple entry points; import only what you use.
 | `@sdcorejs/nestjs/validation` | `ZodValidationGuard(schema \| map, source)`, `parseZod`, query presets (`zPaging`, `zUuid`, `zBool`), `ZodIssueDetail` (Zod **v4**) |
 | `@sdcorejs/nestjs/queue` | `QueueModule`, `BaseWorker` (BullMQ + Redis) |
 | `@sdcorejs/nestjs/i18n` | `II18nResolver`, `ILanguageResolver`, `SimpleI18nResolver`, `DefaultLanguageResolver`, `SdI18nExceptionFilter`, built-in en/vi `core.*` catalogs, `I18nModule` |
-| `@sdcorejs/nestjs/action-history` | `ActionHistoryService`, `ActionHistoryEntity`, `ActionHistoryModule` — persists per-record audit trails (who changed what and when) |
-| `@sdcorejs/nestjs/uploaded-file` | `UploadedFileService`, `AwsUploadedFileStorage`, `LocalUploadedFileStorage`, `UploadedFileModule` — file upload/download with local and S3-compatible backends |
-| `@sdcorejs/nestjs/job-scheduler` | `JobSchedulerService`, `JobSchedulerEntity`, `JobSchedulerModule` — database-backed cron/job scheduling |
-| `@sdcorejs/nestjs/entities` | All shipped TypeORM entities + `SD_CORE_ENTITIES` (`ActionHistory`, `JobScheduler`, `UploadedFile`) |
-
-Register all library entities in one shot:
-
-```ts
-import { SD_CORE_ENTITIES } from '@sdcorejs/nestjs/entities';
-TypeOrmModule.forRoot({ entities: [...SD_CORE_ENTITIES, /* your entities */] })
-```
+| `@sdcorejs/nestjs/features` | Stateful feature modules — `ActionHistory`, `JobScheduler`, `UploadedFile` (entity + service + module each) |
 
 ---
 

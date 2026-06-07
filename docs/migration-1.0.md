@@ -22,8 +22,8 @@ from the documented sub-paths, e.g. `@sdcorejs/nestjs/orm`.
 | Change | Action |
 |---|---|
 | `@sdcorejs/nestjs/file-storage` → `/uploaded-file` | update import paths |
-| `FileEntity` → `UploadedFile` (now at `@sdcorejs/nestjs/entities`) | update imports |
+| `FileEntity` → `UploadedFile` | update imports |
 | `FileStorageModule` → `UploadedFileModule` | update bootstrap |
 | `FileStorageConfig`/`IFileStorageService`/`AwsFileStorageService`/`LocalFileStorageService`/`FILE_STORAGE_CONFIG`/`FileUploadMeta`/`UploadResult` | renamed to `UploadedFile*` / `IUploadedFileStorage` / `UPLOADED_FILE_CONFIG` |
-| Entities no longer re-exported from their module barrels | import from `@sdcorejs/nestjs/entities` (or spread `SD_CORE_ENTITIES`) |
+| `@sdcorejs/nestjs/{file-storage,action-history,job-scheduler,uploaded-file}` and the interim `/entities` | all consolidated into a single `@sdcorejs/nestjs/features` |
 | **DB:** table `file` → `uploaded_file` | add a rename migration: `ALTER TABLE "file" RENAME TO "uploaded_file";` |

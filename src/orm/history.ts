@@ -17,7 +17,7 @@ export interface HistoryEntry {
 }
 
 /**
- * Persists {@link HistoryEntry} rows. Implemented by `@sdcorejs/nestjs/action-history`'s
+ * Persists {@link HistoryEntry} rows. Implemented by `@sdcorejs/nestjs/features`'s
  * `ActionHistoryService` and registered via {@link registerHistoryRecorder}. Kept as an interface
  * so `orm` does NOT depend on the action-history module (the dependency points the other way).
  */
