@@ -18,4 +18,4 @@ export { I18N_RESOLVER, LANGUAGE_RESOLVER, type II18nResolver, type ILanguageRes
 export type { ITenancyStrategy } from './tenancy/strategy.interface';
 export type { IAuditStrategy } from './audit/strategy.interface';
 export type { IPermissionStrategy } from './permission/strategy.interface';
-export type { RequestContext, HeadersConfig } from './context/context.types';
+export type { RequestContext, HeadersConfig } from './context/types';

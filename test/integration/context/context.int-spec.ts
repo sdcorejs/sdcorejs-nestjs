@@ -6,7 +6,7 @@ import {
   CONTEXT_HEADERS_CONFIG,
   type HeadersConfig,
 } from '../../../src/context';
-import { DEFAULT_HEADERS_CONFIG } from '../../../src/context/context.types';
+import { DEFAULT_HEADERS_CONFIG } from '../../../src/context/types';
 
 describe('ContextService — AsyncLocalStorage preservation', () => {
   let service: ContextService;

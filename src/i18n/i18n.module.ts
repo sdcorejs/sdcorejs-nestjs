@@ -1,7 +1,7 @@
 import { type DynamicModule, Module, type Provider, type Type } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { CORE_CATALOGS } from './catalog';
-import type { Catalogs, II18nResolver } from './i18n.types';
+import type { Catalogs, II18nResolver } from './types';
 import { SdI18nExceptionFilter } from './i18n.exception.filter';
 import { DefaultLanguageResolver } from './language.resolver';
 import { SimpleI18nResolver } from './simple-i18n.resolver';

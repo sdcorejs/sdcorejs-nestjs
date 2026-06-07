@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { ContextService } from '../context/context.service';
 import type { ApiErrorBody } from '../orm/types/api-response.types';
-import type { II18nResolver } from './i18n.types';
+import type { II18nResolver } from './types';
 import { I18N_RESOLVER } from './tokens';
 
 /** A response body is an `apiError` envelope when it carries a string `code`. */

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import type { RequestContext } from './context.types';
+import type { RequestContext } from './types';
 
 /**
  * Singleton request-context accessor backed by Node's native `AsyncLocalStorage`.

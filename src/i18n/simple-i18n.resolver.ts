@@ -1,4 +1,4 @@
-import type { Catalogs, II18nResolver, ILanguageResolver } from './i18n.types';
+import type { Catalogs, II18nResolver, ILanguageResolver } from './types';
 
 export interface SimpleI18nOptions {
   /** `langCode -> code -> template`. */

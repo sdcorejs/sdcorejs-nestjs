@@ -1,4 +1,4 @@
-import type { MessageCatalog } from './i18n.types';
+import type { MessageCatalog } from './types';
 
 /**
  * Built-in English messages for every `core.*` code `@sdcorejs/nestjs` throws. Consumers merge

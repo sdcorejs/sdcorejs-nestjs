@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { ForbiddenException, type ArgumentsHost, BadRequestException, HttpException } from '@nestjs/common';
 import { SdI18nExceptionFilter } from './i18n.exception.filter';
-import type { II18nResolver } from './i18n.types';
+import type { II18nResolver } from './types';
 
 const buildHost = (): { host: ArgumentsHost; sent: { status?: number; body?: unknown } } => {
   const sent: { status?: number; body?: unknown } = {};

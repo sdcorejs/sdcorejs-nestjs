@@ -1,5 +1,5 @@
 import type { DeepPartial } from 'typeorm';
-import type { RequestContext } from '../context/context.types';
+import type { RequestContext } from '../context/types';
 
 /**
  * Contract for filling audit fields. `BaseRepository.create` calls `onCreate` on the entity

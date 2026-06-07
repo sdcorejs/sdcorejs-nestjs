@@ -1,7 +1,7 @@
 import { Inject, Injectable, type NestMiddleware } from '@nestjs/common';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { ContextService } from './context.service';
-import type { HeadersConfig, RequestContext } from './context.types';
+import type { HeadersConfig, RequestContext } from './types';
 import { CONTEXT_HEADERS_CONFIG } from './tokens';
 
 @Injectable()

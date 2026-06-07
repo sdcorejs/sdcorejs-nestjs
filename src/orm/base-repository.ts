@@ -13,7 +13,7 @@ import {
 import type { Filter, Order, PagingReq, PagingRes } from '@sdcorejs/utils/models';
 import { ValidationUtilities } from '@sdcorejs/utils/fns';
 import type { ContextService } from '../context/context.service';
-import type { RequestContext } from '../context/context.types';
+import type { RequestContext } from '../context/types';
 import type { IAuditStrategy } from '../audit/strategy.interface';
 import type { ITenancyStrategy } from '../tenancy/strategy.interface';
 import { applyScopeToEntity, buildScopeFilters, buildScopeWhere, getScopedColumns } from '../tenancy/tenancy.helpers';

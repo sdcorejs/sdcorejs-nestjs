@@ -1,7 +1,7 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
 import { ContextService } from '../context/context.service';
-import { DEFAULT_HEADERS_CONFIG, type HeadersConfig } from '../context/context.types';
+import { DEFAULT_HEADERS_CONFIG, type HeadersConfig } from '../context/types';
 import { CONTEXT_HEADERS_CONFIG } from '../context/tokens';
 import { HTTP_CLIENT_CONFIG, type HttpClientConfig } from './types';
 

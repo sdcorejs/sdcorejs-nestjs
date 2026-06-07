@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { Test } from '@nestjs/testing';
 import { I18nModule } from './i18n.module';
 import { I18N_RESOLVER } from './tokens';
-import type { II18nResolver } from './i18n.types';
+import type { II18nResolver } from './types';
 import { CORE_CATALOG_VI } from './catalog';
 
 describe('I18nModule.forRoot', () => {

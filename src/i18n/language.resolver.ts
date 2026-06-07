@@ -1,4 +1,4 @@
-import type { ILanguageResolver } from './i18n.types';
+import type { ILanguageResolver } from './types';
 
 export interface LanguageResolverOptions {
   /** Supported base locale codes, e.g. `['en', 'vi']`. */

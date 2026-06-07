@@ -1,7 +1,7 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { DeepPartial } from 'typeorm';
 import { ContextService } from '../context/context.service';
-import type { RequestContext } from '../context/context.types';
+import type { RequestContext } from '../context/types';
 import type { IAuditStrategy } from './strategy.interface';
 
 /**

@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { ContextMiddleware } from './context.middleware';
 import { ContextService } from './context.service';
-import { DEFAULT_HEADERS_CONFIG, type HeadersConfig } from './context.types';
+import { DEFAULT_HEADERS_CONFIG, type HeadersConfig } from './types';
 import { CONTEXT_HEADERS_CONFIG } from './tokens';
 
 export interface ContextModuleOptions {

@@ -1,4 +1,4 @@
-import type { RequestContext } from '../context/context.types';
+import type { RequestContext } from '../context/types';
 
 /**
  * Contract for multi-tenancy enforcement. `BaseRepository` reads `@TenantScoped`-marked columns
