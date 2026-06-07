@@ -25,7 +25,10 @@ related parts, sequenced **A then B**, shipped inside the unpublished 1.0.0 (one
 | SdCoreModule composition | Compose ALL modules incl features (`uploadedFile`/`actionHistory`/`jobScheduler`/`queue`), opt-in per config key |
 | Feature wiring style | **Eager static import** (backend — no tree-shaking concern). Consequence: `@nestjs/bullmq` + `bullmq` move from optional to **required** peers |
 | `validation` in SdCoreModule | NOT composed — it is guards/preset-schemas used directly, not a `forRoot` module |
-| Sequencing | A (move/group) first, then B (extend SdCoreModule against the new locations) |
+| Internal-secret | Lib ships a built-in `EnvInternalSecretProvider`; `SdCoreModule.forRoot` accepts an `internalSecret` config so the consumer deletes its glue `@Global` module |
+| Tenancy ergonomics | `tenancy` accepts inline `{ resolve, bypass }` callbacks (an adapter wraps them into `ITenancyStrategy`), in addition to the existing `{ strategy }` — so the consumer deletes its dedicated strategy class. Lib stays neutral (policy + column names live in the consumer's callbacks, not the lib) |
+| Consumer adoption + verify (Part C) | Build a `.tgz`, vendor it into enterprise-platform, rewire `app.module.ts` to one `SdCoreModule.forRoot`, delete `src/common/internal-secret/` + `src/common/tenancy/`, `npm install`, and verify the app builds + tests pass |
+| Sequencing | **A** (group/move) → **B** (SdCoreModule compose + internal-secret + tenancy callbacks) → **C** (consumer adoption + tgz verify) |
 
 ## 3. Part A — grouped entry points
 
@@ -143,8 +146,50 @@ not own the DataSource. Document this next to the one-module example.
 export class AppModule {}
 ```
 
+### 4.6 Internal-secret default provider
+- Ship `EnvInternalSecretProvider implements IInternalSecretProvider` in the permission module:
+  `getKey()` returns `process.env[envVar] ?? ''` (default `envVar = 'INTERNAL_SECRET_KEY'`; `''` never
+  matches a present header, so internal routes stay closed until configured).
+- `SdCoreModuleOptions` gains `internalSecret?: { envVar?: string } | { key: string }`. When present,
+  `forRoot` registers `INTERNAL_SECRET_PROVIDER`: `{ envVar }` → `EnvInternalSecretProvider` reading that
+  env; `{ key }` → a static-value provider. Still overridable via the `providers:` passthrough for a
+  custom source. Neutral — the env var name is config, no secret is baked in.
+
+### 4.7 Tenancy callback option
+- `TenancyModuleOptions` accepts EITHER `{ strategy: Type<ITenancyStrategy> }` (existing) OR
+  `{ resolve?: (rc: RequestContext) => Record<string, unknown>; bypass?: (rc: RequestContext) => boolean }`.
+- When callbacks are given, the lib wires an internal adapter:
+  ```ts
+  class CallbackTenancyStrategy implements ITenancyStrategy {
+    constructor(private readonly o: { resolve?: (rc: RequestContext) => Record<string, unknown>; bypass?: (rc: RequestContext) => boolean }) {}
+    getCurrentScope(rc: RequestContext) { return this.o.resolve?.(rc) ?? {}; }
+    shouldBypass(rc: RequestContext) { return this.o.bypass?.(rc) ?? false; }
+  }
+  ```
+- The consumer's policy (column names `tenantCode`/`departmentCode`, role checks) lives entirely in its
+  callbacks reading `rc.tenant` / `rc.custom.*` — the lib bakes nothing, staying neutral.
+
+## 4C. Part C — consumer adoption + `.tgz` verification
+
+In `enterprise-platform` (`../../local-solution/enterprise-platform`), against the built tarball:
+1. Lib: `npm run build && npm pack` → `sdcorejs-nestjs-<v>.tgz`.
+2. Copy the tgz into `enterprise-platform/vendor/`, point `package.json`
+   `"@sdcorejs/nestjs": "file:vendor/sdcorejs-nestjs-<v>.tgz"` at it, `npm i @nestjs/bullmq bullmq`
+   (now required peers — §4.3), `npm install`.
+3. Rewire `enterprise-platform/src/app.module.ts`: replace the 9 hand-wired lib modules
+   (Context/Cache/I18n/Permission/FileStorage/ActionHistory/JobScheduler/Tenancy + the InternalSecret
+   glue) with one `SdCoreModule.forRoot({...})` — tenancy via `resolve`/`bypass` callbacks,
+   internal-secret via `internalSecret: { envVar: 'INTERNAL_SECRET_KEY' }`, plus `uploadedFile` /
+   `actionHistory` / `jobScheduler` keys. Swap remaining lib import paths to the grouped entries
+   (`@sdcorejs/nestjs/core`, `/auth`, `/features`, …).
+4. **Delete** `enterprise-platform/src/common/internal-secret/` and `enterprise-platform/src/common/tenancy/`
+   and fix importers. The lib's tenancy integration is already covered by lib tests; the app's
+   `tenancy.integration.spec.ts` may be dropped or kept as an app-level smoke test.
+5. Verify: enterprise-platform builds (`npm run build`) + tests pass; the two folders are gone; the app
+   boots with `SdCoreModule.forRoot` as the only lib wiring.
+
 ## 5. Verification
-Full gate: `lint` · `format:check` · `typecheck` · `test:coverage` · `build` (clean, bundled dts) ·
+Full gate (lib): `lint` · `format:check` · `typecheck` · `test:coverage` · `build` (clean, bundled dts) ·
 `check:exports` (publint + attw — **8 entries**, all green) · `pack --dry-run`. Re-check parity
 (exports ↔ typesVersions ↔ tsup keys = 8). Add the §3.2 guard tests + a `SdCoreModule.forRoot`
 composition test (a `forRoot({...})` with each opt-in key returns a DynamicModule whose `imports`
@@ -160,17 +205,20 @@ includes the expected module; omitting a key omits it).
 - audit-findings footnote: note the grouped entries + SdCoreModule composition.
 
 ## 7. Out of scope
-- Updating enterprise-platform's `app.module.ts` to the one-module pattern + new import paths +
-  installing `@nestjs/bullmq`/`bullmq`: separate task (vendored consumer, upgrades on its own schedule).
-  Its 9 hand-wired modules collapse into one `SdCoreModule.forRoot` when it adopts 1.0.0.
 - No behavior change to any module's internals — only locations, barrels, entry names, the
-  `SdCoreModule` wiring, and the peer-dep declaration.
+  `SdCoreModule` wiring, the new internal-secret/tenancy-callback options, and the peer-dep declaration.
+- Publishing 1.0.0 to npm + merging the branch (the consumer verification uses the vendored tgz, not a
+  published version).
+- Reworking enterprise-platform domain modules beyond `app.module.ts` rewiring + deleting the two glue
+  folders (Part C touches only the lib-integration surface).
 
 ## 8. Acceptance criteria
 1. 8 entry points exist (`core`/`auth`/`services`/`queue`/`validation`/`i18n`/`features` + root); old per-module sub-paths gone; folders mirror entries under `src/{core,auth,services,...}/`.
 2. `/core` exports the merged surface with no silent omission (`UserSnapshot` present); guard tests pass.
 3. `SdCoreModule.forRoot` composes all cross-cutting modules always and the 4 feature modules opt-in per config key; a composition test verifies wiring.
 4. `@nestjs/bullmq` + `bullmq` are required peers; `aws-sdk`/`zod` stay optional.
-5. `exports`/`typesVersions`/`tsup entryMap` agree on 8 entries; publint + attw green; no stale dirs in the pack.
-6. Full gate green; all tests pass.
-7. README/migration/changeset/audit-findings reflect the grouped entries + one-module pattern + required bullmq.
+5. Lib ships `EnvInternalSecretProvider` wired via `internalSecret` config; `tenancy` accepts `{ resolve, bypass }` callbacks (adapter) — both verified by tests.
+6. `exports`/`typesVersions`/`tsup entryMap` agree on 8 entries; publint + attw green; no stale dirs in the pack.
+7. Lib full gate green; all lib tests pass.
+8. **Part C:** a `.tgz` is built + vendored into enterprise-platform; `app.module.ts` uses one `SdCoreModule.forRoot`; `src/common/internal-secret/` + `src/common/tenancy/` are deleted; enterprise-platform builds + tests pass.
+9. README/migration/changeset/audit-findings reflect the grouped entries + one-module pattern + internal-secret/tenancy options + required bullmq.
