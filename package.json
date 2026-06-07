@@ -163,6 +163,7 @@
     "build": "tsup && tsc -p tsconfig.build.json",
     "build:types": "tsc -p tsconfig.build.json",
     "build:bundle": "tsup",
+    "check:exports": "publint --strict && attw --pack .",
     "test": "jest",
     "test:coverage": "jest --coverage",
     "test:e2e": "jest --testRegex='.*\\.e2e-spec\\.ts$' --runInBand",
@@ -224,6 +225,7 @@
   },
   "devDependencies": {
     "@anatine/esbuild-decorators": "^0.2.19",
+    "@arethetypeswrong/cli": "^0.18.3",
     "@changesets/cli": "^2.27.0",
     "@nestjs/bullmq": "^11.0.0",
     "@nestjs/common": "^11.0.0",
@@ -250,6 +252,7 @@
     "pg": "^8.21.0",
     "pg-mem": "^3.0.2",
     "prettier": "^3.3.0",
+    "publint": "^0.3.21",
     "reflect-metadata": "^0.2.0",
     "rimraf": "^6.0.0",
     "rxjs": "^7.8.0",
