@@ -157,7 +157,7 @@ Apply with `@UseGuards(InternalGuard)`. The enricher's `custom.isInternalCall` i
 | `@shared/core` (SdFilter, SdPagingReq, SdOrder, etc.) | `@sdcorejs/utils/models` (Filter, PagingReq, Order — `Sd*` aliases also re-exported from `@sdcorejs/nestjs/orm` for soft migration) |
 | `String.isUuid(v)` | `import { ValidationUtilities } from '@sdcorejs/utils/fns'` → `ValidationUtilities.isUuid(v)` |
 | `[].distinct()` | `ArrayUtilities.distinct(arr)` |
-| `Object.propertyOf<T>(key)` | `import { propertyOf } from '@sdcorejs/nestjs/orm'` |
+| `Object.propertyOf<T>(key)` | type-only — use `NestedKeyOf<T>` from `@sdcorejs/utils/models` (`Filter.field` / `Order.field` already typed with it) |
 
 ## 5. Entity changes
 
