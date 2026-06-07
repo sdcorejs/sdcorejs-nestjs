@@ -16,3 +16,14 @@
 Types are now resolved through the package `exports` map's per-format conditions
 (`.d.mts` for ESM, `.d.ts` for CJS). Do not deep-import into `dist/`. Always import
 from the documented sub-paths, e.g. `@sdcorejs/nestjs/orm`.
+
+## Directory reorg (1.0.0)
+
+| Change | Action |
+|---|---|
+| `@sdcorejs/nestjs/file-storage` → `/uploaded-file` | update import paths |
+| `FileEntity` → `UploadedFile` (now at `@sdcorejs/nestjs/entities`) | update imports |
+| `FileStorageModule` → `UploadedFileModule` | update bootstrap |
+| `FileStorageConfig`/`IFileStorageService`/`AwsFileStorageService`/`LocalFileStorageService`/`FILE_STORAGE_CONFIG`/`FileUploadMeta`/`UploadResult` | renamed to `UploadedFile*` / `IUploadedFileStorage` / `UPLOADED_FILE_CONFIG` |
+| Entities no longer re-exported from their module barrels | import from `@sdcorejs/nestjs/entities` (or spread `SD_CORE_ENTITIES`) |
+| **DB:** table `file` → `uploaded_file` | add a rename migration: `ALTER TABLE "file" RENAME TO "uploaded_file";` |

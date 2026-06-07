@@ -9,4 +9,4 @@ re-export of ORM decorators, the `/orm` re-export of `@sdcorejs/utils/fns`, and
 internal-helper/metadata-key leaks from module barrels (orm/context/cache/validation/i18n,
 file-storage). Declared `ioredis` as an optional peer dependency. Bundled per-format type
 declarations so `exports` resolve cleanly under ESM and CJS (publint + attw green). Added
-`publint` + `attw` validation. See `docs/migration-1.0.md`.
+`publint` + `attw` validation. See `docs/migration-1.0.md`. Reorganized entities into `@sdcorejs/nestjs/entities` (`SD_CORE_ENTITIES`) and renamed the `file-storage` module to `uploaded-file` (`FileEntity`→`UploadedFile`, table `file`→`uploaded_file`).
