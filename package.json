@@ -6,7 +6,7 @@
   "author": "Trần Thuận Nghĩa",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sdcorejs/sdcorejs-nestjs"
+    "url": "git+https://github.com/sdcorejs/sdcorejs-nestjs.git"
   },
   "homepage": "https://github.com/sdcorejs/sdcorejs-nestjs#readme",
   "bugs": "https://github.com/sdcorejs/sdcorejs-nestjs/issues",
@@ -29,53 +29,7 @@
   },
   "main": "./dist/cjs/index.cjs",
   "module": "./dist/esm/index.mjs",
-  "types": "./dist/types/index.d.ts",
-  "typesVersions": {
-    "*": {
-      "orm": [
-        "./dist/types/orm/index.d.ts"
-      ],
-      "context": [
-        "./dist/types/context/index.d.ts"
-      ],
-      "tenancy": [
-        "./dist/types/tenancy/index.d.ts"
-      ],
-      "audit": [
-        "./dist/types/audit/index.d.ts"
-      ],
-      "permission": [
-        "./dist/types/permission/index.d.ts"
-      ],
-      "cache": [
-        "./dist/types/cache/index.d.ts"
-      ],
-      "http": [
-        "./dist/types/http/index.d.ts"
-      ],
-      "jwt": [
-        "./dist/types/jwt/index.d.ts"
-      ],
-      "validation": [
-        "./dist/types/validation/index.d.ts"
-      ],
-      "queue": [
-        "./dist/types/queue/index.d.ts"
-      ],
-      "i18n": [
-        "./dist/types/i18n/index.d.ts"
-      ],
-      "action-history": [
-        "./dist/types/action-history/index.d.ts"
-      ],
-      "file-storage": [
-        "./dist/types/file-storage/index.d.ts"
-      ],
-      "job-scheduler": [
-        "./dist/types/job-scheduler/index.d.ts"
-      ]
-    }
-  },
+  "types": "./dist/cjs/index.d.ts",
   "files": [
     "dist",
     "README.md",
@@ -84,83 +38,158 @@
   ],
   "exports": {
     ".": {
-      "types": "./dist/types/index.d.ts",
-      "import": "./dist/esm/index.mjs",
-      "require": "./dist/cjs/index.cjs"
+      "import": {
+        "types": "./dist/esm/index.d.mts",
+        "default": "./dist/esm/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.cjs"
+      }
     },
     "./orm": {
-      "types": "./dist/types/orm/index.d.ts",
-      "import": "./dist/esm/orm/index.mjs",
-      "require": "./dist/cjs/orm/index.cjs"
+      "import": {
+        "types": "./dist/esm/orm/index.d.mts",
+        "default": "./dist/esm/orm/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/orm/index.d.ts",
+        "default": "./dist/cjs/orm/index.cjs"
+      }
     },
     "./context": {
-      "types": "./dist/types/context/index.d.ts",
-      "import": "./dist/esm/context/index.mjs",
-      "require": "./dist/cjs/context/index.cjs"
+      "import": {
+        "types": "./dist/esm/context/index.d.mts",
+        "default": "./dist/esm/context/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/context/index.d.ts",
+        "default": "./dist/cjs/context/index.cjs"
+      }
     },
     "./tenancy": {
-      "types": "./dist/types/tenancy/index.d.ts",
-      "import": "./dist/esm/tenancy/index.mjs",
-      "require": "./dist/cjs/tenancy/index.cjs"
+      "import": {
+        "types": "./dist/esm/tenancy/index.d.mts",
+        "default": "./dist/esm/tenancy/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/tenancy/index.d.ts",
+        "default": "./dist/cjs/tenancy/index.cjs"
+      }
     },
     "./audit": {
-      "types": "./dist/types/audit/index.d.ts",
-      "import": "./dist/esm/audit/index.mjs",
-      "require": "./dist/cjs/audit/index.cjs"
+      "import": {
+        "types": "./dist/esm/audit/index.d.mts",
+        "default": "./dist/esm/audit/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/audit/index.d.ts",
+        "default": "./dist/cjs/audit/index.cjs"
+      }
     },
     "./permission": {
-      "types": "./dist/types/permission/index.d.ts",
-      "import": "./dist/esm/permission/index.mjs",
-      "require": "./dist/cjs/permission/index.cjs"
+      "import": {
+        "types": "./dist/esm/permission/index.d.mts",
+        "default": "./dist/esm/permission/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/permission/index.d.ts",
+        "default": "./dist/cjs/permission/index.cjs"
+      }
     },
     "./cache": {
-      "types": "./dist/types/cache/index.d.ts",
-      "import": "./dist/esm/cache/index.mjs",
-      "require": "./dist/cjs/cache/index.cjs"
+      "import": {
+        "types": "./dist/esm/cache/index.d.mts",
+        "default": "./dist/esm/cache/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/cache/index.d.ts",
+        "default": "./dist/cjs/cache/index.cjs"
+      }
     },
     "./http": {
-      "types": "./dist/types/http/index.d.ts",
-      "import": "./dist/esm/http/index.mjs",
-      "require": "./dist/cjs/http/index.cjs"
+      "import": {
+        "types": "./dist/esm/http/index.d.mts",
+        "default": "./dist/esm/http/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/http/index.d.ts",
+        "default": "./dist/cjs/http/index.cjs"
+      }
     },
     "./jwt": {
-      "types": "./dist/types/jwt/index.d.ts",
-      "import": "./dist/esm/jwt/index.mjs",
-      "require": "./dist/cjs/jwt/index.cjs"
+      "import": {
+        "types": "./dist/esm/jwt/index.d.mts",
+        "default": "./dist/esm/jwt/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/jwt/index.d.ts",
+        "default": "./dist/cjs/jwt/index.cjs"
+      }
     },
     "./validation": {
-      "types": "./dist/types/validation/index.d.ts",
-      "import": "./dist/esm/validation/index.mjs",
-      "require": "./dist/cjs/validation/index.cjs"
+      "import": {
+        "types": "./dist/esm/validation/index.d.mts",
+        "default": "./dist/esm/validation/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/validation/index.d.ts",
+        "default": "./dist/cjs/validation/index.cjs"
+      }
     },
     "./queue": {
-      "types": "./dist/types/queue/index.d.ts",
-      "import": "./dist/esm/queue/index.mjs",
-      "require": "./dist/cjs/queue/index.cjs"
+      "import": {
+        "types": "./dist/esm/queue/index.d.mts",
+        "default": "./dist/esm/queue/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/queue/index.d.ts",
+        "default": "./dist/cjs/queue/index.cjs"
+      }
     },
     "./i18n": {
-      "types": "./dist/types/i18n/index.d.ts",
-      "import": "./dist/esm/i18n/index.mjs",
-      "require": "./dist/cjs/i18n/index.cjs"
+      "import": {
+        "types": "./dist/esm/i18n/index.d.mts",
+        "default": "./dist/esm/i18n/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/i18n/index.d.ts",
+        "default": "./dist/cjs/i18n/index.cjs"
+      }
     },
     "./action-history": {
-      "types": "./dist/types/action-history/index.d.ts",
-      "import": "./dist/esm/action-history/index.mjs",
-      "require": "./dist/cjs/action-history/index.cjs"
+      "import": {
+        "types": "./dist/esm/action-history/index.d.mts",
+        "default": "./dist/esm/action-history/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/action-history/index.d.ts",
+        "default": "./dist/cjs/action-history/index.cjs"
+      }
     },
     "./file-storage": {
-      "types": "./dist/types/file-storage/index.d.ts",
-      "import": "./dist/esm/file-storage/index.mjs",
-      "require": "./dist/cjs/file-storage/index.cjs"
+      "import": {
+        "types": "./dist/esm/file-storage/index.d.mts",
+        "default": "./dist/esm/file-storage/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/file-storage/index.d.ts",
+        "default": "./dist/cjs/file-storage/index.cjs"
+      }
     },
     "./job-scheduler": {
-      "types": "./dist/types/job-scheduler/index.d.ts",
-      "import": "./dist/esm/job-scheduler/index.mjs",
-      "require": "./dist/cjs/job-scheduler/index.cjs"
+      "import": {
+        "types": "./dist/esm/job-scheduler/index.d.mts",
+        "default": "./dist/esm/job-scheduler/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/job-scheduler/index.d.ts",
+        "default": "./dist/cjs/job-scheduler/index.cjs"
+      }
     }
   },
   "scripts": {
-    "build": "tsup && tsc -p tsconfig.build.json",
+    "build": "tsup",
     "build:types": "tsc -p tsconfig.build.json",
     "build:bundle": "tsup",
     "check:exports": "publint --strict && attw --pack .",
@@ -263,5 +292,52 @@
     "typeorm": "^0.3.20",
     "typescript": "^5.6.0",
     "zod": "^4.4.3"
+  },
+  "type": "commonjs",
+  "typesVersions": {
+    "*": {
+      "orm": [
+        "./dist/cjs/orm/index.d.ts"
+      ],
+      "context": [
+        "./dist/cjs/context/index.d.ts"
+      ],
+      "tenancy": [
+        "./dist/cjs/tenancy/index.d.ts"
+      ],
+      "audit": [
+        "./dist/cjs/audit/index.d.ts"
+      ],
+      "permission": [
+        "./dist/cjs/permission/index.d.ts"
+      ],
+      "cache": [
+        "./dist/cjs/cache/index.d.ts"
+      ],
+      "http": [
+        "./dist/cjs/http/index.d.ts"
+      ],
+      "jwt": [
+        "./dist/cjs/jwt/index.d.ts"
+      ],
+      "validation": [
+        "./dist/cjs/validation/index.d.ts"
+      ],
+      "queue": [
+        "./dist/cjs/queue/index.d.ts"
+      ],
+      "i18n": [
+        "./dist/cjs/i18n/index.d.ts"
+      ],
+      "action-history": [
+        "./dist/cjs/action-history/index.d.ts"
+      ],
+      "file-storage": [
+        "./dist/cjs/file-storage/index.d.ts"
+      ],
+      "job-scheduler": [
+        "./dist/cjs/job-scheduler/index.d.ts"
+      ]
+    }
   }
 }

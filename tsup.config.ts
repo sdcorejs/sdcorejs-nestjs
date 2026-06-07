@@ -42,7 +42,7 @@ const baseConfig: Options = {
   entry: entryMap,
   splitting: false,
   sourcemap: true,
-  dts: false,
+  dts: true,
   target: 'es2022',
   treeshake: true,
   external,
