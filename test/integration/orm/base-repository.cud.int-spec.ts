@@ -62,11 +62,7 @@ describe('BaseRepository CUD + uuid validation', () => {
   });
 
   it('import bulk-inserts and returns rows', async () => {
-    const out = await repo.import([
-      { code: 'I-1' },
-      { code: 'I-2' },
-      { code: 'I-3' },
-    ]);
+    const out = await repo.import([{ code: 'I-1' }, { code: 'I-2' }, { code: 'I-3' }]);
     expect(out).toHaveLength(3);
     const r = await repo.paging({ pageNumber: 0, pageSize: 10 });
     expect(r.total).toBe(3);

@@ -27,11 +27,7 @@ export class HttpService {
     const map = headers ?? DEFAULT_HEADERS_CONFIG;
     this.propagate =
       cfg.propagateHeaders ??
-      [
-        map.tenant ?? 'x-tenant',
-        map.userId ?? 'x-user-id',
-        ...Object.values(map.customHeaders ?? {}),
-      ].filter((h): h is string => !!h);
+      [map.tenant ?? 'x-tenant', map.userId ?? 'x-user-id', ...Object.values(map.customHeaders ?? {})].filter((h): h is string => !!h);
 
     this.client.interceptors.request.use((config) => {
       const ctx = this.context?.store;

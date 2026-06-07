@@ -35,7 +35,10 @@ describe('BaseEntity + mixins (TypeORM metadata)', () => {
   });
 
   const cols = (ctor: ClassRef): string[] =>
-    ds.getMetadata(ctor).columns.map((c) => c.propertyName).sort();
+    ds
+      .getMetadata(ctor)
+      .columns.map((c) => c.propertyName)
+      .sort();
 
   it('BaseEntity contributes only `id`', () => {
     expect(cols(PlainEntity)).toEqual(['id', 'name']);
@@ -47,17 +50,7 @@ describe('BaseEntity + mixins (TypeORM metadata)', () => {
 
   it('WithAudit adds timestamps + createdBy/modifiedBy/creator/modifier', () => {
     expect(cols(AuditedEntity)).toEqual(
-      [
-        'createdAt',
-        'createdBy',
-        'creator',
-        'deletedAt',
-        'id',
-        'modifiedBy',
-        'modifier',
-        'name',
-        'updatedAt',
-      ].sort(),
+      ['createdAt', 'createdBy', 'creator', 'deletedAt', 'id', 'modifiedBy', 'modifier', 'name', 'updatedAt'].sort(),
     );
   });
 

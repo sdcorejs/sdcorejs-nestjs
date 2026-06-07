@@ -15,11 +15,7 @@ import { ContextService } from '../../src/context/context.service';
 import { TENANCY_STRATEGY } from '../../src/tenancy/tokens';
 import { AUDIT_STRATEGY } from '../../src/audit/tokens';
 import { PERMISSION_STRATEGY } from '../../src/permission/tokens';
-import {
-  SampleAuditStrategy,
-  SamplePermissionStrategy,
-  SampleTenancyStrategy,
-} from '../fixtures/sample-strategies';
+import { SampleAuditStrategy, SamplePermissionStrategy, SampleTenancyStrategy } from '../fixtures/sample-strategies';
 import { createTestDataSource } from '../fixtures/pg-mem-datasource';
 
 @SearchableFields({ exact: ['code'], contain: ['name'], activeColumn: 'isActive' })
@@ -140,18 +136,13 @@ describe('Consumer-app E2E — full SdCoreModule.forRoot() integration', () => {
   });
 
   it('paging scoped to tenant BETA returns only BETA rows', async () => {
-    const res = await request(app.getHttpServer())
-      .post('/products/paging')
-      .set('X-Tenant', 'BETA')
-      .send({ pageNumber: 0, pageSize: 10 });
+    const res = await request(app.getHttpServer()).post('/products/paging').set('X-Tenant', 'BETA').send({ pageNumber: 0, pageSize: 10 });
     expect(res.status).toBe(201);
     expect(res.body.data.total).toBe(1);
   });
 
   it('GET /all envelope includes ApiResponse wrapper', async () => {
-    const res = await request(app.getHttpServer())
-      .get('/products/all')
-      .set('X-Tenant', 'ACME');
+    const res = await request(app.getHttpServer()).get('/products/all').set('X-Tenant', 'ACME');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(2);
   });

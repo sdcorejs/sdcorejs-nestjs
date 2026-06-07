@@ -12,9 +12,7 @@ export interface SimpleI18nOptions {
 /** Replace `{var}` placeholders from `data`; leave unmatched placeholders intact. */
 function interpolate(template: string, data?: Record<string, unknown>): string {
   if (!data) return template;
-  return template.replace(/\{(\w+)\}/g, (match, key: string) =>
-    key in data ? String(data[key]) : match,
-  );
+  return template.replace(/\{(\w+)\}/g, (match, key: string) => (key in data ? String(data[key]) : match));
 }
 
 /**
@@ -26,14 +24,9 @@ export class SimpleI18nResolver implements II18nResolver {
   constructor(private readonly opts: SimpleI18nOptions) {}
 
   translate(code: string, lang: string | undefined, data?: Record<string, unknown>): string {
-    const langCode = this.opts.languageResolver
-      ? this.opts.languageResolver.resolve(lang)
-      : (lang ?? this.opts.fallbackLang);
+    const langCode = this.opts.languageResolver ? this.opts.languageResolver.resolve(lang) : (lang ?? this.opts.fallbackLang);
 
-    const template =
-      this.opts.catalogs[langCode]?.[code] ??
-      this.opts.catalogs[this.opts.fallbackLang]?.[code] ??
-      code;
+    const template = this.opts.catalogs[langCode]?.[code] ?? this.opts.catalogs[this.opts.fallbackLang]?.[code] ?? code;
 
     return interpolate(template, data);
   }

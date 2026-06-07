@@ -31,13 +31,25 @@ export class UploadedFileService {
     return ContentType ? { ContentType, ContentDisposition: 'inline' } : {};
   }
 
-  async create(args: {
-    fileName: string; fileSize: number; key: string; cdn: string;
-  } & FileUploadMeta): Promise<FileEntity> {
+  async create(
+    args: {
+      fileName: string;
+      fileSize: number;
+      key: string;
+      cdn: string;
+    } & FileUploadMeta,
+  ): Promise<FileEntity> {
     const { fileName, fileSize, key, cdn, module, entity, entityId, type } = args;
     const row = this.repository.create({
-      fileName, fileSize, fileExtension: fileName?.split('.').pop(), key, cdn,
-      module, entity, entityId, type,
+      fileName,
+      fileSize,
+      fileExtension: fileName?.split('.').pop(),
+      key,
+      cdn,
+      module,
+      entity,
+      entityId,
+      type,
       tenantCode: this.context?.getCustom<string>('tenantCode') ?? this.context?.tenant,
       departmentCode: this.context?.getCustom<string>('departmentCode'),
       userId: this.context?.userId,
@@ -72,10 +84,7 @@ export class UploadedFileService {
 
   async delete(keys: string[]): Promise<void> {
     if (!keys?.length) return;
-    const rows = await this.repository
-      .createQueryBuilder('e')
-      .where('e."deletedAt" IS NULL AND e."key" IN (:...keys)', { keys })
-      .getMany();
+    const rows = await this.repository.createQueryBuilder('e').where('e."deletedAt" IS NULL AND e."key" IN (:...keys)', { keys }).getMany();
     if (rows.length) {
       await this.repository.softDelete(rows.map((e) => e.id));
     }

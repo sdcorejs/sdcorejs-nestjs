@@ -26,7 +26,9 @@ describe('LocalFileStorageService.upload', () => {
     const tracking = makeTracking();
     const svc = new LocalFileStorageService({ folder: 'core', host: 'http://h/' } as any, tracking);
     const res = await svc.upload(Buffer.from('x'), 'logo.png', { module: 'masterdata', entity: 'brand', type: 'logo' });
-    expect(tracking.create).toHaveBeenCalledWith(expect.objectContaining({ module: 'masterdata', entity: 'brand', type: 'logo', key: 'core/logo.png' }));
+    expect(tracking.create).toHaveBeenCalledWith(
+      expect.objectContaining({ module: 'masterdata', entity: 'brand', type: 'logo', key: 'core/logo.png' }),
+    );
     expect(res.id).toBe('f1');
     expect(res.key).toBe('core/logo.png');
   });

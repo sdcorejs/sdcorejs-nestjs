@@ -1,9 +1,5 @@
 import 'reflect-metadata';
-import {
-  TenantScoped,
-  getScopedColumns,
-  TENANT_SCOPED_METADATA,
-} from '../tenant-scoped.decorator';
+import { TenantScoped, getScopedColumns, TENANT_SCOPED_METADATA } from '../tenant-scoped.decorator';
 
 describe('@TenantScoped', () => {
   it('sets per-property metadata', () => {

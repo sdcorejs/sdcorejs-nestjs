@@ -50,17 +50,14 @@ describe('BaseRepository audit integration', () => {
   it('with DefaultAuditStrategy + ctx → fills createdBy + modifiedBy on create', async () => {
     const strategy = new DefaultAuditStrategy(ctx);
     const repo = new AuditRepo(ds, { auditStrategy: strategy, contextService: ctx });
-    await ctx.run(
-      { userId: '00000000-0000-4000-a000-000000000001', permissions: [] },
-      async () => {
-        const e = await repo.create({ name: 'X' });
-        expect(e.createdBy).toBe('00000000-0000-4000-a000-000000000001');
-        expect(e.modifiedBy).toBe('00000000-0000-4000-a000-000000000001');
-        // creator / modifier snapshots are NOT filled by DefaultAuditStrategy — domain concern.
-        expect(e.creator).toBeNull();
-        expect(e.modifier).toBeNull();
-      },
-    );
+    await ctx.run({ userId: '00000000-0000-4000-a000-000000000001', permissions: [] }, async () => {
+      const e = await repo.create({ name: 'X' });
+      expect(e.createdBy).toBe('00000000-0000-4000-a000-000000000001');
+      expect(e.modifiedBy).toBe('00000000-0000-4000-a000-000000000001');
+      // creator / modifier snapshots are NOT filled by DefaultAuditStrategy — domain concern.
+      expect(e.creator).toBeNull();
+      expect(e.modifier).toBeNull();
+    });
   });
 
   it('skips audit fill when ctx.userId is undefined', async () => {
@@ -85,13 +82,9 @@ describe('BaseRepository audit integration', () => {
   it('update fires onUpdate (modifiedBy updated, createdBy unchanged)', async () => {
     const strategy = new DefaultAuditStrategy(ctx);
     const repo = new AuditRepo(ds, { auditStrategy: strategy, contextService: ctx });
-    const created = await ctx.run(
-      { userId: '00000000-0000-4000-a000-000000000001' },
-      async () => repo.create({ name: 'orig' }),
-    );
-    await ctx.run(
-      { userId: '00000000-0000-4000-a000-000000000002' },
-      async () => repo.update({ id: created.id, name: 'changed' } as never),
+    const created = await ctx.run({ userId: '00000000-0000-4000-a000-000000000001' }, async () => repo.create({ name: 'orig' }));
+    await ctx.run({ userId: '00000000-0000-4000-a000-000000000002' }, async () =>
+      repo.update({ id: created.id, name: 'changed' } as never),
     );
     const reloaded = await ds.getRepository(AuditProduct).findOneBy({ id: created.id });
     expect(reloaded?.createdBy).toBe('00000000-0000-4000-a000-000000000001');

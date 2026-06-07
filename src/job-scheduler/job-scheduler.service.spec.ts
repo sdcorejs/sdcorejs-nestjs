@@ -104,9 +104,11 @@ describe('JobSchedulerService', () => {
       const repo = makeRepo({ insert: [{ id: 'j1' }] });
       const svc = new JobSchedulerService(repo);
       const boom = new Error('boom');
-      await expect(svc.runExclusive({ code: 'c', runKey: 'r' }, async () => {
-        throw boom;
-      })).rejects.toBe(boom);
+      await expect(
+        svc.runExclusive({ code: 'c', runKey: 'r' }, async () => {
+          throw boom;
+        }),
+      ).rejects.toBe(boom);
       expect(repo.update).toHaveBeenCalledWith('j1', { status: JobSchedulerStatus.FAIL, data: { error: 'Error: boom' } });
     });
   });

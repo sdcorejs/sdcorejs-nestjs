@@ -74,7 +74,8 @@ export class AwsFileStorageService implements IFileStorageService {
       this.s3.upload(
         { Bucket: this.bucket, Key: key, ContentType, ContentDisposition, Body: buffer, Expires: addDays(new Date(), 1) },
         (err) => {
-          if (err) return reject(new BadRequestException(apiError('core.file.upload-failed', 'File upload failed', { error: String(err) })));
+          if (err)
+            return reject(new BadRequestException(apiError('core.file.upload-failed', 'File upload failed', { error: String(err) })));
           resolve({ key, cdn: this.cdn(key) });
         },
       );
@@ -91,9 +92,7 @@ export class AwsFileStorageService implements IFileStorageService {
   }
 
   private normalizeKeys(keyOrCdns: string[]): string[] {
-    return keyOrCdns
-      .filter((val) => val?.includes(`${this.folder}/`))
-      .map((val) => `${this.folder}/${val.split(`${this.folder}/`).pop()}`);
+    return keyOrCdns.filter((val) => val?.includes(`${this.folder}/`)).map((val) => `${this.folder}/${val.split(`${this.folder}/`).pop()}`);
   }
 
   async useFiles(keyOrCdns: string[], entity?: string, entityId?: string): Promise<void> {
@@ -112,9 +111,8 @@ export class AwsFileStorageService implements IFileStorageService {
     const keys = this.normalizeKeys(removed);
     if (!keys.length) return;
     await new Promise<void>((resolve, reject) => {
-      this.s3.deleteObjects(
-        { Bucket: this.bucket, Delete: { Objects: ArrayUtilities.distinct(keys).map((Key) => ({ Key })) } },
-        (err) => (err ? reject(err) : resolve()),
+      this.s3.deleteObjects({ Bucket: this.bucket, Delete: { Objects: ArrayUtilities.distinct(keys).map((Key) => ({ Key })) } }, (err) =>
+        err ? reject(err) : resolve(),
       );
     })
       .then(() => this.uploadedFileService.delete(keys))

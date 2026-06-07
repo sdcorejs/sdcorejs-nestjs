@@ -66,7 +66,10 @@ jest.mock('typeorm', () => ({
 
 describe('BaseService', () => {
   it('paging maps entities to DTOs', async () => {
-    const repo = makeMockRepo([{ id: '1', name: 'A' }, { id: '2', name: 'B' }]);
+    const repo = makeMockRepo([
+      { id: '1', name: 'A' },
+      { id: '2', name: 'B' },
+    ]);
     const svc = new RawService(repo);
     const res = await svc.paging({ pageNumber: 0, pageSize: 10 });
     expect(res.items).toHaveLength(2);

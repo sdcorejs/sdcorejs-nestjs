@@ -7,10 +7,7 @@ export { getScopedColumns } from '../orm/decorators/tenant-scoped.decorator';
  * Array values produce an `IN` filter (multi-value scope, e.g. a user spanning several
  * departments); empty arrays are skipped. Scalar values produce `EQUAL`.
  */
-export function buildScopeFilters<T = unknown>(
-  scope: Record<string, unknown>,
-  scopedCols: string[],
-): Filter<T>[] {
+export function buildScopeFilters<T = unknown>(scope: Record<string, unknown>, scopedCols: string[]): Filter<T>[] {
   const out: Filter<T>[] = [];
   for (const col of scopedCols) {
     const value = scope[col];
@@ -30,10 +27,7 @@ export function buildScopeFilters<T = unknown>(
  * (e.g. `detail(id)`). Array values become `In(...)`; scalars are matched by equality. Null /
  * undefined / empty-array values are skipped. Returns `{}` when nothing scopes the read.
  */
-export function buildScopeWhere(
-  scope: Record<string, unknown>,
-  scopedCols: string[],
-): Record<string, unknown> {
+export function buildScopeWhere(scope: Record<string, unknown>, scopedCols: string[]): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const col of scopedCols) {
     const value = scope[col];
@@ -49,11 +43,7 @@ export function buildScopeWhere(
 }
 
 /** Writes scope values into matching properties on `entity`. Skips keys not in the scope object. */
-export function applyScopeToEntity(
-  entity: Record<string, unknown>,
-  scope: Record<string, unknown>,
-  scopedCols: string[],
-): void {
+export function applyScopeToEntity(entity: Record<string, unknown>, scope: Record<string, unknown>, scopedCols: string[]): void {
   for (const col of scopedCols) {
     const value = scope[col];
     if (value === undefined || value === null) continue;

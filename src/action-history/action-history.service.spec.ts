@@ -33,9 +33,7 @@ describe('ActionHistoryService', () => {
         fullName: 'Bob B',
       }));
       await svc.create({ table: 't', tableId: 'r1', type: ActionHistoryType.UPDATE });
-      expect(repo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ userId: 'u9', username: 'bob', fullName: 'Bob B' }),
-      );
+      expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u9', username: 'bob', fullName: 'Bob B' }));
     });
 
     it('writes through the queryRunner manager when one is supplied', async () => {

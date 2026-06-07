@@ -23,11 +23,7 @@ export const zPageSize = z.coerce
 export const zPaging = z.object({ pageNumber: zPageNumber, pageSize: zPageSize });
 
 /** UUID string validator (uses the same `isUuid` helper as `BaseRepository`). */
-export const zUuid = (message = 'core.validation.uuid'): z.ZodString =>
-  z.string().refine(isUuid, { message }) as unknown as z.ZodString;
+export const zUuid = (message = 'core.validation.uuid'): z.ZodString => z.string().refine(isUuid, { message }) as unknown as z.ZodString;
 
 /** Coerce `'true'`/`'1'`/`'yes'` (case-insensitive) to `true`, anything else string → `false`. */
-export const zBool = z.preprocess(
-  (v) => (typeof v === 'string' ? ['true', '1', 'yes'].includes(v.toLowerCase()) : v),
-  z.boolean(),
-);
+export const zBool = z.preprocess((v) => (typeof v === 'string' ? ['true', '1', 'yes'].includes(v.toLowerCase()) : v), z.boolean());

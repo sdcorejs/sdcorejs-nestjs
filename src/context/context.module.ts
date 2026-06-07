@@ -1,10 +1,4 @@
-import {
-  type DynamicModule,
-  type MiddlewareConsumer,
-  Module,
-  type NestModule,
-  type Provider,
-} from '@nestjs/common';
+import { type DynamicModule, type MiddlewareConsumer, Module, type NestModule, type Provider } from '@nestjs/common';
 import { ContextMiddleware } from './context.middleware';
 import { ContextService } from './context.service';
 import { DEFAULT_HEADERS_CONFIG, type HeadersConfig } from './types';

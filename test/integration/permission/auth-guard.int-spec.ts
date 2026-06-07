@@ -113,7 +113,8 @@ describe('AuthGuard permission check', () => {
   it('custom check function overrides default Array.includes', async () => {
     const strategy: IPermissionStrategy = {
       load: async () => ['product:*'],
-      check: (codes, required) => codes.some((c) => c === '*:*' || c === required || (c.endsWith(':*') && required.startsWith(c.slice(0, -1)))),
+      check: (codes, required) =>
+        codes.some((c) => c === '*:*' || c === required || (c.endsWith(':*') && required.startsWith(c.slice(0, -1)))),
     };
     class C {
       @HasPermission('product:delete')

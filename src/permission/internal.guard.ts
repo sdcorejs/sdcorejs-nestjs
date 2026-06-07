@@ -10,14 +10,8 @@ import {
 import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import { apiError } from '../orm/types/api-response.types';
-import {
-  type IInternalSecretProvider,
-  INTERNAL_SECRET_PROVIDER,
-} from './internal-secret.provider';
-import {
-  type IInternalContextEnricher,
-  INTERNAL_CONTEXT_ENRICHER,
-} from './internal-context.enricher';
+import { type IInternalSecretProvider, INTERNAL_SECRET_PROVIDER } from './internal-secret.provider';
+import { type IInternalContextEnricher, INTERNAL_CONTEXT_ENRICHER } from './internal-context.enricher';
 
 /** Default header name the guard reads. Override per-instance via subclass if needed. */
 export const INTERNAL_SECRET_HEADER = 'x-internal-secret';
@@ -56,13 +50,9 @@ export class InternalGuard implements CanActivate {
     const raw = req.headers[INTERNAL_SECRET_HEADER];
     const provided = Array.isArray(raw) ? raw[0] : raw;
     if (!provided) {
-      throw new ForbiddenException(
-        apiError('core.permission.internal-secret-missing', `Missing ${INTERNAL_SECRET_HEADER} header`),
-      );
+      throw new ForbiddenException(apiError('core.permission.internal-secret-missing', `Missing ${INTERNAL_SECRET_HEADER} header`));
     }
-    const expected = this.provider.getKeys
-      ? await this.provider.getKeys()
-      : [await this.provider.getKey()];
+    const expected = this.provider.getKeys ? await this.provider.getKeys() : [await this.provider.getKey()];
     if (!expected.some((key) => this.safeEqual(provided, key))) {
       throw new ForbiddenException(apiError('core.permission.internal-secret-mismatch', 'Invalid internal secret'));
     }

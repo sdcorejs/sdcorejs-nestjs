@@ -4,8 +4,7 @@ import type { Job } from 'bullmq';
 import { QueueModule } from './queue.module';
 import { SdWorkerHost } from './base-worker';
 
-const fakeJob = (data: unknown): Job =>
-  ({ id: '1', name: 'job', queueName: 'q', attemptsMade: 0, data }) as unknown as Job;
+const fakeJob = (data: unknown): Job => ({ id: '1', name: 'job', queueName: 'q', attemptsMade: 0, data }) as unknown as Job;
 
 describe('QueueModule', () => {
   it('forRoot returns a global dynamic module wiring one Bull root import', () => {

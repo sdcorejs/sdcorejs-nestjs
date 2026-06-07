@@ -1,12 +1,4 @@
-import {
-  type ArgumentsHost,
-  Catch,
-  type ExceptionFilter,
-  HttpException,
-  Inject,
-  Injectable,
-  Optional,
-} from '@nestjs/common';
+import { type ArgumentsHost, Catch, type ExceptionFilter, HttpException, Inject, Injectable, Optional } from '@nestjs/common';
 import { ContextService } from '../context/context.service';
 import type { ApiErrorBody } from '../orm/types/api-response.types';
 import type { II18nResolver } from './types';

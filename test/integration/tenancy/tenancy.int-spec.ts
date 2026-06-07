@@ -7,11 +7,7 @@ import { TenantScoped } from '../../../src/orm/decorators/tenant-scoped.decorato
 import { BaseRepository } from '../../../src/orm/base-repository';
 import { ContextService } from '../../../src/context/context.service';
 import type { ITenancyStrategy } from '../../../src/tenancy/strategy.interface';
-import {
-  buildScopeFilters,
-  applyScopeToEntity,
-  getScopedColumns,
-} from '../../../src/tenancy/tenancy.helpers';
+import { buildScopeFilters, applyScopeToEntity, getScopedColumns } from '../../../src/tenancy/tenancy.helpers';
 
 @Entity('scoped_product')
 class ScopedProduct extends WithAudit(BaseEntity) {
@@ -36,10 +32,7 @@ class PlainRepo extends BaseRepository<PlainProduct> {
   }
 }
 
-const buildStrategy = (
-  scope: Record<string, unknown>,
-  bypass = false,
-): ITenancyStrategy => ({
+const buildStrategy = (scope: Record<string, unknown>, bypass = false): ITenancyStrategy => ({
   getCurrentScope: () => scope,
   shouldBypass: () => bypass,
 });

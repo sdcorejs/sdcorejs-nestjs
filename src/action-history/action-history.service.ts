@@ -25,9 +25,7 @@ export class ActionHistoryService implements IHistoryRecorder {
   ) {}
 
   async create<T = unknown>(req: ActionHistorySaveReq<T>, queryRunner?: QueryRunner): Promise<void> {
-    const actor = this.context
-      ? (this.resolveActor?.(this.context) ?? { userId: this.context.userId })
-      : {};
+    const actor = this.context ? (this.resolveActor?.(this.context) ?? { userId: this.context.userId }) : {};
     const entity = this.repository.create({
       ...req,
       userId: actor.userId,

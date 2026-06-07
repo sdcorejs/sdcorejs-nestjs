@@ -73,9 +73,7 @@ export class LocalFileStorageService implements IFileStorageService {
   }
 
   private normalizeKeys(keyOrCdns: string[]): string[] {
-    return keyOrCdns
-      .filter((val) => val?.includes(`${this.folder}/`))
-      .map((val) => `${this.folder}/${val.split(`${this.folder}/`).pop()}`);
+    return keyOrCdns.filter((val) => val?.includes(`${this.folder}/`)).map((val) => `${this.folder}/${val.split(`${this.folder}/`).pop()}`);
   }
 
   async useFiles(keyOrCdns: string[], entity?: string, entityId?: string): Promise<void> {
@@ -95,10 +93,7 @@ export class LocalFileStorageService implements IFileStorageService {
     if (!keys.length) return;
     await Promise.all(
       keys.map(
-        (item) =>
-          new Promise<void>((resolve, reject) =>
-            unlink(`${this.basePath}/${item}`, (err) => (err ? reject(err) : resolve())),
-          ),
+        (item) => new Promise<void>((resolve, reject) => unlink(`${this.basePath}/${item}`, (err) => (err ? reject(err) : resolve()))),
       ),
     )
       .then(() => this.uploadedFileService.delete(keys))

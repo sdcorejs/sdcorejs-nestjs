@@ -12,8 +12,7 @@ interface MutableRequest {
 /** Map form: validate several request parts in one guard. Omit a key to skip that source. */
 export type ZodSchemaMap = Partial<Record<ZodSource, ZodTypeAny>>;
 
-const isSchema = (v: ZodTypeAny | ZodSchemaMap): v is ZodTypeAny =>
-  typeof (v as ZodTypeAny).safeParse === 'function';
+const isSchema = (v: ZodTypeAny | ZodSchemaMap): v is ZodTypeAny => typeof (v as ZodTypeAny).safeParse === 'function';
 
 const readSource = (req: MutableRequest, source: ZodSource): unknown =>
   source === 'body' ? req.body : source === 'params' ? req.params : req.query;
@@ -50,10 +49,7 @@ const writeSource = (req: MutableRequest, source: ZodSource, data: unknown): voi
  * @example
  * @UseGuards(AuthGuard, ZodValidationGuard({ body: CreateProductSchema, query: ListQuerySchema }))
  */
-export const ZodValidationGuard = (
-  schemaOrMap: ZodTypeAny | ZodSchemaMap,
-  source: ZodSource = 'body',
-): Type<CanActivate> => {
+export const ZodValidationGuard = (schemaOrMap: ZodTypeAny | ZodSchemaMap, source: ZodSource = 'body'): Type<CanActivate> => {
   const map: ZodSchemaMap = isSchema(schemaOrMap) ? { [source]: schemaOrMap } : schemaOrMap;
   const entries = Object.entries(map) as [ZodSource, ZodTypeAny][];
 

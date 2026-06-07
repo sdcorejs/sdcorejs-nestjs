@@ -41,9 +41,7 @@ export abstract class SdWorkerHost<TData = unknown, TResult = unknown> extends W
     } catch (err) {
       // Re-throw so BullMQ records the failure and applies attempts/backoff. Final failure (after
       // all attempts) moves the job to the "failed" set, retained per `removeOnFail`.
-      this.logger.error(
-        `✗ ${job.queueName}:${job.name}#${job.id} (attempt ${attempt}): ${(err as Error).message}`,
-      );
+      this.logger.error(`✗ ${job.queueName}:${job.name}#${job.id} (attempt ${attempt}): ${(err as Error).message}`);
       throw err;
     }
   }

@@ -47,7 +47,11 @@ describe('BaseController (HTTP integration)', () => {
       controllers: [TestProductController],
       providers: [
         { provide: TestProductRepository, useFactory: () => new TestProductRepository(ds) },
-        { provide: TestProductService, useFactory: (r: TestProductRepository) => new TestProductService(r), inject: [TestProductRepository] },
+        {
+          provide: TestProductService,
+          useFactory: (r: TestProductRepository) => new TestProductService(r),
+          inject: [TestProductRepository],
+        },
       ],
     })
     class TestModule {}
@@ -63,9 +67,7 @@ describe('BaseController (HTTP integration)', () => {
   });
 
   it('POST /test-products/paging returns ApiResponse envelope', async () => {
-    const res = await request(app.getHttpServer())
-      .post('/test-products/paging')
-      .send({ pageNumber: 0, pageSize: 10 });
+    const res = await request(app.getHttpServer()).post('/test-products/paging').send({ pageNumber: 0, pageSize: 10 });
     expect(res.status).toBe(201);
     expect(res.body.data.total).toBe(2);
     expect(res.body.data.items).toHaveLength(2);
@@ -85,9 +87,7 @@ describe('BaseController (HTTP integration)', () => {
   });
 
   it('POST /test-products/search returns ApiResponse', async () => {
-    const res = await request(app.getHttpServer())
-      .post('/test-products/search?keyword=Foo')
-      .send([]);
+    const res = await request(app.getHttpServer()).post('/test-products/search?keyword=Foo').send([]);
     expect(res.status).toBe(201);
     expect(res.body.data).toHaveLength(1);
   });

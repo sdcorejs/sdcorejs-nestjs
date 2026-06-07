@@ -44,7 +44,7 @@ function lazy<T>(name: string): T {
 export class KeycloakJwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(@Inject(JWT_CONFIG) cfg: JwtConfig) {
     const jwks = cfg.jwks ?? {};
-    const JwksClient = (lazy<{ JwksClient: JwksClientCtor }>('jwks-rsa')).JwksClient;
+    const JwksClient = lazy<{ JwksClient: JwksClientCtor }>('jwks-rsa').JwksClient;
     const jwt = lazy<{ decode(token: string, opts: { complete: true }): unknown }>('jsonwebtoken');
 
     const uriFromIssuer = jwks.jwksUriFromIssuer ?? DEFAULT_JWKS_URI;
@@ -55,9 +55,7 @@ export class KeycloakJwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
     const secretOrKeyProvider: SecretOrKeyProvider = (_req, rawToken, done) => {
       try {
-        const decoded = jwt.decode(rawToken, { complete: true }) as
-          | { header?: { kid?: string }; payload?: { iss?: string } }
-          | null;
+        const decoded = jwt.decode(rawToken, { complete: true }) as { header?: { kid?: string }; payload?: { iss?: string } } | null;
         const iss = decoded?.payload?.iss;
         const kid = decoded?.header?.kid;
         if (!iss || !kid) return done(new Error('Invalid token: missing iss/kid'), undefined);

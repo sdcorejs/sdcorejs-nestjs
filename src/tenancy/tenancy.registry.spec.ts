@@ -11,12 +11,21 @@ class Foo {
 
 class FooRepo extends BaseRepository<Foo> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  constructor() { super(Foo, {} as any); }
+  constructor() {
+    super(Foo, {} as any);
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  addon(f?: any[]) { return this.addonFilter(f as any); }
-  where() { return this.scopeWhere(); }
+  addon(f?: any[]) {
+    return this.addonFilter(f as any);
+  }
+  where() {
+    return this.scopeWhere();
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  fill(e: any) { this.fillTenancy(e); return e; }
+  fill(e: any) {
+    this.fillTenancy(e);
+    return e;
+  }
 }
 
 const strategy = (scope: Record<string, unknown>, bypass = false): ITenancyStrategy => ({
@@ -24,7 +33,7 @@ const strategy = (scope: Record<string, unknown>, bypass = false): ITenancyStrat
   shouldBypass: () => bypass,
 });
 const withCtx = (store: Record<string, unknown>, s: ITenancyStrategy) =>
-  ({ strategy: s, contextService: { store } } as unknown as Parameters<typeof registerTenancy>[0]);
+  ({ strategy: s, contextService: { store } }) as unknown as Parameters<typeof registerTenancy>[0];
 
 describe('tenancy registry', () => {
   afterEach(() => registerTenancy(undefined as never));

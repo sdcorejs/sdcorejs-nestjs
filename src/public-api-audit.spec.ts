@@ -4,20 +4,24 @@ import * as cache from './cache'; // eslint-disable-line @typescript-eslint/no-u
 import * as validation from './validation';
 import * as i18n from './i18n';
 
-const undef = (m: Record<string, unknown>, names: string[]) =>
-  names.forEach((n) => expect(m[n]).toBeUndefined());
+const undef = (m: Record<string, unknown>, names: string[]) => names.forEach((n) => expect(m[n]).toBeUndefined());
 
 describe('1.0.0 public API — internal symbols are not leaked', () => {
   it('orm drops internal metadata keys + getHistoryRecorder', () => {
     undef(orm as Record<string, unknown>, [
-      'TENANT_SCOPED_METADATA', 'TENANT_SCOPED_COLUMNS', 'SEARCHABLE_FIELDS_METADATA',
-      'SCHEMA_METADATA', 'SCHEMA_PROP_METADATA', 'AUDIT_ENABLED_METADATA', 'getHistoryRecorder',
+      'TENANT_SCOPED_METADATA',
+      'TENANT_SCOPED_COLUMNS',
+      'SEARCHABLE_FIELDS_METADATA',
+      'SCHEMA_METADATA',
+      'SCHEMA_PROP_METADATA',
+      'AUDIT_ENABLED_METADATA',
+      'getHistoryRecorder',
     ]);
   });
   it('orm keeps public decorators + helpers', () => {
     const o = orm as Record<string, unknown>;
-    ['Scoped', 'SearchableFields', 'Schema', 'SchemaProp', 'WithAudit', 'registerHistoryRecorder'].forEach(
-      (n) => expect(o[n]).toBeDefined(),
+    ['Scoped', 'SearchableFields', 'Schema', 'SchemaProp', 'WithAudit', 'registerHistoryRecorder'].forEach((n) =>
+      expect(o[n]).toBeDefined(),
     );
   });
   it('context drops DEFAULT_HEADERS_CONFIG', () => {

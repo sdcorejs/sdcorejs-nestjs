@@ -10,12 +10,7 @@ export class CacheModule {
     return {
       module: CacheModule,
       global: true,
-      providers: [
-        { provide: CACHE_CONFIG, useValue: config },
-        CacheService,
-        CacheInterceptor,
-        RequestCacheMiddleware,
-      ],
+      providers: [{ provide: CACHE_CONFIG, useValue: config }, CacheService, CacheInterceptor, RequestCacheMiddleware],
       exports: [CACHE_CONFIG, CacheService, CacheInterceptor, RequestCacheMiddleware],
     };
   }

@@ -345,9 +345,7 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
   delete = async (id: string | string[], qr?: QueryRunner): Promise<boolean> => {
     const ids = this.parseIds(id);
     if (!ids.length) return false;
-    const olds = this.historyRecorder
-      ? await this.repository.find({ where: { id: In(ids) } as never, withDeleted: true })
-      : [];
+    const olds = this.historyRecorder ? await this.repository.find({ where: { id: In(ids) } as never, withDeleted: true }) : [];
     const result = qr ? await qr.manager.delete(this._target, ids) : await this.repository.delete(ids);
     if (result.affected) {
       for (const old of olds) {

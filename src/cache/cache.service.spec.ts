@@ -211,11 +211,7 @@ describe('CacheService — load() cache-aside', () => {
       await new Promise((r) => setTimeout(r, 20));
       return 'v';
     };
-    const [a, b, c] = await Promise.all([
-      svc.load('k', factory),
-      svc.load('k', factory),
-      svc.load('k', factory),
-    ]);
+    const [a, b, c] = await Promise.all([svc.load('k', factory), svc.load('k', factory), svc.load('k', factory)]);
     expect([a, b, c]).toEqual(['v', 'v', 'v']);
     expect(factoryCalls).toBe(1);
   });

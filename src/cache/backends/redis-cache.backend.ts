@@ -31,7 +31,10 @@ export class RedisCacheBackend implements CacheBackend {
   private readonly client: RedisLikeClient;
   private readonly prefix: string;
 
-  constructor(opts: RedisCacheOptions, private readonly defaultTtlSec: number) {
+  constructor(
+    opts: RedisCacheOptions,
+    private readonly defaultTtlSec: number,
+  ) {
     const { keyPrefix, ...redisOpts } = opts;
     this.prefix = keyPrefix ?? DEFAULT_PREFIX;
     this.client = this.createClient(redisOpts as Record<string, unknown>);
@@ -43,9 +46,7 @@ export class RedisCacheBackend implements CacheBackend {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       mod = require('ioredis');
     } catch {
-      throw new Error(
-        "Cache backend 'redis' requires the 'ioredis' package. Install it: npm i ioredis",
-      );
+      throw new Error("Cache backend 'redis' requires the 'ioredis' package. Install it: npm i ioredis");
     }
     const Ctor = ((mod as { default?: RedisCtor }).default ?? (mod as RedisCtor)) as RedisCtor;
     return new Ctor(opts);

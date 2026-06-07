@@ -55,9 +55,7 @@ const toIssues = (error: z.ZodError, source: string): ZodIssueDetail[] =>
 export function parseZod<T extends ZodTypeAny>(schema: T, payload: unknown, source: ZodSource = 'body'): z.infer<T> {
   const parsed = schema.safeParse(payload);
   if (parsed.success) return parsed.data;
-  throw new BadRequestException(
-    apiError('core.validation.failed', 'Validation failed', { issues: toIssues(parsed.error, source) }),
-  );
+  throw new BadRequestException(apiError('core.validation.failed', 'Validation failed', { issues: toIssues(parsed.error, source) }));
 }
 
 export { toIssues };

@@ -8,9 +8,7 @@ const buildExecCtx = (headers: Record<string, string | string[] | undefined>): E
 describe('InternalGuard', () => {
   it('throws 500 when no provider registered (boot-safe, request-time fail)', async () => {
     const guard = new InternalGuard();
-    await expect(guard.canActivate(buildExecCtx({ 'x-internal-secret': 'k' }))).rejects.toBeInstanceOf(
-      InternalServerErrorException,
-    );
+    await expect(guard.canActivate(buildExecCtx({ 'x-internal-secret': 'k' }))).rejects.toBeInstanceOf(InternalServerErrorException);
   });
 
   it('throws 403 with code body when header missing', async () => {
@@ -44,9 +42,7 @@ describe('InternalGuard', () => {
 
   it('rejects ForbiddenException on length mismatch (no timing leak)', async () => {
     const guard = new InternalGuard({ getKey: () => 'short' });
-    await expect(guard.canActivate(buildExecCtx({ 'x-internal-secret': 'longerstring' }))).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(guard.canActivate(buildExecCtx({ 'x-internal-secret': 'longerstring' }))).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('accepts a match against any key from getKeys (rotation)', async () => {
@@ -77,9 +73,7 @@ describe('InternalGuard', () => {
   it('does not call enricher when secret fails', async () => {
     const enrich = jest.fn();
     const guard = new InternalGuard({ getKey: () => 'k' }, { enrich });
-    await expect(guard.canActivate(buildExecCtx({ 'x-internal-secret': 'wrong' }))).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(guard.canActivate(buildExecCtx({ 'x-internal-secret': 'wrong' }))).rejects.toBeInstanceOf(ForbiddenException);
     expect(enrich).not.toHaveBeenCalled();
   });
 

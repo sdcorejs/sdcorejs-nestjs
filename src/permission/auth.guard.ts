@@ -1,10 +1,4 @@
-import {
-  type ExecutionContext,
-  ForbiddenException,
-  Inject,
-  Injectable,
-  Optional,
-} from '@nestjs/common';
+import { type ExecutionContext, ForbiddenException, Inject, Injectable, Optional } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard as PassportAuthGuard } from '@nestjs/passport';
 import { ContextService } from '../context/context.service';
@@ -48,10 +42,10 @@ export class AuthGuard extends PassportAuthGuard('jwt') {
     // even on routes without a permission requirement.
     if (req.user !== undefined) this.contextService?.set('user', req.user);
 
-    const required = this.reflector.getAllAndOverride<string[] | undefined>(
-      PERMISSION_METADATA_KEY,
-      [execCtx.getHandler(), execCtx.getClass()],
-    );
+    const required = this.reflector.getAllAndOverride<string[] | undefined>(PERMISSION_METADATA_KEY, [
+      execCtx.getHandler(),
+      execCtx.getClass(),
+    ]);
     if (!required || required.length === 0) return true;
 
     if (!req.permissions) {

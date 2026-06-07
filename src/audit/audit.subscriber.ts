@@ -1,10 +1,5 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import type {
-  EntitySubscriberInterface,
-  InsertEvent,
-  SoftRemoveEvent,
-  UpdateEvent,
-} from 'typeorm';
+import type { EntitySubscriberInterface, InsertEvent, SoftRemoveEvent, UpdateEvent } from 'typeorm';
 import { ContextService } from '../context/context.service';
 import { isAuditEnabled } from '../orm/mixins/with-audit';
 import type { ClassRef } from '../orm/types/class-ref.types';

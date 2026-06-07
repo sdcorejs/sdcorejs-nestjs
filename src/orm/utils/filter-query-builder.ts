@@ -1,9 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import {
-  Brackets,
-  type EntityMetadata,
-  type WhereExpressionBuilder,
-} from 'typeorm';
+import { Brackets, type EntityMetadata, type WhereExpressionBuilder } from 'typeorm';
 import type { Filter, FilterAndOr, Order } from '@sdcorejs/utils/models';
 import { apiError } from '../types/api-response.types';
 
@@ -93,9 +89,7 @@ export function resolveColumnName(field: string, alias: string, metadata: Entity
   if (col && (col.type === 'jsonb' || col.type === 'json' || col.type === 'simple-json')) {
     if (parts.length > 1) {
       const jsonPath = parts.slice(1);
-      const path = jsonPath
-        .map((p, i) => (i === jsonPath.length - 1 ? `->> '${p}'` : `-> '${p}'`))
-        .join(' ');
+      const path = jsonPath.map((p, i) => (i === jsonPath.length - 1 ? `->> '${p}'` : `-> '${p}'`)).join(' ');
       return `${alias}."${rootProp}" ${path}`;
     }
   }

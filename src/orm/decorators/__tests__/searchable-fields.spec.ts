@@ -1,8 +1,5 @@
 import 'reflect-metadata';
-import {
-  SearchableFields,
-  getSearchableConfig,
-} from '../searchable-fields.decorator';
+import { SearchableFields, getSearchableConfig } from '../searchable-fields.decorator';
 
 describe('@SearchableFields', () => {
   it('attaches config metadata to class', () => {

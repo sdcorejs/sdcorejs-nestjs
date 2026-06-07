@@ -1,11 +1,5 @@
 import { Test } from '@nestjs/testing';
-import {
-  ContextModule,
-  ContextService,
-  ContextMiddleware,
-  CONTEXT_HEADERS_CONFIG,
-  type HeadersConfig,
-} from '../../../src/context';
+import { ContextModule, ContextService, ContextMiddleware, CONTEXT_HEADERS_CONFIG, type HeadersConfig } from '../../../src/context';
 import { DEFAULT_HEADERS_CONFIG } from '../../../src/context/types';
 
 describe('ContextService — AsyncLocalStorage preservation', () => {
@@ -38,8 +32,14 @@ describe('ContextService — AsyncLocalStorage preservation', () => {
   it('preserves store across Promise.all', async () => {
     await service.run({ userId: 'u2' }, async () => {
       const results = await Promise.all([
-        (async () => { await Promise.resolve(); return service.userId; })(),
-        (async () => { await Promise.resolve(); return service.userId; })(),
+        (async () => {
+          await Promise.resolve();
+          return service.userId;
+        })(),
+        (async () => {
+          await Promise.resolve();
+          return service.userId;
+        })(),
       ]);
       expect(results).toEqual(['u2', 'u2']);
     });
@@ -145,7 +145,7 @@ describe('ContextMiddleware — header reading', () => {
         'x-tenant': 'T-ABC',
         'x-user-id': 'u-42',
         'accept-language': 'en-US,vi;q=0.9',
-        'authorization': 'Bearer xyz',
+        authorization: 'Bearer xyz',
       },
     };
     await new Promise<void>((resolve) => {
@@ -190,28 +190,20 @@ describe('ContextMiddleware — header reading', () => {
   it('x-language header used when accept-language absent', async () => {
     const { ctx, mw } = buildMw();
     await new Promise<void>((resolve) => {
-      mw.use(
-        { headers: { 'x-language': 'en' } } as never,
-        {} as never,
-        () => {
-          expect(ctx.lang).toBe('en');
-          resolve();
-        },
-      );
+      mw.use({ headers: { 'x-language': 'en' } } as never, {} as never, () => {
+        expect(ctx.lang).toBe('en');
+        resolve();
+      });
     });
   });
 
   it('handles array-valued headers (multi-value HTTP) by taking first', async () => {
     const { ctx, mw } = buildMw();
     await new Promise<void>((resolve) => {
-      mw.use(
-        { headers: { 'x-tenant': ['T-FIRST', 'T-SECOND'] } } as never,
-        {} as never,
-        () => {
-          expect(ctx.tenant).toBe('T-FIRST');
-          resolve();
-        },
-      );
+      mw.use({ headers: { 'x-tenant': ['T-FIRST', 'T-SECOND'] } } as never, {} as never, () => {
+        expect(ctx.tenant).toBe('T-FIRST');
+        resolve();
+      });
     });
   });
 

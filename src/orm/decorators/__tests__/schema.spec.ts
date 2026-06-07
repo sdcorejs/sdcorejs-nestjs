@@ -1,10 +1,5 @@
 import 'reflect-metadata';
-import {
-  Schema,
-  SchemaProp,
-  getSchema,
-  getSchemaProps,
-} from '../schema.decorator';
+import { Schema, SchemaProp, getSchema, getSchemaProps } from '../schema.decorator';
 
 describe('@Schema', () => {
   it('attaches class options', () => {

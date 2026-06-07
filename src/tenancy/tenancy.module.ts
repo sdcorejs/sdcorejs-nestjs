@@ -17,9 +17,7 @@ export interface TenancyModuleOptions {
 @Module({})
 export class TenancyModule {
   static forRoot(options: TenancyModuleOptions = {}): DynamicModule {
-    const providers: Provider[] = [
-      { provide: TENANCY_STRATEGY, useClass: options.strategy ?? DefaultTenancyStrategy },
-    ];
+    const providers: Provider[] = [{ provide: TENANCY_STRATEGY, useClass: options.strategy ?? DefaultTenancyStrategy }];
     if (options.registerGlobally !== false) {
       providers.push({
         provide: 'TENANCY_REGISTRY_BINDING',

@@ -14,8 +14,7 @@ function makeRepoMock(): any {
   };
 }
 
-const ctx = (userId?: string): ContextService =>
-  ({ userId, getCustom: () => undefined, tenant: undefined }) as unknown as ContextService;
+const ctx = (userId?: string): ContextService => ({ userId, getCustom: () => undefined, tenant: undefined }) as unknown as ContextService;
 
 describe('UploadedFileService', () => {
   describe('create', () => {
@@ -23,11 +22,24 @@ describe('UploadedFileService', () => {
       const repo = makeRepoMock();
       const svc = new UploadedFileService(repo, ctx('u1'));
       const row = await svc.create({
-        fileName: 'logo.png', fileSize: 1.2, key: 'core/logo.png', cdn: 'https://cdn/core/logo.png',
-        module: 'masterdata', entity: 'brand', entityId: 'b1', type: 'logo',
+        fileName: 'logo.png',
+        fileSize: 1.2,
+        key: 'core/logo.png',
+        cdn: 'https://cdn/core/logo.png',
+        module: 'masterdata',
+        entity: 'brand',
+        entityId: 'b1',
+        type: 'logo',
       });
       expect(repo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ module: 'masterdata', entity: 'brand', entityId: 'b1', type: 'logo', fileExtension: 'png', userId: 'u1' }),
+        expect.objectContaining({
+          module: 'masterdata',
+          entity: 'brand',
+          entityId: 'b1',
+          type: 'logo',
+          fileExtension: 'png',
+          userId: 'u1',
+        }),
       );
       expect(repo.save).toHaveBeenCalled();
       expect(row.id).toBe('f1');

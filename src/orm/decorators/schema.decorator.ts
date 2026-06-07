@@ -48,13 +48,8 @@ export function Schema(options: SchemaOptions = {}): ClassDecorator {
 export function SchemaProp(options: SchemaPropOptions = {}): PropertyDecorator {
   return (target, propertyKey) => {
     const ctor = target.constructor;
-    const existing: Record<string, SchemaPropOptions> =
-      Reflect.getOwnMetadata(SCHEMA_PROP_METADATA, ctor) ?? {};
-    Reflect.defineMetadata(
-      SCHEMA_PROP_METADATA,
-      { ...existing, [propertyKey as string]: options },
-      ctor,
-    );
+    const existing: Record<string, SchemaPropOptions> = Reflect.getOwnMetadata(SCHEMA_PROP_METADATA, ctor) ?? {};
+    Reflect.defineMetadata(SCHEMA_PROP_METADATA, { ...existing, [propertyKey as string]: options }, ctor);
   };
 }
 

@@ -37,10 +37,7 @@ describe('SdI18nExceptionFilter', () => {
   it('preserves data on the translated body', () => {
     const filter = new SdI18nExceptionFilter(stubResolver, { lang: 'en' } as never);
     const { host, sent } = buildHost();
-    filter.catch(
-      new BadRequestException({ code: 'core.validation.failed', message: 'x', data: { issues: [1] } }),
-      host,
-    );
+    filter.catch(new BadRequestException({ code: 'core.validation.failed', message: 'x', data: { issues: [1] } }), host);
     expect(sent.body).toMatchObject({ error: { code: 'core.validation.failed', data: { issues: [1] } } });
   });
 

@@ -67,7 +67,11 @@ describe('JobSchedulerService distributed lock (pg-mem)', () => {
 
   it('runExclusive marks FAIL and re-throws when fn throws', async () => {
     const opts = { code: 'job', runKey: 'r-fail' };
-    await expect(svc.runExclusive(opts, async () => { throw new Error('boom'); })).rejects.toThrow('boom');
+    await expect(
+      svc.runExclusive(opts, async () => {
+        throw new Error('boom');
+      }),
+    ).rejects.toThrow('boom');
     const row = await ds.getRepository(JobScheduler).findOne({ where: { lockKey: 'job:r-fail' } });
     expect(row?.status).toBe(JobSchedulerStatus.FAIL);
     expect(row?.data).toEqual({ error: 'Error: boom' });

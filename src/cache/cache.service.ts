@@ -51,9 +51,7 @@ export class CacheService implements CacheBackend {
       } catch (e) {
         const msg = (e as Error).message;
         if (!fallback) throw e;
-        CacheService.logger.warn(
-          `Redis cache backend unavailable, falling back to in-memory cache: ${msg}`,
-        );
+        CacheService.logger.warn(`Redis cache backend unavailable, falling back to in-memory cache: ${msg}`);
       }
     }
 
@@ -131,9 +129,7 @@ export class CacheService implements CacheBackend {
       try {
         return await op();
       } catch (e) {
-        CacheService.logger.warn(
-          `Cache ${opName} failed, returning fallback: ${(e as Error).message}`,
-        );
+        CacheService.logger.warn(`Cache ${opName} failed, returning fallback: ${(e as Error).message}`);
         return fallback;
       }
     })();
@@ -143,9 +139,7 @@ export class CacheService implements CacheBackend {
     let timer: NodeJS.Timeout | undefined;
     const timeout = new Promise<T>((resolve) => {
       timer = setTimeout(() => {
-        CacheService.logger.warn(
-          `Cache ${opName} timed out after ${this.timeoutMs}ms, returning fallback`,
-        );
+        CacheService.logger.warn(`Cache ${opName} timed out after ${this.timeoutMs}ms, returning fallback`);
         resolve(fallback);
       }, this.timeoutMs);
     });

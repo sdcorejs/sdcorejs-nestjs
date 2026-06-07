@@ -39,13 +39,25 @@ export class ContextService {
     return this.als.getStore()?.custom?.[key] as T | undefined;
   }
 
-  get userId(): string | undefined { return this.get('userId'); }
-  get tenant(): string | undefined { return this.get('tenant'); }
+  get userId(): string | undefined {
+    return this.get('userId');
+  }
+  get tenant(): string | undefined {
+    return this.get('tenant');
+  }
   /** Raw language string from headers (e.g. `'en-US,vi;q=0.9'`); consumer parses to a locale code. */
-  get lang(): string | undefined { return this.get('lang'); }
-  get token(): string | undefined { return this.get('token'); }
-  get user(): unknown { return this.get('user'); }
-  get permissions(): string[] { return this.get('permissions') ?? []; }
+  get lang(): string | undefined {
+    return this.get('lang');
+  }
+  get token(): string | undefined {
+    return this.get('token');
+  }
+  get user(): unknown {
+    return this.get('user');
+  }
+  get permissions(): string[] {
+    return this.get('permissions') ?? [];
+  }
 
   hasPermission(code: string): boolean {
     return this.permissions.includes(code);
