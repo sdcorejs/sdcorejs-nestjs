@@ -22,8 +22,9 @@ feature cohesion and makes the tree easy to scan.
 | Layer scope | **Reorganize existing files only** — no new `*.controller.ts` (lib stays neutral, no HTTP routes) and no new `*.repository.ts` (services keep `@InjectRepository(Entity)`) |
 | Which modules | Only the **3 data modules**: `action-history`, `job-scheduler`, `uploaded-file` (they own entities/tables). The 11 cross-cutting infra modules stay at `src/` top-level |
 | Parent folder name | `features` |
-| Entity location | Back **inside** each feature folder (canonical at the feature barrel) |
-| `SD_CORE_ENTITIES` + `@sdcorejs/nestjs/entities` | **Dropped** — consumers register entities individually from their feature sub-path |
+| Entity location | Back **inside** each feature folder (canonical at the `features` barrel) |
+| `SD_CORE_ENTITIES` + `@sdcorejs/nestjs/entities` | **Dropped** |
+| Sub-path | **Single `@sdcorejs/nestjs/features` barrel** exporting all 3 features — replaces the separate `./action-history` + `./job-scheduler` + `./uploaded-file` sub-paths |
 | Timing | Folded into 1.0.0 (`release/0.1.0`, not yet merged/published) |
 | `BaseEntity` / `orm` | Unchanged (infra; stays in `src/orm/`) |
 
@@ -32,6 +33,7 @@ feature cohesion and makes the tree easy to scan.
 ```
 src/
   features/
+    index.ts                         aggregates the 3 feature barrels → @sdcorejs/nestjs/features
     action-history/
       action-history.entity.ts        ActionHistory   @Entity('action-history')
       action-history.service.ts
@@ -82,16 +84,41 @@ is no central entity path now):
 - `features/uploaded-file/index.ts`: `export * from './uploaded-file.entity'` + types + services + module
   (still NOT exporting `./utils` — utils stay internal)
 
+The new aggregator `src/features/index.ts` re-exports all three feature barrels (the single public
+entry `@sdcorejs/nestjs/features`):
+```ts
+export * from './action-history';
+export * from './job-scheduler';
+export * from './uploaded-file';
+```
+All exported symbols are feature-prefixed (`ActionHistory*`, `JobScheduler*`, `UploadedFile*` /
+`IUploadedFileStorage` / `UPLOADED_FILE_CONFIG`), so the merged `export *` has no name collisions —
+`tsc` will surface any ambiguity if one arises.
+
 ## 6. Entry points + build config
 
-- **Sub-path names unchanged**: `@sdcorejs/nestjs/action-history`, `/job-scheduler`, `/uploaded-file` keep resolving.
-- `tsup.config.ts` `entryMap`: change only the source **value** for the three (`'action-history/index': 'src/features/action-history/index.ts'`, etc.); keep the **key** so the output dir (`dist/*/action-history/`) and the `exports`/`typesVersions` entries are unchanged. Remove the `'entities/index'` entry.
-- `package.json`: remove `"./entities"` from `exports` and `"entities"` from `typesVersions`. The three feature sub-paths are unchanged. Back to **15 entries**.
-- `jest.config.cjs` `moduleNameMapper`: add specific mappings **before** the generic `^@sdcorejs/nestjs/(.*)$` rule so the moved features resolve:
-  ```js
-  '^@sdcorejs/nestjs/(action-history|job-scheduler|uploaded-file)$': '<rootDir>/src/features/$1/index.ts',
-  '^@sdcorejs/nestjs/(action-history|job-scheduler|uploaded-file)/(.*)$': '<rootDir>/src/features/$1/$2',
+- **New single sub-path** `@sdcorejs/nestjs/features` (→ `src/features/index.ts`). It **replaces** the
+  three former sub-paths `@sdcorejs/nestjs/action-history`, `/job-scheduler`, `/uploaded-file` (removed)
+  and the removed `/entities`.
+- `tsup.config.ts` `entryMap`: remove `'action-history/index'`, `'job-scheduler/index'`,
+  `'uploaded-file/index'` (formerly `'file-storage/index'`), and `'entities/index'`; add
+  `'features/index': 'src/features/index.ts'`. Output → `dist/*/features/index.*`.
+- `package.json` `exports`: remove `./action-history`, `./job-scheduler`, `./uploaded-file`, `./entities`;
+  add:
+  ```json
+  "./features": {
+    "import": { "types": "./dist/esm/features/index.d.mts", "default": "./dist/esm/features/index.mjs" },
+    "require": { "types": "./dist/cjs/features/index.d.ts", "default": "./dist/cjs/features/index.cjs" }
+  }
   ```
+  `typesVersions["*"]`: remove the four old keys, add `"features": ["./dist/cjs/features/index.d.ts"]`.
+  Entry total: **13** (root + 12 sub-paths).
+- `jest.config.cjs` `moduleNameMapper`: the generic `^@sdcorejs/nestjs/(.*)$` → `<rootDir>/src/$1/index.ts`
+  already resolves `@sdcorejs/nestjs/features` → `src/features/index.ts` — **no special mapping needed**.
+- **Test import swaps**: any spec/integration test importing `@sdcorejs/nestjs/action-history`,
+  `/job-scheduler`, `/uploaded-file`, or `/entities` must switch to `@sdcorejs/nestjs/features` (e.g.
+  `test/integration/job-scheduler/job-scheduler.int-spec.ts`, which currently imports `JobScheduler`
+  from `@sdcorejs/nestjs/entities`).
 
 ## 7. Relative-import fixups
 
@@ -110,22 +137,27 @@ suite catch any miss.
 
 ## 9. 1.0.0 doc updates
 
-- **README**: remove the `entities` sub-path row + the `SD_CORE_ENTITIES` registration example; the
-  `uploaded-file` sub-path now documents `UploadedFile` as importable from it. (Sub-path names are
-  unchanged; the `src/features/` location is internal.)
-- **`docs/migration-1.0.md`**: drop the central-entities / `SD_CORE_ENTITIES` lines. Entity imports
-  are from their feature sub-path (`@sdcorejs/nestjs/uploaded-file` exports `UploadedFile`, etc.).
-  Keep the table-rename migration (`file` → `uploaded_file`) and the symbol-rename rows.
-- **`.changeset/core-1-0-0.md`**: reword the reorg sentence to "feature modules grouped under
-  `src/features/`; entities live with their module" (no `SD_CORE_ENTITIES`).
-- **audit-findings footnote**: update to mention the `src/features/` layout.
+- **README**: remove the `entities` sub-path row + the `SD_CORE_ENTITIES` example. Replace the three
+  rows `action-history` / `job-scheduler` / `uploaded-file` (and any leftover `file-storage`) with a
+  single `features` row: "Stateful feature modules — `ActionHistory`, `JobScheduler`, `UploadedFile`
+  (entity/service/module each), imported from `@sdcorejs/nestjs/features`." Update usage snippets to
+  import from `@sdcorejs/nestjs/features`.
+- **`docs/migration-1.0.md`**: drop the central-entities / `SD_CORE_ENTITIES` lines. Add a row: the
+  sub-paths `@sdcorejs/nestjs/action-history` / `/job-scheduler` / `/uploaded-file` (and `/entities`)
+  are consolidated into `@sdcorejs/nestjs/features`. Keep the table-rename migration (`file` →
+  `uploaded_file`) and the symbol-rename rows.
+- **`.changeset/core-1-0-0.md`**: reword the reorg sentence to "feature modules consolidated under a
+  single `@sdcorejs/nestjs/features` entry (`src/features/`); entities live with their module" (no
+  `SD_CORE_ENTITIES`).
+- **audit-findings footnote**: update to mention the `src/features/` layout + single `features` entry.
 
 ## 10. Verification
 
 Full gate unchanged: `lint` · `format:check` · `typecheck` · `test:coverage` · `build` (clean,
-bundled dts) · `check:exports` (publint + attw — now **15** sub-paths, all green) · `pack
---dry-run`. Re-check entry-set parity (exports ↔ typesVersions ↔ tsup keys = 15) and confirm no
-`entities` sub-path remains and no stale `dist/*/entities/` ships.
+bundled dts) · `check:exports` (publint + attw — now **13** entries, all green) · `pack
+--dry-run`. Re-check entry-set parity (exports ↔ typesVersions ↔ tsup keys = 13) and confirm no
+`entities`/`action-history`/`job-scheduler`/`uploaded-file` sub-path remains and no stale
+`dist/*/{entities,action-history,job-scheduler,uploaded-file}/` ships.
 
 ## 11. Out of scope
 
@@ -136,9 +168,9 @@ bundled dts) · `check:exports` (publint + attw — now **15** sub-paths, all gr
 
 ## 12. Acceptance criteria
 
-1. `src/features/{action-history,job-scheduler,uploaded-file}/` each contain their entity + service + module + types (+ uploaded-file's services/ + utils); `src/entities/` is gone.
-2. Each feature barrel re-exports its entity; `@sdcorejs/nestjs/<feature>` resolves and exports the entity.
+1. `src/features/{action-history,job-scheduler,uploaded-file}/` each contain their entity + service + module + types (+ uploaded-file's services/ + utils); `src/features/index.ts` aggregates them; `src/entities/` is gone.
+2. `@sdcorejs/nestjs/features` resolves and exports all three entities + their services/modules/types; the per-feature sub-paths (`/action-history`, `/job-scheduler`, `/uploaded-file`) and `/entities` are gone.
 3. `@sdcorejs/nestjs/entities` and `SD_CORE_ENTITIES` no longer exist anywhere.
-4. `exports`/`typesVersions`/`tsup entryMap` agree on 15 entries; publint + attw green; no `entities` artifact in the pack.
-5. Full gate green; all tests pass (guard tests updated).
-6. README/migration/changeset/audit-findings reflect the `src/features/` layout and the removal of `SD_CORE_ENTITIES`.
+4. `exports`/`typesVersions`/`tsup entryMap` agree on **13** entries; publint + attw green; no `entities`/`action-history`/`job-scheduler`/`uploaded-file` artifact in the pack.
+5. Full gate green; all tests pass (guard tests updated; tests import from `@sdcorejs/nestjs/features`).
+6. README/migration/changeset/audit-findings reflect the `src/features/` layout + single `features` entry and the removal of `SD_CORE_ENTITIES`.
