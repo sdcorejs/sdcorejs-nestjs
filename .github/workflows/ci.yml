@@ -33,11 +33,17 @@ jobs:
       - name: Format check
         run: npm run format:check
 
+      - name: Typecheck
+        run: npm run typecheck
+
       - name: Test (with coverage)
         run: npm run test:coverage
 
       - name: Build
         run: npm run build
+
+      - name: Validate package exports (publint + attw)
+        run: npm run check:exports
 
       - name: Pack (dry-run, sanity check)
         run: npm pack --dry-run

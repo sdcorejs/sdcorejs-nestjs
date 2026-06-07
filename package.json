@@ -191,6 +191,7 @@
   "scripts": {
     "build": "tsup",
     "build:types": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit",
     "build:bundle": "tsup",
     "check:exports": "publint --strict && attw --pack .",
     "test": "jest",
