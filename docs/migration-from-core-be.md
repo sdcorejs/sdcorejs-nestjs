@@ -154,7 +154,7 @@ Apply with `@UseGuards(InternalGuard)`. The enricher's `custom.isInternalCall` i
 | `@core/modules/cache` | `@sdcorejs/nestjs/cache` |
 | `@core/modules/http` | `@sdcorejs/nestjs/http` |
 | `@core/modules/jwt` | `@sdcorejs/nestjs/jwt` |
-| `@shared/core` (SdFilter, SdPagingReq, SdOrder, etc.) | `@sdcorejs/utils/models` (Filter, PagingReq, Order — `Sd*` aliases also re-exported from `@sdcorejs/nestjs/orm` for soft migration) |
+| `@shared/core` (SdFilter, SdPagingReq, SdOrder, etc.) | `@sdcorejs/utils/models` (Filter, PagingReq, Order). The `Sd*` aliases were removed in 1.0.0 — use the canonical names. |
 | `String.isUuid(v)` | `import { ValidationUtilities } from '@sdcorejs/utils/fns'` → `ValidationUtilities.isUuid(v)` |
 | `[].distinct()` | `ArrayUtilities.distinct(arr)` |
 | `Object.propertyOf<T>(key)` | type-only — use `NestedKeyOf<T>` from `@sdcorejs/utils/models` (`Filter.field` / `Order.field` already typed with it) |
