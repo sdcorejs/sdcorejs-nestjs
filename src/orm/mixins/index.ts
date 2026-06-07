@@ -1,2 +1,2 @@
 export * from './with-timestamps';
-export * from './with-audit';
+export { WithAudit, isAuditEnabled } from './with-audit';

@@ -10,6 +10,7 @@ export { AUDIT_STRATEGY } from './audit/tokens';
 export { PERMISSION_STRATEGY, PERMISSION_METADATA_KEY } from './permission/tokens';
 export { HasPermission, HasAnyPermission } from './permission/decorators';
 export { INTERNAL_SECRET_PROVIDER, type IInternalSecretProvider } from './permission/internal-secret.provider';
+export { INTERNAL_CONTEXT_ENRICHER, type IInternalContextEnricher } from './permission/internal-context.enricher';
 export { InternalGuard, INTERNAL_SECRET_HEADER } from './permission/internal.guard';
 export { apiError, ApiResponse, type ApiErrorBody, type ApiResponseEnvelope } from './orm/types/api-response.types';
 export { ZodValidationGuard, parseZod, type ZodSource, type ZodIssueDetail, type ZodSchemaMap } from './validation';

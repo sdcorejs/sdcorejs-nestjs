@@ -3,10 +3,10 @@ import {
   ContextModule,
   ContextService,
   ContextMiddleware,
-  DEFAULT_HEADERS_CONFIG,
   CONTEXT_HEADERS_CONFIG,
   type HeadersConfig,
 } from '../../../src/context';
+import { DEFAULT_HEADERS_CONFIG } from '../../../src/context/context.types';
 
 describe('ContextService — AsyncLocalStorage preservation', () => {
   let service: ContextService;

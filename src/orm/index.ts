@@ -4,7 +4,7 @@ export * from './mixins';
 export * from './decorators';
 export * from './base-repository';
 export * from './base-repository.interface';
-export * from './history';
+export { registerHistoryRecorder, type HistoryActionType, type HistoryEntry, type IHistoryRecorder } from './history';
 export * from './base-service';
 export * from './base-service.interface';
 export * from './base-controller';
