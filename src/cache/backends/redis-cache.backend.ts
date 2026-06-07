@@ -42,7 +42,7 @@ export class RedisCacheBackend implements CacheBackend {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       mod = require('ioredis');
-    } catch (e) {
+    } catch {
       throw new Error(
         "Cache backend 'redis' requires the 'ioredis' package. Install it: npm i ioredis",
       );
