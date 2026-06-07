@@ -2,7 +2,7 @@
 
 > Neutral NestJS framework library — base classes plus the cross-cutting concerns every multi-tenant service re-implements (multi-tenancy, audit, permission, request context, cache, HTTP client, JWT/Keycloak, Zod validation, BullMQ queue). **Every domain specific is injected via DI strategies** — the library ships zero hardcoded column names. Extracted from `be-masterdata/core-be/` and refactored to be reusable across any NestJS 11 + TypeORM 0.3.x project.
 
-**Status**: `v0.1.0` — preview release. API may change before `v1.0.0`.
+**Status**: `1.0.0` — stable. Public API follows [Semantic Versioning](https://semver.org/).
 
 ---
 
@@ -72,6 +72,9 @@ The package has multiple entry points; import only what you use.
 | `@sdcorejs/nestjs/validation` | `ZodValidationGuard(schema \| map, source)`, `parseZod`, query presets (`zPaging`, `zUuid`, `zBool`), `ZodIssueDetail` (Zod **v4**) |
 | `@sdcorejs/nestjs/queue` | `QueueModule`, `BaseWorker` (BullMQ + Redis) |
 | `@sdcorejs/nestjs/i18n` | `II18nResolver`, `ILanguageResolver`, `SimpleI18nResolver`, `DefaultLanguageResolver`, `SdI18nExceptionFilter`, built-in en/vi `core.*` catalogs, `I18nModule` |
+| `@sdcorejs/nestjs/action-history` | `ActionHistoryService`, `ActionHistoryEntity`, `ActionHistoryModule` — persists per-record audit trails (who changed what and when) |
+| `@sdcorejs/nestjs/file-storage` | `UploadedFileService`, `AwsService`, `LocalService`, `FileStorageModule` — file upload/download with local and S3-compatible backends |
+| `@sdcorejs/nestjs/job-scheduler` | `JobSchedulerService`, `JobSchedulerEntity`, `JobSchedulerModule` — database-backed cron/job scheduling |
 
 ---
 
