@@ -8,12 +8,9 @@ describe('uploaded-file public API', () => {
     }
   });
 
-  it('does NOT export the entity (canonical at @sdcorejs/nestjs/entities)', () => {
-    expect((uploadedFile as Record<string, unknown>).UploadedFile).toBeUndefined();
-  });
-
-  it('exports the module + service', () => {
+  it('exports the entity + module + service', () => {
     const api = uploadedFile as Record<string, unknown>;
+    expect(api.UploadedFile).toBeDefined();
     expect(api.UploadedFileModule).toBeDefined();
     expect(api.UploadedFileService).toBeDefined();
   });

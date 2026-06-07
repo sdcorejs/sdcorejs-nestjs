@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
-import { JobScheduler } from '../entities/job-scheduler.entity';
+import { JobScheduler } from './job-scheduler.entity';
 import { type JobAcquireOptions, type JobAcquireResult, JobSchedulerStatus, JobSchedulerType } from './types';
 
 /** Outcome of {@link JobSchedulerService.runExclusive}. */

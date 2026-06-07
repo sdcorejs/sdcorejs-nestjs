@@ -1,4 +1,4 @@
-import type { ContextService } from '../context/context.service';
+import type { ContextService } from '../../context/context.service';
 
 /** Kind of change recorded in an action-history row. */
 export enum ActionHistoryType {

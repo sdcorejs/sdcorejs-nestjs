@@ -1,8 +1,8 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
-import { ContextService } from '../../context/context.service';
-import { UploadedFile } from '../../entities/uploaded-file.entity';
+import { ContextService } from '../../../context/context.service';
+import { UploadedFile } from '../uploaded-file.entity';
 import type { UploadedFileMeta } from '../types';
 
 /** Tracks uploaded-file rows + their usage; supplies HTTP content headers by extension. */

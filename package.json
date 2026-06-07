@@ -157,44 +157,14 @@
         "default": "./dist/cjs/i18n/index.cjs"
       }
     },
-    "./entities": {
+    "./features": {
       "import": {
-        "types": "./dist/esm/entities/index.d.mts",
-        "default": "./dist/esm/entities/index.mjs"
+        "types": "./dist/esm/features/index.d.mts",
+        "default": "./dist/esm/features/index.mjs"
       },
       "require": {
-        "types": "./dist/cjs/entities/index.d.ts",
-        "default": "./dist/cjs/entities/index.cjs"
-      }
-    },
-    "./action-history": {
-      "import": {
-        "types": "./dist/esm/action-history/index.d.mts",
-        "default": "./dist/esm/action-history/index.mjs"
-      },
-      "require": {
-        "types": "./dist/cjs/action-history/index.d.ts",
-        "default": "./dist/cjs/action-history/index.cjs"
-      }
-    },
-    "./uploaded-file": {
-      "import": {
-        "types": "./dist/esm/uploaded-file/index.d.mts",
-        "default": "./dist/esm/uploaded-file/index.mjs"
-      },
-      "require": {
-        "types": "./dist/cjs/uploaded-file/index.d.ts",
-        "default": "./dist/cjs/uploaded-file/index.cjs"
-      }
-    },
-    "./job-scheduler": {
-      "import": {
-        "types": "./dist/esm/job-scheduler/index.d.mts",
-        "default": "./dist/esm/job-scheduler/index.mjs"
-      },
-      "require": {
-        "types": "./dist/cjs/job-scheduler/index.d.ts",
-        "default": "./dist/cjs/job-scheduler/index.cjs"
+        "types": "./dist/cjs/features/index.d.ts",
+        "default": "./dist/cjs/features/index.cjs"
       }
     }
   },
@@ -340,17 +310,8 @@
       "i18n": [
         "./dist/cjs/i18n/index.d.ts"
       ],
-      "entities": [
-        "./dist/cjs/entities/index.d.ts"
-      ],
-      "action-history": [
-        "./dist/cjs/action-history/index.d.ts"
-      ],
-      "uploaded-file": [
-        "./dist/cjs/uploaded-file/index.d.ts"
-      ],
-      "job-scheduler": [
-        "./dist/cjs/job-scheduler/index.d.ts"
+      "features": [
+        "./dist/cjs/features/index.d.ts"
       ]
     }
   }

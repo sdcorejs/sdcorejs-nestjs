@@ -1,6 +1,6 @@
 import 'reflect-metadata';
-import type { ContextService } from '../context/context.service';
-import type { HistoryEntry } from '../orm/history';
+import type { ContextService } from '../../context/context.service';
+import type { HistoryEntry } from '../../orm/history';
 import { ActionHistoryService } from './action-history.service';
 import { ActionHistoryType } from './types';
 

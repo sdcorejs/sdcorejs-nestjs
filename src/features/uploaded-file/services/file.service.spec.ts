@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import type { ContextService } from '../../context/context.service';
+import type { ContextService } from '../../../context/context.service';
 import { UploadedFileService } from './uploaded-file.service';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

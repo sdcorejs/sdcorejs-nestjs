@@ -14,10 +14,7 @@ const entryMap: Record<string, string> = {
   'validation/index': 'src/validation/index.ts',
   'queue/index': 'src/queue/index.ts',
   'i18n/index': 'src/i18n/index.ts',
-  'entities/index': 'src/entities/index.ts',
-  'action-history/index': 'src/action-history/index.ts',
-  'uploaded-file/index': 'src/uploaded-file/index.ts',
-  'job-scheduler/index': 'src/job-scheduler/index.ts',
+  'features/index': 'src/features/index.ts',
 };
 
 const external = [

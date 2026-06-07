@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AwsUploadedFileStorage } from './services/aws.service';
 import { LocalUploadedFileStorage } from './services/local.service';
 import { UPLOADED_FILE_CONFIG, type UploadedFileConfig, IUploadedFileStorage } from './types';
-import { UploadedFile } from '../entities/uploaded-file.entity';
+import { UploadedFile } from './uploaded-file.entity';
 import { UploadedFileService } from './services/uploaded-file.service';
 
 /**

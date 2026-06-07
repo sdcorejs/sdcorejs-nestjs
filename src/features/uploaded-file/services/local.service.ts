@@ -2,7 +2,7 @@ import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common'
 import axios from 'axios';
 import { createReadStream, existsSync, mkdirSync, unlink, writeFileSync } from 'node:fs';
 import type { Readable } from 'node:stream';
-import { apiError } from '../../orm/types/api-response.types';
+import { apiError } from '../../../orm/types/api-response.types';
 import {
   UPLOADED_FILE_CONFIG,
   type UploadedFileConfig,
