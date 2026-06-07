@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { QueryRunner, Repository } from 'typeorm';
 import { ContextService } from '../context/context.service';
 import type { HistoryEntry, IHistoryRecorder } from '../orm/history';
-import { ActionHistory } from './action-history.entity';
+import { ActionHistory } from '../entities/action-history.entity';
 import {
   ACTION_HISTORY_ACTOR_RESOLVER,
   type ActionHistoryActorResolver,

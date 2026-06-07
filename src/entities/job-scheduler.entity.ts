@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, Generated, Index, PrimaryColumn, UpdateDateColumn } from 'typeorm';
-import { JobSchedulerStatus, JobSchedulerType } from './types';
+import { JobSchedulerStatus, JobSchedulerType } from '../job-scheduler/types';
 
 /**
  * Distributed cron-lock row. The UNIQUE `lockKey` is the lock: concurrent nodes racing the same

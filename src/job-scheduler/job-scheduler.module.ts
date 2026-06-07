@@ -1,6 +1,6 @@
 import { type DynamicModule, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { JobScheduler } from './job-scheduler.entity';
+import { JobScheduler } from '../entities/job-scheduler.entity';
 import { JobSchedulerService } from './job-scheduler.service';
 
 export interface JobSchedulerModuleOptions {

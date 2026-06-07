@@ -14,6 +14,7 @@ const entryMap: Record<string, string> = {
   'validation/index': 'src/validation/index.ts',
   'queue/index': 'src/queue/index.ts',
   'i18n/index': 'src/i18n/index.ts',
+  'entities/index': 'src/entities/index.ts',
   'action-history/index': 'src/action-history/index.ts',
   'file-storage/index': 'src/file-storage/index.ts',
   'job-scheduler/index': 'src/job-scheduler/index.ts',

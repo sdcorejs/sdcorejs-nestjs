@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, Generated, Index, PrimaryColumn } from 'typeorm';
-import { ActionHistoryType } from './types';
+import { ActionHistoryType } from '../action-history/types';
 
 /**
  * Standalone audit-trail row (manual action log with before/after snapshots), distinct from the

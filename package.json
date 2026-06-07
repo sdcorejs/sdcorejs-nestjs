@@ -157,6 +157,16 @@
         "default": "./dist/cjs/i18n/index.cjs"
       }
     },
+    "./entities": {
+      "import": {
+        "types": "./dist/esm/entities/index.d.mts",
+        "default": "./dist/esm/entities/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/entities/index.d.ts",
+        "default": "./dist/cjs/entities/index.cjs"
+      }
+    },
     "./action-history": {
       "import": {
         "types": "./dist/esm/action-history/index.d.mts",
@@ -329,6 +339,9 @@
       ],
       "i18n": [
         "./dist/cjs/i18n/index.d.ts"
+      ],
+      "entities": [
+        "./dist/cjs/entities/index.d.ts"
       ],
       "action-history": [
         "./dist/cjs/action-history/index.d.ts"

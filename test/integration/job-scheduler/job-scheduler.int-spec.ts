@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import type { DataSource } from 'typeorm';
-import { JobScheduler, JobSchedulerService, JobSchedulerStatus, JobSchedulerType } from '@sdcorejs/nestjs/job-scheduler';
+import { JobScheduler } from '@sdcorejs/nestjs/entities';
+import { JobSchedulerService, JobSchedulerStatus, JobSchedulerType } from '@sdcorejs/nestjs/job-scheduler';
 import { createTestDataSource } from '../../fixtures/pg-mem-datasource';
 
 describe('JobSchedulerService distributed lock (pg-mem)', () => {
