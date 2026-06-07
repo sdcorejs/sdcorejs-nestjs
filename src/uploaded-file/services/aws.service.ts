@@ -2,7 +2,13 @@ import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common'
 import axios from 'axios';
 import type { Readable } from 'node:stream';
 import { apiError } from '../../orm/types/api-response.types';
-import { UPLOADED_FILE_CONFIG, type UploadedFileConfig, type UploadedFileMeta, type IUploadedFileStorage, type UploadedFileResult } from '../types';
+import {
+  UPLOADED_FILE_CONFIG,
+  type UploadedFileConfig,
+  type UploadedFileMeta,
+  type IUploadedFileStorage,
+  type UploadedFileResult,
+} from '../types';
 import { UploadedFileService } from './uploaded-file.service';
 import { ArrayUtilities } from '@sdcorejs/utils/fns';
 import { addDays, isBlank, slugify, toMb } from '../utils';
