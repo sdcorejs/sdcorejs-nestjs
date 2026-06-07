@@ -1,4 +1,4 @@
-import { addDays, distinct, isBlank, slugify, toMb } from './utils';
+import { addDays, isBlank, slugify, toMb } from './utils';
 
 describe('file-storage/utils', () => {
   describe('slugify', () => {
@@ -45,12 +45,6 @@ describe('file-storage/utils', () => {
       const out = addDays(base, 1);
       expect(out.toISOString()).toBe('2026-01-02T00:00:00.000Z');
       expect(base.toISOString()).toBe('2026-01-01T00:00:00.000Z');
-    });
-  });
-
-  describe('distinct', () => {
-    it('removes duplicates preserving first occurrence', () => {
-      expect(distinct(['a', 'b', 'a', 'c', 'b'])).toEqual(['a', 'b', 'c']);
     });
   });
 });

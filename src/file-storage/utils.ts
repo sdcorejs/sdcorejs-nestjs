@@ -24,7 +24,3 @@ export function toMb(bytes: number): number {
 export function addDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 }
-
-export function distinct<T>(arr: T[]): T[] {
-  return Array.from(new Set(arr));
-}

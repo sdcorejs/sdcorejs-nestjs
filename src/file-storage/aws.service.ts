@@ -4,7 +4,8 @@ import type { Readable } from 'node:stream';
 import { apiError } from '../orm/types/api-response.types';
 import { FILE_STORAGE_CONFIG, type FileStorageConfig, type FileUploadMeta, type IFileStorageService, type UploadResult } from './types';
 import { UploadedFileService } from './uploaded-file.service';
-import { addDays, distinct, isBlank, slugify, toMb } from './utils';
+import { ArrayUtilities } from '@sdcorejs/utils/fns';
+import { addDays, isBlank, slugify, toMb } from './utils';
 
 /** Minimal slice of the aws-sdk v2 S3 client used here (lazy-loaded — optional peer dep). */
 interface S3Like {
@@ -112,7 +113,7 @@ export class AwsFileStorageService implements IFileStorageService {
     if (!keys.length) return;
     await new Promise<void>((resolve, reject) => {
       this.s3.deleteObjects(
-        { Bucket: this.bucket, Delete: { Objects: distinct(keys).map((Key) => ({ Key })) } },
+        { Bucket: this.bucket, Delete: { Objects: ArrayUtilities.distinct(keys).map((Key) => ({ Key })) } },
         (err) => (err ? reject(err) : resolve()),
       );
     })
