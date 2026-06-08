@@ -70,7 +70,9 @@ export class QueueModule {
    * that touches the queue (BullMQ de-dupes the underlying queue by name).
    */
   static registerQueue(...names: string[]): DynamicModule {
-    const reg = BullModule.registerQueue(...names.map((name) => ({ name, defaultJobOptions: DEFAULT_JOB_OPTIONS })));
+    // No per-queue `defaultJobOptions` here: queue-level options would SHADOW the (already
+    // merged) root-level `defaultJobOptions` set in `forRoot`. Let the root defaults apply.
+    const reg = BullModule.registerQueue(...names.map((name) => ({ name })));
     return {
       module: QueueModule,
       imports: [reg],

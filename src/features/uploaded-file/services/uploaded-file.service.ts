@@ -109,9 +109,14 @@ export class UploadedFileService {
 
   async useFiles(keys: string[], entity?: string, entityId?: string): Promise<void> {
     if (!keys?.length) return;
+    // Only set the columns that were actually provided — an undefined `entity`/`entityId` must NOT
+    // be serialized into the UPDATE (that would NULL out an already-set owner on matched rows).
+    const set: Record<string, unknown> = { isUsed: true };
+    if (entity !== undefined) set.entity = entity;
+    if (entityId !== undefined) set.entityId = entityId;
     await this.repository
       .createQueryBuilder()
-      .update({ entity, entityId, isUsed: true })
+      .update(set)
       .where('"deletedAt" IS NULL AND "isUsed" = :isUsed AND "key" IN (:...keys)', { isUsed: false, keys })
       .execute()
       .catch((err) => this.logger.warn(`useFiles failed: ${String(err)}`));

@@ -14,14 +14,14 @@ module.exports = {
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
-  // Thresholds set to the suite's actual floor at 1.0.0 (branches/functions were never at
-  // 70/80 on this branch). TODO: raise branches→75, functions→85 as coverage improves post-1.0.
+  // Thresholds sit just under the suite's real coverage (stmts ~92.6 / branch ~78.7 /
+  // funcs ~88 / lines ~94) with a small margin for variance. Raise as coverage improves.
   coverageThreshold: {
     global: {
-      branches: 65,
-      lines: 80,
-      functions: 72,
-      statements: 80,
+      branches: 76,
+      lines: 90,
+      functions: 85,
+      statements: 88,
     },
   },
   setupFiles: ['<rootDir>/test/setup.ts'],

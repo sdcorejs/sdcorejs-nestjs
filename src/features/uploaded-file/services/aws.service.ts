@@ -53,7 +53,8 @@ export class AwsUploadedFileStorage implements IUploadedFileStorage {
   }
 
   async upload(buffer: Buffer, fileName?: string, meta?: UploadedFileMeta): Promise<UploadedFileResult> {
-    const key = `${this.folder}/${slugify(fileName || 'TEMP')}`;
+    const name = fileName || 'TEMP';
+    const key = `${this.folder}/${slugify(name)}`;
     const { ContentType, ContentDisposition } = this.uploadedFileService.getContent(fileName);
     await new Promise<void>((resolve, reject) => {
       this.s3.upload({ Bucket: this.bucket, ContentType, ContentDisposition, Key: key, Body: buffer }, (err) =>
@@ -64,8 +65,8 @@ export class AwsUploadedFileStorage implements IUploadedFileStorage {
     });
     const fileSize = toMb(buffer.byteLength);
     const cdn = this.cdn(key);
-    const row = await this.uploadedFileService.create({ fileName: fileName!, fileSize, key, cdn, ...meta });
-    return { id: row.id, fileName: fileName!, fileSize, key, cdn };
+    const row = await this.uploadedFileService.create({ fileName: name, fileSize, key, cdn, ...meta });
+    return { id: row.id, fileName: name, fileSize, key, cdn };
   }
 
   async cloneFromUrl(url: string, fileName?: string): Promise<UploadedFileResult> {

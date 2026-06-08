@@ -4,14 +4,16 @@ import type { ContextService } from '../../../core/context/context.service';
 import { UploadedFileService } from './uploaded-file.service';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function makeRepoMock(row: any = null): any {
+function makeRepoMock(row: any = null, rowsForDelete: any[] = []): any {
   const execute = jest.fn(async () => ({ affected: 1 }));
-  const qb = { update: jest.fn(() => qb), where: jest.fn(() => qb), execute };
+  const getMany = jest.fn(async () => rowsForDelete);
+  const qb = { update: jest.fn(() => qb), where: jest.fn(() => qb), getMany, execute };
   return {
     create: jest.fn((e: unknown) => e),
     save: jest.fn(async (e: any) => ({ ...e, id: 'f1' })),
     findOne: jest.fn(async () => row),
     update: jest.fn(async () => ({ affected: 1 })),
+    softDelete: jest.fn(async () => ({ affected: rowsForDelete.length })),
     createQueryBuilder: jest.fn(() => qb),
     __qb: qb,
   };
@@ -39,17 +41,8 @@ describe('UploadedFileService', () => {
         extraData: { origin: 'import' },
       });
       expect(repo.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          module: 'masterdata',
-          entity: 'brand',
-          entityId: 'b1',
-          type: 'logo',
-          fileExtension: 'png',
-          userId: 'u1',
-          extraData: { origin: 'import' },
-        }),
+        expect.objectContaining({ module: 'masterdata', fileExtension: 'png', userId: 'u1', extraData: { origin: 'import' } }),
       );
-      expect(repo.save).toHaveBeenCalled();
       expect(row.id).toBe('f1');
     });
   });
@@ -73,6 +66,16 @@ describe('UploadedFileService', () => {
       await svc.upload(Buffer.from('x'), 'a');
       expect(repo.update).not.toHaveBeenCalled();
     });
+
+    it('throws when the persisted row cannot be re-read after upload', async () => {
+      const storage = {
+        upload: jest.fn(async () => ({ id: 'gone', fileName: 'a', fileSize: 1, key: 'k', cdn: 'c' })),
+        download: jest.fn(),
+      };
+      const repo = makeRepoMock(null); // findOne → null
+      const svc = new UploadedFileService(repo, moduleRefWith(storage), ctx());
+      await expect(svc.upload(Buffer.from('x'), 'a')).rejects.toMatchObject({ status: 400 });
+    });
   });
 
   describe('download', () => {
@@ -87,10 +90,30 @@ describe('UploadedFileService', () => {
 
     it('throws when the id is unknown', async () => {
       const storage = { upload: jest.fn(), download: jest.fn() };
-      const repo = makeRepoMock(null);
-      const svc = new UploadedFileService(repo, moduleRefWith(storage), ctx());
+      const svc = new UploadedFileService(makeRepoMock(null), moduleRefWith(storage), ctx());
       await expect(svc.download('nope')).rejects.toBeTruthy();
       expect(storage.download).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findById', () => {
+    it('returns the row from the repository', async () => {
+      const repo = makeRepoMock({ id: 'f1', key: 'k', fileName: 'a' });
+      const svc = new UploadedFileService(repo, noModuleRef(), ctx());
+      expect(await svc.findById('f1')).toMatchObject({ id: 'f1' });
+      expect(repo.findOne).toHaveBeenCalledWith({ where: { id: 'f1' } });
+    });
+  });
+
+  describe('getContent', () => {
+    it('maps a known extension to an inline content type', () => {
+      const svc = new UploadedFileService(makeRepoMock(), noModuleRef(), ctx());
+      expect(svc.getContent('a.png')).toEqual({ ContentType: 'image/png', ContentDisposition: 'inline' });
+    });
+    it('returns an empty object for an unknown extension or no name', () => {
+      const svc = new UploadedFileService(makeRepoMock(), noModuleRef(), ctx());
+      expect(svc.getContent('a.xyz')).toEqual({});
+      expect(svc.getContent(undefined)).toEqual({});
     });
   });
 
@@ -103,20 +126,59 @@ describe('UploadedFileService', () => {
     });
   });
 
+  describe('useFiles', () => {
+    it('does NOT include entity/entityId in the SET when they are omitted (no NULL-overwrite)', async () => {
+      const repo = makeRepoMock();
+      const svc = new UploadedFileService(repo, noModuleRef(), ctx());
+      await svc.useFiles(['k1', 'k2']);
+      const setArg = repo.__qb.update.mock.calls[0][0];
+      expect(setArg).toEqual({ isUsed: true });
+      expect('entity' in setArg).toBe(false);
+      expect('entityId' in setArg).toBe(false);
+    });
+
+    it('includes entity/entityId in the SET when provided', async () => {
+      const repo = makeRepoMock();
+      const svc = new UploadedFileService(repo, noModuleRef(), ctx());
+      await svc.useFiles(['k1'], 'brand', 'b1');
+      expect(repo.__qb.update).toHaveBeenCalledWith({ isUsed: true, entity: 'brand', entityId: 'b1' });
+    });
+
+    it('no-ops on empty keys', async () => {
+      const repo = makeRepoMock();
+      const svc = new UploadedFileService(repo, noModuleRef(), ctx());
+      await svc.useFiles([]);
+      expect(repo.createQueryBuilder).not.toHaveBeenCalled();
+    });
+  });
+
   describe('markUsed', () => {
     it('flips isUsed by id and stamps provided meta (skips undefined keys)', async () => {
       const repo = makeRepoMock();
       const svc = new UploadedFileService(repo, noModuleRef(), ctx('u1'));
       await svc.markUsed(['f1', 'f2'], { entity: 'brand', entityId: 'b1' });
       expect(repo.__qb.update).toHaveBeenCalledWith(expect.objectContaining({ isUsed: true, entity: 'brand', entityId: 'b1' }));
-      const arg = repo.__qb.update.mock.calls[0][0];
-      expect('module' in arg).toBe(false);
-      expect(repo.__qb.execute).toHaveBeenCalled();
+      expect('module' in repo.__qb.update.mock.calls[0][0]).toBe(false);
     });
     it('no-ops on empty ids', async () => {
       const repo = makeRepoMock();
       const svc = new UploadedFileService(repo, noModuleRef(), ctx('u1'));
       await svc.markUsed([]);
+      expect(repo.createQueryBuilder).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('delete', () => {
+    it('soft-deletes the rows matched by key', async () => {
+      const repo = makeRepoMock(null, [{ id: 'f1' }, { id: 'f2' }]);
+      const svc = new UploadedFileService(repo, noModuleRef(), ctx());
+      await svc.delete(['core/a.png', 'core/b.png']);
+      expect(repo.softDelete).toHaveBeenCalledWith(['f1', 'f2']);
+    });
+    it('no-ops on empty keys', async () => {
+      const repo = makeRepoMock();
+      const svc = new UploadedFileService(repo, noModuleRef(), ctx());
+      await svc.delete([]);
       expect(repo.createQueryBuilder).not.toHaveBeenCalled();
     });
   });

@@ -42,13 +42,14 @@ export class LocalUploadedFileStorage implements IUploadedFileStorage {
   }
 
   async upload(buffer: Buffer, fileName?: string, meta?: UploadedFileMeta): Promise<UploadedFileResult> {
-    const key = `${this.folder}/${slugify(fileName || 'TEMP')}`;
+    const name = fileName || 'TEMP';
+    const key = `${this.folder}/${slugify(name)}`;
     try {
       writeFileSync(`${this.basePath}/${key}`, buffer);
       const fileSize = toMb(buffer.byteLength);
       const cdn = this.cdn(key);
-      const row = await this.uploadedFileService.create({ fileName: fileName!, fileSize, key, cdn, ...meta });
-      return { id: row.id, fileName: fileName!, fileSize, key, cdn };
+      const row = await this.uploadedFileService.create({ fileName: name, fileSize, key, cdn, ...meta });
+      return { id: row.id, fileName: name, fileSize, key, cdn };
     } catch (error) {
       throw new BadRequestException(apiError('core.file.upload-failed', 'File upload failed', { error: String(error) }));
     }
@@ -59,11 +60,11 @@ export class LocalUploadedFileStorage implements IUploadedFileStorage {
     return this.upload(Buffer.from(res.data), fileName || url.split('/').pop());
   }
 
-  uploadTemporary(buffer: Buffer, fileName?: string): Promise<{ key: string; cdn: string }> {
+  async uploadTemporary(buffer: Buffer, fileName?: string): Promise<{ key: string; cdn: string }> {
     const key = `${this.tempFolder}/${slugify(fileName || 'TEMP')}`;
     try {
       writeFileSync(`${this.basePath}/${key}`, buffer);
-      return Promise.resolve({ key, cdn: this.cdn(key) });
+      return { key, cdn: this.cdn(key) };
     } catch (error) {
       throw new BadRequestException(apiError('core.file.upload-failed', 'File upload failed', { error: String(error) }));
     }
