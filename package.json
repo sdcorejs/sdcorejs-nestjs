@@ -154,16 +154,10 @@
     "zod": "^4.0.0"
   },
   "peerDependenciesMeta": {
-    "@nestjs/bullmq": {
-      "optional": true
-    },
     "@nestjs/typeorm": {
       "optional": true
     },
     "aws-sdk": {
-      "optional": true
-    },
-    "bullmq": {
       "optional": true
     },
     "ioredis": {

@@ -8,6 +8,10 @@ import { HttpClientModule } from './services/http/http.module';
 import { JwtModule } from './auth/jwt/jwt.module';
 import { I18nModule } from './i18n/i18n.module';
 import { INTERNAL_SECRET_PROVIDER, EnvInternalSecretProvider } from './auth/permission';
+import { UploadedFileModule } from './features/uploaded-file/uploaded-file.module';
+import { ActionHistoryModule } from './features/action-history/action-history.module';
+import { JobSchedulerModule } from './features/job-scheduler/job-scheduler.module';
+import { QueueModule } from './queue/queue.module';
 import type { SdCoreModuleOptions } from './sd-core.types';
 
 /**
@@ -42,6 +46,10 @@ export class SdCoreModule {
     ];
     if (options.jwt) imports.push(JwtModule.forRoot(options.jwt));
     if (options.i18n) imports.push(I18nModule.forRoot(options.i18n));
+    if (options.uploadedFile) imports.push(UploadedFileModule.forRoot(options.uploadedFile));
+    if (options.actionHistory) imports.push(ActionHistoryModule.forRoot(options.actionHistory));
+    if (options.jobScheduler) imports.push(JobSchedulerModule.forRoot(options.jobScheduler));
+    if (options.queue) imports.push(QueueModule.forRoot(options.queue));
     const extraProviders: Provider[] = options.providers ?? [];
     const isCfg = options.internalSecret;
     const internalSecretProvider: Provider | null = isCfg

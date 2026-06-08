@@ -59,3 +59,18 @@ describe('SdCoreModule internalSecret', () => {
     expect(provided).not.toContain(INTERNAL_SECRET_PROVIDER);
   });
 });
+
+describe('SdCoreModule feature composition', () => {
+  const names = (mod: any) => (mod.imports ?? []).map((m: any) => (m?.module ?? m)?.name);
+  it('omits feature modules when their key is absent', () => {
+    const n = names(SdCoreModule.forRoot({}));
+    expect(n).not.toContain('UploadedFileModule');
+    expect(n).not.toContain('QueueModule');
+    expect(n).not.toContain('ActionHistoryModule');
+    expect(n).not.toContain('JobSchedulerModule');
+  });
+  it('wires a feature module when its key is present', () => {
+    const n = names(SdCoreModule.forRoot({ actionHistory: { resolveActor: () => ({}) } as any }));
+    expect(n).toContain('ActionHistoryModule');
+  });
+});
