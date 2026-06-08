@@ -8,6 +8,7 @@ import { CONTEXT_HEADERS_CONFIG } from './core/context/tokens';
 import { TENANCY_STRATEGY } from './core/tenancy/tokens';
 import { AUDIT_STRATEGY } from './core/audit/tokens';
 import { PERMISSION_STRATEGY } from './auth/permission/tokens';
+import { INTERNAL_SECRET_PROVIDER } from './auth/permission';
 
 describe('SdCoreModule.forRoot', () => {
   it('boots with no options — wires every default strategy', async () => {
@@ -43,5 +44,18 @@ describe('SdCoreModule.forRoot', () => {
     // JwtStrategy is only registered when options.jwt is present — accessing it should throw.
     expect(() => mod.get('JwtStrategy' as never, { strict: false })).toThrow();
     await mod.close();
+  });
+});
+
+describe('SdCoreModule internalSecret', () => {
+  it('binds INTERNAL_SECRET_PROVIDER when internalSecret config is given', () => {
+    const mod = SdCoreModule.forRoot({ internalSecret: { envVar: 'X' } });
+    const provided = (mod.providers ?? []).map((p: any) => p.provide).filter(Boolean);
+    expect(provided).toContain(INTERNAL_SECRET_PROVIDER);
+  });
+  it('omits it when not configured', () => {
+    const mod = SdCoreModule.forRoot({});
+    const provided = (mod.providers ?? []).map((p: any) => p.provide).filter(Boolean);
+    expect(provided).not.toContain(INTERNAL_SECRET_PROVIDER);
   });
 });

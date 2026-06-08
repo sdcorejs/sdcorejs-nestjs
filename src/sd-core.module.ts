@@ -7,6 +7,7 @@ import { CacheModule } from './services/cache/cache.module';
 import { HttpClientModule } from './services/http/http.module';
 import { JwtModule } from './auth/jwt/jwt.module';
 import { I18nModule } from './i18n/i18n.module';
+import { INTERNAL_SECRET_PROVIDER, EnvInternalSecretProvider } from './auth/permission';
 import type { SdCoreModuleOptions } from './sd-core.types';
 
 /**
@@ -41,7 +42,16 @@ export class SdCoreModule {
     ];
     if (options.jwt) imports.push(JwtModule.forRoot(options.jwt));
     if (options.i18n) imports.push(I18nModule.forRoot(options.i18n));
-    const providers: Provider[] = options.providers ?? [];
+    const extraProviders: Provider[] = options.providers ?? [];
+    const isCfg = options.internalSecret;
+    const internalSecretProvider: Provider | null = isCfg
+      ? ('key' in isCfg
+          ? { provide: INTERNAL_SECRET_PROVIDER, useValue: { getKey: () => isCfg.key, getKeys: () => [isCfg.key] } }
+          : { provide: INTERNAL_SECRET_PROVIDER, useFactory: () => new EnvInternalSecretProvider(isCfg.envVar) })
+      : null;
+    const providers: Provider[] = internalSecretProvider
+      ? [internalSecretProvider, ...extraProviders]
+      : extraProviders;
     return {
       module: SdCoreModule,
       global: true,

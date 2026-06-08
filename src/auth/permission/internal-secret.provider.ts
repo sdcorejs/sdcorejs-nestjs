@@ -1,3 +1,5 @@
+import { Injectable } from '@nestjs/common';
+
 /**
  * DI hook for internal-call auth. Backend implements + registers via
  * `SdCoreModule.forRoot({ providers: [{ provide: INTERNAL_SECRET_PROVIDER, useClass: ... }] })`.
@@ -17,3 +19,19 @@ export interface IInternalSecretProvider {
 }
 
 export const INTERNAL_SECRET_PROVIDER = Symbol('INTERNAL_SECRET_PROVIDER');
+
+/**
+ * Default {@link IInternalSecretProvider}: returns `process.env[envVar]` (default `INTERNAL_SECRET_KEY`),
+ * or `''` when unset — `''` never matches a present header, so internal routes stay closed until configured.
+ */
+@Injectable()
+export class EnvInternalSecretProvider implements IInternalSecretProvider {
+  constructor(private readonly envVar: string = 'INTERNAL_SECRET_KEY') {}
+  getKey(): string {
+    return process.env[this.envVar] ?? '';
+  }
+  getKeys(): string[] {
+    const k = this.getKey();
+    return k ? [k] : [];
+  }
+}

@@ -23,6 +23,9 @@ export interface SdCoreModuleOptions {
    * `core.*` messages merged with your `catalogs`).
    */
   i18n?: I18nModuleOptions;
+  /** Wire the built-in internal-secret provider for `InternalGuard`. `{ envVar }` reads that env
+   *  (default `INTERNAL_SECRET_KEY`); `{ key }` uses a static value. Override via `providers` for a custom source. */
+  internalSecret?: { envVar?: string } | { key: string };
   /**
    * Extension providers registered globally. Use to wire DI hooks lib exposes (e.g.
    * `INTERNAL_SECRET_PROVIDER`) without nesting another module.
