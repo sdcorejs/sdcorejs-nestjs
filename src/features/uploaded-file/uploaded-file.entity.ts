@@ -4,9 +4,13 @@ import { Column, CreateDateColumn, DeleteDateColumn, Entity, Generated, Index, P
  * Tracks uploaded files for usage/cleanup. Table `uploaded_file`; lives in the consumer's default
  * schema (the consumer sets it via their TypeORM datasource — this lib stays schema-agnostic).
  * Consumers register this entity in their datasource (or use `autoLoadEntities`).
+ *
+ * `TExtraData` types the `extraData` jsonb bag for consumer-defined metadata — purely compile-time
+ * (the column is always `jsonb`; the generic just shapes reads/writes). Reference it as
+ * `UploadedFile<MyExtra>` in your own code; the lib's repository/service default to a loose record.
  */
 @Entity('uploaded_file')
-export class UploadedFile {
+export class UploadedFile<TExtraData = Record<string, unknown>> {
   @PrimaryColumn({ type: 'uuid' })
   @Generated('uuid')
   id!: string;
@@ -54,6 +58,10 @@ export class UploadedFile {
   /** Field/type role on the owner (e.g. `logo`, `avatar`, `attachment`). */
   @Column({ type: 'varchar', length: 64, nullable: true })
   type!: string;
+
+  /** Consumer-defined extra metadata (jsonb). Shape is typed by `TExtraData`; optional. */
+  @Column({ type: 'jsonb', nullable: true })
+  extraData?: Partial<TExtraData>;
 
   @CreateDateColumn()
   createdAt!: Date;

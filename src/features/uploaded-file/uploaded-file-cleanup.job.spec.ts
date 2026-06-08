@@ -1,5 +1,4 @@
 import { UploadedFileCleanupJob } from './uploaded-file-cleanup.job';
-import type { UploadedFileConfig } from './types';
 
 type Orphan = { cdn: string };
 
@@ -16,10 +15,6 @@ function makeStorage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return { changeFiles: jest.fn(async () => undefined) } as any;
 }
-
-const job = (config: UploadedFileConfig, orphans: Orphan[], jobs?: unknown) =>
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  new UploadedFileCleanupJob(makeRepo(orphans), makeStorage(), config, jobs as any);
 
 describe('UploadedFileCleanupJob', () => {
   it('does nothing when cleanupAfterDays is unset (disabled)', async () => {
