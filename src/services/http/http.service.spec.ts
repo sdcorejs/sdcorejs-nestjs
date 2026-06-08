@@ -1,5 +1,5 @@
 import { HttpService } from './http.service';
-import { ContextService } from '../context/context.service';
+import { ContextService } from '../../core/context/context.service';
 
 describe('HttpService', () => {
   it('instantiates with empty config', () => {

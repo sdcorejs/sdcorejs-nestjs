@@ -1,7 +1,7 @@
 import { type CallHandler, type ExecutionContext, Inject, Injectable, type NestInterceptor, Optional } from '@nestjs/common';
 import { Utilities } from '@sdcorejs/utils/fns';
 import { from, type Observable, of, switchMap, tap } from 'rxjs';
-import { ContextService } from '../context/context.service';
+import { ContextService } from '../../core/context/context.service';
 import { CacheService } from './cache.service';
 import { CACHED_METADATA, type CachedOptions } from './decorators/cached.decorator';
 

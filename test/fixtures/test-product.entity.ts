@@ -1,7 +1,7 @@
 import { Column, Entity } from 'typeorm';
-import { BaseEntity } from '../../src/orm/base-entity';
-import { WithAudit } from '../../src/orm/mixins';
-import { SearchableFields } from '../../src/orm/decorators/searchable-fields.decorator';
+import { BaseEntity } from '../../src/core/orm/base-entity';
+import { WithAudit } from '../../src/core/orm/mixins';
+import { SearchableFields } from '../../src/core/orm/decorators/searchable-fields.decorator';
 
 @SearchableFields({ exact: ['code'], contain: ['name'], activeColumn: 'isActive' })
 @Entity('test_product')

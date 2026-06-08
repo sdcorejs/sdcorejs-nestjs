@@ -3,8 +3,8 @@ import { Column, Entity, type DataSource } from 'typeorm';
 import { createTestDataSource } from '../../fixtures/pg-mem-datasource';
 import { TestProduct } from '../../fixtures/test-product.entity';
 import { TestProductRepository } from '../../fixtures/test-product.repository';
-import { BaseEntity } from '../../../src/orm/base-entity';
-import { BaseRepository } from '../../../src/orm/base-repository';
+import { BaseEntity } from '../../../src/core/orm/base-entity';
+import { BaseRepository } from '../../../src/core/orm/base-repository';
 
 @Entity('plain_no_search')
 class NoSearchEntity extends BaseEntity {

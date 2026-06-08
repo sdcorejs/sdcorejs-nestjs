@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
-import { apiError } from '../orm/types/api-response.types';
+import { apiError } from '../../core/orm/types/api-response.types';
 import { type IInternalSecretProvider, INTERNAL_SECRET_PROVIDER } from './internal-secret.provider';
 import { type IInternalContextEnricher, INTERNAL_CONTEXT_ENRICHER } from './internal-context.enricher';
 

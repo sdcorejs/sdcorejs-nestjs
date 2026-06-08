@@ -1,12 +1,12 @@
 import 'reflect-metadata';
 import { Column, Entity, type DataSource } from 'typeorm';
 import { createTestDataSource } from '../../fixtures/pg-mem-datasource';
-import { BaseEntity } from '../../../src/orm/base-entity';
-import { WithAudit, WithTimestamps } from '../../../src/orm/mixins';
-import { BaseRepository } from '../../../src/orm/base-repository';
-import { ContextService } from '../../../src/context/context.service';
-import { DefaultAuditStrategy } from '../../../src/audit/default-audit.strategy';
-import type { IAuditStrategy } from '../../../src/audit/strategy.interface';
+import { BaseEntity } from '../../../src/core/orm/base-entity';
+import { WithAudit, WithTimestamps } from '../../../src/core/orm/mixins';
+import { BaseRepository } from '../../../src/core/orm/base-repository';
+import { ContextService } from '../../../src/core/context/context.service';
+import { DefaultAuditStrategy } from '../../../src/core/audit/default-audit.strategy';
+import type { IAuditStrategy } from '../../../src/core/audit/strategy.interface';
 
 @Entity('audit_product')
 class AuditProduct extends WithAudit(BaseEntity) {

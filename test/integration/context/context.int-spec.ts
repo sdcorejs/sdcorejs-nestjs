@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
-import { ContextModule, ContextService, ContextMiddleware, CONTEXT_HEADERS_CONFIG, type HeadersConfig } from '../../../src/context';
-import { DEFAULT_HEADERS_CONFIG } from '../../../src/context/types';
+import { ContextModule, ContextService, ContextMiddleware, CONTEXT_HEADERS_CONFIG, type HeadersConfig } from '../../../src/core/context';
+import { DEFAULT_HEADERS_CONFIG } from '../../../src/core/context/types';
 
 describe('ContextService — AsyncLocalStorage preservation', () => {
   let service: ContextService;

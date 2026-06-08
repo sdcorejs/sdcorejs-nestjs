@@ -3,14 +3,9 @@ import { defineConfig, type Options } from 'tsup';
 
 const entryMap: Record<string, string> = {
   index: 'src/index.ts',
-  'orm/index': 'src/orm/index.ts',
-  'context/index': 'src/context/index.ts',
-  'tenancy/index': 'src/tenancy/index.ts',
-  'audit/index': 'src/audit/index.ts',
-  'permission/index': 'src/permission/index.ts',
-  'cache/index': 'src/cache/index.ts',
-  'http/index': 'src/http/index.ts',
-  'jwt/index': 'src/jwt/index.ts',
+  'core/index': 'src/core/index.ts',
+  'auth/index': 'src/auth/index.ts',
+  'services/index': 'src/services/index.ts',
   'validation/index': 'src/validation/index.ts',
   'queue/index': 'src/queue/index.ts',
   'i18n/index': 'src/i18n/index.ts',

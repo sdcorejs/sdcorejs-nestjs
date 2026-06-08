@@ -1,4 +1,4 @@
-import type { RequestContext } from '../context/types';
+import type { RequestContext } from '../../core/context/types';
 
 /**
  * Contract for permission resolution. `AuthGuard` calls `load(ctx)` once per request and

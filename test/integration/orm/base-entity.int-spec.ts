@@ -1,8 +1,8 @@
 import 'reflect-metadata';
 import { Column, Entity, type DataSource } from 'typeorm';
-import { BaseEntity } from '../../../src/orm/base-entity';
-import { WithTimestamps, WithAudit, isAuditEnabled } from '../../../src/orm/mixins';
-import type { ClassRef } from '../../../src/orm/types/class-ref.types';
+import { BaseEntity } from '../../../src/core/orm/base-entity';
+import { WithTimestamps, WithAudit, isAuditEnabled } from '../../../src/core/orm/mixins';
+import type { ClassRef } from '../../../src/core/orm/types/class-ref.types';
 import { createTestDataSource } from '../../fixtures/pg-mem-datasource';
 
 @Entity('plain_test')

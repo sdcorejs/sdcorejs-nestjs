@@ -1,8 +1,8 @@
 import { type ExecutionContext, ForbiddenException, Inject, Injectable, Optional } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard as PassportAuthGuard } from '@nestjs/passport';
-import { ContextService } from '../context/context.service';
-import { apiError } from '../orm/types/api-response.types';
+import { ContextService } from '../../core/context/context.service';
+import { apiError } from '../../core/orm/types/api-response.types';
 import type { IPermissionStrategy } from './strategy.interface';
 import { PERMISSION_METADATA_KEY, PERMISSION_STRATEGY } from './tokens';
 

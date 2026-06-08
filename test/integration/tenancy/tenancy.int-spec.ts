@@ -1,13 +1,13 @@
 import 'reflect-metadata';
 import { Column, Entity, type DataSource } from 'typeorm';
 import { createTestDataSource } from '../../fixtures/pg-mem-datasource';
-import { BaseEntity } from '../../../src/orm/base-entity';
-import { WithAudit } from '../../../src/orm/mixins';
-import { TenantScoped } from '../../../src/orm/decorators/tenant-scoped.decorator';
-import { BaseRepository } from '../../../src/orm/base-repository';
-import { ContextService } from '../../../src/context/context.service';
-import type { ITenancyStrategy } from '../../../src/tenancy/strategy.interface';
-import { buildScopeFilters, applyScopeToEntity, getScopedColumns } from '../../../src/tenancy/tenancy.helpers';
+import { BaseEntity } from '../../../src/core/orm/base-entity';
+import { WithAudit } from '../../../src/core/orm/mixins';
+import { TenantScoped } from '../../../src/core/orm/decorators/tenant-scoped.decorator';
+import { BaseRepository } from '../../../src/core/orm/base-repository';
+import { ContextService } from '../../../src/core/context/context.service';
+import type { ITenancyStrategy } from '../../../src/core/tenancy/strategy.interface';
+import { buildScopeFilters, applyScopeToEntity, getScopedColumns } from '../../../src/core/tenancy/tenancy.helpers';
 
 @Entity('scoped_product')
 class ScopedProduct extends WithAudit(BaseEntity) {

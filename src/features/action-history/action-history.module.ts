@@ -1,6 +1,6 @@
 import { type DynamicModule, Module, type Provider } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { registerHistoryRecorder } from '../../orm/history';
+import { registerHistoryRecorder } from '../../core/orm/history';
 import { ActionHistory } from './action-history.entity';
 import { ActionHistoryService } from './action-history.service';
 import { ACTION_HISTORY_ACTOR_RESOLVER, type ActionHistoryActorResolver } from './types';

@@ -1,6 +1,6 @@
 import { BadRequestException, type CanActivate, type ExecutionContext, Injectable, type Type } from '@nestjs/common';
 import type { ZodTypeAny } from 'zod';
-import { apiError } from '../orm/types/api-response.types';
+import { apiError } from '../core/orm/types/api-response.types';
 import { toIssues, type ZodIssueDetail, type ZodSource } from './zod.utils';
 
 interface MutableRequest {

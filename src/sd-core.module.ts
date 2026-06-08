@@ -1,11 +1,11 @@
 import { type DynamicModule, Module, type Provider } from '@nestjs/common';
-import { ContextModule } from './context/context.module';
-import { TenancyModule } from './tenancy/tenancy.module';
-import { AuditModule } from './audit/audit.module';
-import { PermissionModule } from './permission/permission.module';
-import { CacheModule } from './cache/cache.module';
-import { HttpClientModule } from './http/http.module';
-import { JwtModule } from './jwt/jwt.module';
+import { ContextModule } from './core/context/context.module';
+import { TenancyModule } from './core/tenancy/tenancy.module';
+import { AuditModule } from './core/audit/audit.module';
+import { PermissionModule } from './auth/permission/permission.module';
+import { CacheModule } from './services/cache/cache.module';
+import { HttpClientModule } from './services/http/http.module';
+import { JwtModule } from './auth/jwt/jwt.module';
 import { I18nModule } from './i18n/i18n.module';
 import type { SdCoreModuleOptions } from './sd-core.types';
 

@@ -3,8 +3,8 @@ import { Controller, Injectable, Module, type INestApplication } from '@nestjs/c
 import { Test } from '@nestjs/testing';
 import type { DataSource } from 'typeorm';
 import request from 'supertest';
-import { BaseController } from '../../../src/orm/base-controller';
-import { BaseService } from '../../../src/orm/base-service';
+import { BaseController } from '../../../src/core/orm/base-controller';
+import { BaseService } from '../../../src/core/orm/base-service';
 import { createTestDataSource } from '../../fixtures/pg-mem-datasource';
 import { TestProduct } from '../../fixtures/test-product.entity';
 import { TestProductRepository } from '../../fixtures/test-product.repository';

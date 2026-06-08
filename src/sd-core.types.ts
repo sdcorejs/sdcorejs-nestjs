@@ -1,11 +1,11 @@
 import type { Provider } from '@nestjs/common';
-import type { ContextModuleOptions } from './context/context.module';
-import type { TenancyModuleOptions } from './tenancy/tenancy.module';
-import type { AuditModuleOptions } from './audit/audit.module';
-import type { PermissionModuleOptions } from './permission/permission.module';
-import type { CacheConfig } from './cache/types';
-import type { HttpClientConfig } from './http/types';
-import type { JwtConfig } from './jwt/types';
+import type { ContextModuleOptions } from './core/context/context.module';
+import type { TenancyModuleOptions } from './core/tenancy/tenancy.module';
+import type { AuditModuleOptions } from './core/audit/audit.module';
+import type { PermissionModuleOptions } from './auth/permission/permission.module';
+import type { CacheConfig } from './services/cache/types';
+import type { HttpClientConfig } from './services/http/types';
+import type { JwtConfig } from './auth/jwt/types';
 import type { I18nModuleOptions } from './i18n/i18n.module';
 
 export interface SdCoreModuleOptions {

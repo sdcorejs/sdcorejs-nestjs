@@ -1,13 +1,13 @@
 import 'reflect-metadata';
 import { Test } from '@nestjs/testing';
 import { SdCoreModule } from './sd-core.module';
-import { ContextService } from './context/context.service';
-import { CacheService } from './cache/cache.service';
-import { HttpService } from './http/http.service';
-import { CONTEXT_HEADERS_CONFIG } from './context/tokens';
-import { TENANCY_STRATEGY } from './tenancy/tokens';
-import { AUDIT_STRATEGY } from './audit/tokens';
-import { PERMISSION_STRATEGY } from './permission/tokens';
+import { ContextService } from './core/context/context.service';
+import { CacheService } from './services/cache/cache.service';
+import { HttpService } from './services/http/http.service';
+import { CONTEXT_HEADERS_CONFIG } from './core/context/tokens';
+import { TENANCY_STRATEGY } from './core/tenancy/tokens';
+import { AUDIT_STRATEGY } from './core/audit/tokens';
+import { PERMISSION_STRATEGY } from './auth/permission/tokens';
 
 describe('SdCoreModule.forRoot', () => {
   it('boots with no options — wires every default strategy', async () => {

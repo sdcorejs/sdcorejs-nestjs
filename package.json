@@ -47,84 +47,34 @@
         "default": "./dist/cjs/index.cjs"
       }
     },
-    "./orm": {
+    "./core": {
       "import": {
-        "types": "./dist/esm/orm/index.d.mts",
-        "default": "./dist/esm/orm/index.mjs"
+        "types": "./dist/esm/core/index.d.mts",
+        "default": "./dist/esm/core/index.mjs"
       },
       "require": {
-        "types": "./dist/cjs/orm/index.d.ts",
-        "default": "./dist/cjs/orm/index.cjs"
+        "types": "./dist/cjs/core/index.d.ts",
+        "default": "./dist/cjs/core/index.cjs"
       }
     },
-    "./context": {
+    "./auth": {
       "import": {
-        "types": "./dist/esm/context/index.d.mts",
-        "default": "./dist/esm/context/index.mjs"
+        "types": "./dist/esm/auth/index.d.mts",
+        "default": "./dist/esm/auth/index.mjs"
       },
       "require": {
-        "types": "./dist/cjs/context/index.d.ts",
-        "default": "./dist/cjs/context/index.cjs"
+        "types": "./dist/cjs/auth/index.d.ts",
+        "default": "./dist/cjs/auth/index.cjs"
       }
     },
-    "./tenancy": {
+    "./services": {
       "import": {
-        "types": "./dist/esm/tenancy/index.d.mts",
-        "default": "./dist/esm/tenancy/index.mjs"
+        "types": "./dist/esm/services/index.d.mts",
+        "default": "./dist/esm/services/index.mjs"
       },
       "require": {
-        "types": "./dist/cjs/tenancy/index.d.ts",
-        "default": "./dist/cjs/tenancy/index.cjs"
-      }
-    },
-    "./audit": {
-      "import": {
-        "types": "./dist/esm/audit/index.d.mts",
-        "default": "./dist/esm/audit/index.mjs"
-      },
-      "require": {
-        "types": "./dist/cjs/audit/index.d.ts",
-        "default": "./dist/cjs/audit/index.cjs"
-      }
-    },
-    "./permission": {
-      "import": {
-        "types": "./dist/esm/permission/index.d.mts",
-        "default": "./dist/esm/permission/index.mjs"
-      },
-      "require": {
-        "types": "./dist/cjs/permission/index.d.ts",
-        "default": "./dist/cjs/permission/index.cjs"
-      }
-    },
-    "./cache": {
-      "import": {
-        "types": "./dist/esm/cache/index.d.mts",
-        "default": "./dist/esm/cache/index.mjs"
-      },
-      "require": {
-        "types": "./dist/cjs/cache/index.d.ts",
-        "default": "./dist/cjs/cache/index.cjs"
-      }
-    },
-    "./http": {
-      "import": {
-        "types": "./dist/esm/http/index.d.mts",
-        "default": "./dist/esm/http/index.mjs"
-      },
-      "require": {
-        "types": "./dist/cjs/http/index.d.ts",
-        "default": "./dist/cjs/http/index.cjs"
-      }
-    },
-    "./jwt": {
-      "import": {
-        "types": "./dist/esm/jwt/index.d.mts",
-        "default": "./dist/esm/jwt/index.mjs"
-      },
-      "require": {
-        "types": "./dist/cjs/jwt/index.d.ts",
-        "default": "./dist/cjs/jwt/index.cjs"
+        "types": "./dist/cjs/services/index.d.ts",
+        "default": "./dist/cjs/services/index.cjs"
       }
     },
     "./validation": {
@@ -277,29 +227,14 @@
   "type": "commonjs",
   "typesVersions": {
     "*": {
-      "orm": [
-        "./dist/cjs/orm/index.d.ts"
+      "core": [
+        "./dist/cjs/core/index.d.ts"
       ],
-      "context": [
-        "./dist/cjs/context/index.d.ts"
+      "auth": [
+        "./dist/cjs/auth/index.d.ts"
       ],
-      "tenancy": [
-        "./dist/cjs/tenancy/index.d.ts"
-      ],
-      "audit": [
-        "./dist/cjs/audit/index.d.ts"
-      ],
-      "permission": [
-        "./dist/cjs/permission/index.d.ts"
-      ],
-      "cache": [
-        "./dist/cjs/cache/index.d.ts"
-      ],
-      "http": [
-        "./dist/cjs/http/index.d.ts"
-      ],
-      "jwt": [
-        "./dist/cjs/jwt/index.d.ts"
+      "services": [
+        "./dist/cjs/services/index.d.ts"
       ],
       "validation": [
         "./dist/cjs/validation/index.d.ts"

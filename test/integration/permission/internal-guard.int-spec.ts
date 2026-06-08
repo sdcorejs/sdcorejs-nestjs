@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { type ExecutionContext, ForbiddenException, InternalServerErrorException } from '@nestjs/common';
-import { InternalGuard } from '../../../src/permission/internal.guard';
+import { InternalGuard } from '../../../src/auth/permission/internal.guard';
 
 const buildExecCtx = (headers: Record<string, string | string[] | undefined>): ExecutionContext =>
   ({ switchToHttp: () => ({ getRequest: () => ({ headers }) }) }) as unknown as ExecutionContext;

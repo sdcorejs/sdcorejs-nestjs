@@ -1,11 +1,11 @@
 import 'reflect-metadata';
 import { type ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { AuthGuard } from '../../../src/permission/auth.guard';
-import { HasPermission } from '../../../src/permission/decorators/has-permission.decorator';
-import { HasAnyPermission } from '../../../src/permission/decorators/has-any-permission.decorator';
-import type { IPermissionStrategy } from '../../../src/permission/strategy.interface';
-import { ContextService } from '../../../src/context/context.service';
+import { AuthGuard } from '../../../src/auth/permission/auth.guard';
+import { HasPermission } from '../../../src/auth/permission/decorators/has-permission.decorator';
+import { HasAnyPermission } from '../../../src/auth/permission/decorators/has-any-permission.decorator';
+import type { IPermissionStrategy } from '../../../src/auth/permission/strategy.interface';
+import { ContextService } from '../../../src/core/context/context.service';
 
 // Stub guard that bypasses passport-jwt — exercises only the permission check pipeline.
 @Injectable()

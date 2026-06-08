@@ -1,5 +1,5 @@
 import type { DataSource } from 'typeorm';
-import { BaseRepository } from '../../src/orm/base-repository';
+import { BaseRepository } from '../../src/core/orm/base-repository';
 import { TestProduct } from './test-product.entity';
 
 export class TestProductRepository extends BaseRepository<TestProduct> {

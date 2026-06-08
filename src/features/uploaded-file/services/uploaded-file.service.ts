@@ -1,7 +1,7 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
-import { ContextService } from '../../../context/context.service';
+import { ContextService } from '../../../core/context/context.service';
 import { UploadedFile } from '../uploaded-file.entity';
 import type { UploadedFileMeta } from '../types';
 

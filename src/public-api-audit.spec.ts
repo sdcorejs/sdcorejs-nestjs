@@ -1,6 +1,6 @@
-import * as orm from './orm';
-import * as context from './context';
-import * as cache from './cache'; // eslint-disable-line @typescript-eslint/no-unused-vars
+import * as orm from './core/orm';
+import * as context from './core/context';
+import * as cache from './services/cache'; // eslint-disable-line @typescript-eslint/no-unused-vars
 import * as validation from './validation';
 import * as i18n from './i18n';
 

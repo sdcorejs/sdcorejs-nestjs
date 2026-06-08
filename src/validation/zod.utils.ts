@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import type { z, ZodTypeAny } from 'zod';
-import { apiError } from '../orm/types/api-response.types';
+import { apiError } from '../core/orm/types/api-response.types';
 
 export type ZodSource = 'body' | 'query' | 'params';
 

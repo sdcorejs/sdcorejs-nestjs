@@ -1,10 +1,10 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { DeepPartial } from 'typeorm';
-import { ContextService } from '../../src/context/context.service';
-import type { RequestContext } from '../../src/context/types';
-import type { ITenancyStrategy } from '../../src/tenancy/strategy.interface';
-import type { IAuditStrategy } from '../../src/audit/strategy.interface';
-import type { IPermissionStrategy } from '../../src/permission/strategy.interface';
+import { ContextService } from '../../src/core/context/context.service';
+import type { RequestContext } from '../../src/core/context/types';
+import type { ITenancyStrategy } from '../../src/core/tenancy/strategy.interface';
+import type { IAuditStrategy } from '../../src/core/audit/strategy.interface';
+import type { IPermissionStrategy } from '../../src/auth/permission/strategy.interface';
 
 /** Sample tenancy strategy reading `tenant` from context; bypass via `ctx.custom.isSystemAdmin`.
  *  Maps the framework-level `tenant` value to the entity column name `tenantCode`. */
