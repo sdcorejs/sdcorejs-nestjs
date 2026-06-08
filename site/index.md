@@ -41,13 +41,12 @@ features:
 npm install @sdcorejs/nestjs
 ```
 
-`@sdcorejs/utils`, `bullmq`, `axios`, `passport` and `passport-jwt` ship as bundled dependencies.
-The framework singletons (`@nestjs/common` `@nestjs/core` `@nestjs/passport` `@nestjs/typeorm`
-`typeorm` `reflect-metadata` `rxjs`, plus `@nestjs/bullmq` · `@nestjs/schedule` ·
-`@nestjs/platform-express`) stay peers so they reuse your app's copy — **npm 7+ installs them
-automatically**. Optional per-feature peers: `ioredis` (redis cache), `zod@^4` (validation),
-`jwks-rsa` + `jsonwebtoken` (Keycloak), `aws-sdk` (S3). See
-[Getting started](/guide/getting-started) for the full matrix.
+**Only two peer dependencies** — `@nestjs/common` `^11` and `@nestjs/core` `^11`, which every NestJS
+app already has. Everything else (`@nestjs/passport` · `@nestjs/typeorm` · `@nestjs/bullmq` ·
+`@nestjs/schedule` · `@nestjs/platform-express` · `typeorm` · `reflect-metadata` · `rxjs` ·
+`@sdcorejs/utils` · `axios` · `bullmq` · `passport` · `passport-jwt`) is bundled and installs
+automatically. Feature libs (`ioredis`, `zod@^4`, `jwks-rsa` + `jsonwebtoken`, `aws-sdk`) ship as
+`optionalDependencies`. See [Getting started](/guide/getting-started) for the full matrix.
 
 ## The 8 entry points
 

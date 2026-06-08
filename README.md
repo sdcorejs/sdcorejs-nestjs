@@ -33,26 +33,19 @@
 npm install @sdcorejs/nestjs
 ```
 
-**Bundled automatically** (regular `dependencies` — you never install these): `@sdcorejs/utils`
-(shared `Filter` / `PagingReq` / `Order` models + `ValidationUtilities`), `bullmq`, `axios`,
-`passport`, `passport-jwt`.
+**Peer dependencies — just two** (every NestJS app already has them):
 
-**Required peers** — the framework singletons that must be a single shared copy with your app
-(NestJS DI container, TypeORM metadata, `reflect-metadata` registry). **npm 7+ installs these
-automatically** when you add the package; pnpm / yarn-classic need them listed in your app
-(or `auto-install-peers=true`):
+- `@nestjs/common` `^11` · `@nestjs/core` `^11`
 
-- `@nestjs/common` `^11` · `@nestjs/core` `^11` · `@nestjs/passport` `^11` · `@nestjs/typeorm` `^11`
-- `typeorm` `^0.3.20` · `reflect-metadata` `^0.2` · `rxjs` `^7.8`
-- `@nestjs/bullmq` `^11` — `QueueModule` is statically imported by `SdCoreModule`
-- `@nestjs/schedule` `^4 || ^5 || ^6` — the uploaded-file cleanup `@Cron` (`ScheduleModule.forRoot()`)
-- `@nestjs/platform-express` `^11` — `FileInterceptor` used by the drop-in `UploadedFileController`
+Everything else installs automatically with the package, on any package manager.
 
-> These stay peers (not bundled) on purpose: shipping a second copy of `@nestjs/core` /
-> `reflect-metadata` / `typeorm` would break DI and decorator metadata. They live in `peerDependencies`
-> so npm reuses your app's copy.
+**Bundled** (`dependencies` — you never install these): `@nestjs/passport`, `@nestjs/typeorm`,
+`@nestjs/bullmq` (queue), `@nestjs/schedule` (cleanup `@Cron`), `@nestjs/platform-express`
+(`FileInterceptor`), `typeorm`, `reflect-metadata`, `rxjs`, `@sdcorejs/utils` (shared `Filter` /
+`PagingReq` / `Order` models + `ValidationUtilities`), `axios`, `bullmq`, `passport`, `passport-jwt`.
 
-**Optional peers** — not auto-installed; add only when you use the feature:
+**Optional** (`optionalDependencies` — auto-installed, but a failed install won't break yours; skip with
+`--no-optional` if you don't use the feature):
 
 | Package | Enables |
 |---|---|
@@ -60,6 +53,10 @@ automatically** when you add the package; pnpm / yarn-classic need them listed i
 | `zod` `^4` | request validation (`@sdcorejs/nestjs/validation`) — **v4 only** |
 | `jwks-rsa` `^3` + `jsonwebtoken` `^9` | Keycloak / OIDC JWKS verification (`@sdcorejs/nestjs/auth`) |
 | `aws-sdk` `^2` | S3 driver for uploaded files (`@sdcorejs/nestjs/features`) |
+
+> Only `@nestjs/common` / `@nestjs/core` stay peers so they reuse your app's instances (DI container).
+> `typeorm` / `reflect-metadata` are bundled too — npm hoists a single copy when your app's versions
+> are compatible (the whole NestJS 11 ecosystem is on `typeorm@^0.3` / `reflect-metadata@^0.2`).
 
 Engines: `node >=18.18`.
 

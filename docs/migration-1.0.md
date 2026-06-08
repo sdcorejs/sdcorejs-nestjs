@@ -33,16 +33,21 @@ from the documented sub-paths, e.g. `@sdcorejs/nestjs/orm`.
 
 ## Dependencies & peers
 
-`@sdcorejs/utils` and `bullmq` are now bundled as regular `dependencies` (alongside `axios`,
-`passport`, `passport-jwt`) — you no longer install them. `npm install @sdcorejs/nestjs` is enough.
+**Peer dependencies are now just two:** `@nestjs/common` `^11` and `@nestjs/core` `^11` — every NestJS
+app already has them. They stay peers so the library reuses your app's DI container (one instance).
+`npm install @sdcorejs/nestjs` is all a consumer runs; everything else installs with it, on any package
+manager.
 
-The framework singletons stay **required peers** (so a second copy is never shipped — that would break
-DI / decorator metadata): `@nestjs/common`, `@nestjs/core`, `@nestjs/passport`, `@nestjs/typeorm`,
-`@nestjs/bullmq`, `@nestjs/schedule`, `@nestjs/platform-express`, `typeorm`, `reflect-metadata`, `rxjs`.
-**npm 7+ installs all of these automatically.** On pnpm / yarn-classic, add them to your app or set
-`auto-install-peers=true`. (`@nestjs/typeorm` is no longer marked optional — it is required.)
+Moved from peer → **bundled `dependencies`** (auto-installed): `@nestjs/passport`, `@nestjs/typeorm`,
+`@nestjs/bullmq`, `@nestjs/schedule`, `@nestjs/platform-express`, `typeorm`, `reflect-metadata`, `rxjs`
+(joining the already-bundled `@sdcorejs/utils`, `axios`, `bullmq`, `passport`, `passport-jwt`).
 
-Optional peers (install only when used): `ioredis`, `zod`, `jwks-rsa` + `jsonwebtoken`, `aws-sdk`.
+Moved from optional peer → **`optionalDependencies`** (auto-installed, non-fatal; `--no-optional` to
+skip): `ioredis`, `zod`, `jwks-rsa`, `jsonwebtoken`, `aws-sdk`.
+
+> `typeorm` / `reflect-metadata` are singletons but bundled: npm hoists a single copy when your app's
+> versions are compatible (the NestJS 11 ecosystem is uniformly on `typeorm@^0.3` / `reflect-metadata@^0.2`).
+> If you ever pin a divergent major, list them in your app to force one copy.
 
 ## Single-module wiring
 

@@ -137,58 +137,38 @@
     "clean": "rimraf dist coverage"
   },
   "peerDependencies": {
-    "@nestjs/bullmq": "^11.0.0",
     "@nestjs/common": "^11.0.0",
-    "@nestjs/core": "^11.0.0",
+    "@nestjs/core": "^11.0.0"
+  },
+  "dependencies": {
+    "@nestjs/bullmq": "^11.0.0",
     "@nestjs/passport": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/schedule": "^4.0.0 || ^5.0.0 || ^6.0.0",
     "@nestjs/typeorm": "^11.0.0",
-    "aws-sdk": "^2.0.0",
-    "ioredis": "^5.0.0",
-    "jsonwebtoken": "^9.0.0",
-    "jwks-rsa": "^3.0.0",
-    "reflect-metadata": "^0.2.0",
-    "rxjs": "^7.8.0",
-    "typeorm": "^0.3.20",
-    "zod": "^4.0.0"
-  },
-  "peerDependenciesMeta": {
-    "aws-sdk": {
-      "optional": true
-    },
-    "ioredis": {
-      "optional": true
-    },
-    "jsonwebtoken": {
-      "optional": true
-    },
-    "jwks-rsa": {
-      "optional": true
-    },
-    "zod": {
-      "optional": true
-    }
-  },
-  "dependencies": {
     "@sdcorejs/utils": "^1.1.0",
     "axios": "^1.7.0",
     "bullmq": "^5.0.0",
     "passport": "^0.7.0",
-    "passport-jwt": "^4.0.1"
+    "passport-jwt": "^4.0.1",
+    "reflect-metadata": "^0.2.0",
+    "rxjs": "^7.8.0",
+    "typeorm": "^0.3.20"
+  },
+  "optionalDependencies": {
+    "aws-sdk": "^2.0.0",
+    "ioredis": "^5.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "jwks-rsa": "^3.0.0",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@anatine/esbuild-decorators": "^0.2.19",
     "@arethetypeswrong/cli": "^0.18.3",
     "@changesets/cli": "^2.27.0",
-    "@nestjs/bullmq": "^11.0.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
-    "@nestjs/passport": "^11.0.0",
-    "@nestjs/platform-express": "^11.1.23",
-    "@nestjs/schedule": "^5.0.0",
     "@nestjs/testing": "^11.0.0",
-    "@nestjs/typeorm": "^11.0.1",
     "@types/jest": "^29.5.0",
     "@types/jsonwebtoken": "^9.0.0",
     "@types/node": "^20.0.0",
@@ -198,23 +178,16 @@
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "eslint": "^8.57.0",
-    "ioredis": "^5.11.0",
     "jest": "^29.7.0",
-    "jsonwebtoken": "^9.0.0",
-    "jwks-rsa": "^3.0.0",
     "pg": "^8.21.0",
     "pg-mem": "^3.0.2",
     "prettier": "^3.3.0",
     "publint": "^0.3.21",
-    "reflect-metadata": "^0.2.0",
     "rimraf": "^6.0.0",
-    "rxjs": "^7.8.0",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.0",
     "tsup": "^8.3.0",
-    "typeorm": "^0.3.20",
-    "typescript": "^5.6.0",
-    "zod": "^4.4.3"
+    "typescript": "^5.6.0"
   },
   "type": "commonjs",
   "typesVersions": {

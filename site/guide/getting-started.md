@@ -11,31 +11,29 @@ DI strategies**. The library ships zero hardcoded column names.
 npm install @sdcorejs/nestjs
 ```
 
-### Bundled automatically
+### Peer dependencies — just two
 
-Shipped as regular `dependencies` — you never install them: `@sdcorejs/utils` (shared `Filter` /
-`PagingReq` / `Order` models + `ValidationUtilities`), `bullmq`, `axios`, `passport`, `passport-jwt`.
+```
+@nestjs/common ^11   @nestjs/core ^11
+```
 
-### Required peers
+Every NestJS app already has these. They stay peers so the library reuses your app's DI container
+(one shared instance). Everything else installs automatically with the package, on any package manager.
 
-The framework singletons that must be **one shared copy** with your app (NestJS DI container, TypeORM
-metadata, the `reflect-metadata` registry). These stay peers so a second copy is never shipped —
-bundling them would break DI and decorator metadata.
+### Bundled
 
-::: tip npm 7+ installs these for you
-`npm install @sdcorejs/nestjs` pulls every required peer automatically. **pnpm / yarn-classic** don't —
-add them to your app, or set `auto-install-peers=true`.
-:::
+Shipped as regular `dependencies` — you never install them:
 
-- `@nestjs/common` `^11` · `@nestjs/core` `^11` · `@nestjs/passport` `^11` · `@nestjs/typeorm` `^11`
-- `typeorm` `^0.3.20` · `reflect-metadata` `^0.2` · `rxjs` `^7.8`
-- `@nestjs/bullmq` `^11` — `QueueModule` is statically imported by `SdCoreModule`
-- `@nestjs/schedule` `^4 || ^5 || ^6` — the uploaded-file cleanup `@Cron`
-- `@nestjs/platform-express` `^11` — `FileInterceptor` for the `UploadedFileController`
+- `@nestjs/passport`, `@nestjs/typeorm`, `@nestjs/bullmq` (queue), `@nestjs/schedule` (cleanup `@Cron`),
+  `@nestjs/platform-express` (`FileInterceptor`)
+- `typeorm`, `reflect-metadata`, `rxjs`
+- `@sdcorejs/utils` (shared `Filter` / `PagingReq` / `Order` models + `ValidationUtilities`), `axios`,
+  `bullmq`, `passport`, `passport-jwt`
 
-### Optional peers
+### Optional
 
-Not auto-installed — add only when you use the feature:
+Shipped as `optionalDependencies` — auto-installed, but a failed install won't break yours; skip with
+`--no-optional` if you don't use the feature:
 
 | Package | Enables |
 |---|---|
