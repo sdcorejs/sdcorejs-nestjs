@@ -20,7 +20,7 @@ features:
   - title: One module wires it all
     details: "SdCoreModule.forRoot() composes context, tenancy, audit, permission, cache and HTTP. Opt-in keys add jwt, i18n, uploadedFile, actionHistory, jobScheduler and queue."
   - title: Neutral by design
-    details: "No tenantCode/departmentCode baked in. You mark scoped columns with @TenantScoped() and write strategies; the library never knows your schema."
+    details: "No tenantCode/departmentCode baked in. You mark scoped columns with @Scoped() and write strategies; the library never knows your schema."
   - title: Multi-tenancy that just happens
     details: "BaseRepository injects a scope filter on every read and auto-fills scoped columns on every write. Scalar means EQUAL, array means IN. detail(id) is scoped too — no cross-tenant id leaks."
   - title: Permissions via DI strategy

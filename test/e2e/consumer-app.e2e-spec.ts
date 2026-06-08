@@ -9,7 +9,7 @@ import { WithAudit } from '../../src/core/orm/mixins';
 import { BaseRepository } from '../../src/core/orm/base-repository';
 import { BaseService } from '../../src/core/orm/base-service';
 import { BaseController } from '../../src/core/orm/base-controller';
-import { TenantScoped } from '../../src/core/orm/decorators/tenant-scoped.decorator';
+import { Scoped } from '../../src/core/orm/decorators/scoped.decorator';
 import { SearchableFields } from '../../src/core/orm/decorators/searchable-fields.decorator';
 import { ContextService } from '../../src/core/context/context.service';
 import { TENANCY_STRATEGY } from '../../src/core/tenancy/tokens';
@@ -24,7 +24,7 @@ class E2eProduct extends WithAudit(BaseEntity) {
   @Column() name!: string;
   @Column({ nullable: true }) code?: string;
   @Column({ default: true, nullable: true }) isActive?: boolean;
-  @Column() @TenantScoped() tenantCode!: string;
+  @Column() @Scoped() tenantCode!: string;
 }
 
 interface E2eProductDto {

@@ -9,8 +9,8 @@ const undef = (m: Record<string, unknown>, names: string[]) => names.forEach((n)
 describe('1.0.0 public API — internal symbols are not leaked', () => {
   it('orm drops internal metadata keys + getHistoryRecorder', () => {
     undef(orm as Record<string, unknown>, [
-      'TENANT_SCOPED_METADATA',
-      'TENANT_SCOPED_COLUMNS',
+      'SCOPED_METADATA',
+      'SCOPED_COLUMNS',
       'SEARCHABLE_FIELDS_METADATA',
       'SCHEMA_METADATA',
       'SCHEMA_PROP_METADATA',

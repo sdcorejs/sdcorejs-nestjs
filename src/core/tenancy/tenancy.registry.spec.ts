@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { Scoped } from '../orm/decorators/tenant-scoped.decorator';
+import { Scoped } from '../orm/decorators/scoped.decorator';
 import { BaseRepository } from '../orm/base-repository';
 import { registerTenancy, getTenancy } from './tenancy.registry';
 import type { ITenancyStrategy } from './strategy.interface';

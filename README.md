@@ -69,7 +69,7 @@ The package has multiple entry points; import only what you use.
 | Import | What's inside |
 |---|---|
 | `@sdcorejs/nestjs` | `SdCoreModule.forRoot({...})` + ergonomic re-exports of all public symbols |
-| `@sdcorejs/nestjs/core` | ORM base classes (`BaseEntity`, `WithTimestamps`, `WithAudit`, `BaseRepository`, `BaseService`, `BaseController`, `@TenantScoped`, `@SearchableFields`, `@Schema`, `apiError`/`ApiResponse`), request context (`ContextService`, `ContextMiddleware`, `RequestContext`), multi-tenancy (`ITenancyStrategy`, `TENANCY_STRATEGY`, `buildScopeFilters`/`buildScopeWhere`), and audit (`IAuditStrategy`, `AUDIT_STRATEGY`, `AuditSubscriber`) |
+| `@sdcorejs/nestjs/core` | ORM base classes (`BaseEntity`, `WithTimestamps`, `WithAudit`, `BaseRepository`, `BaseService`, `BaseController`, `@Scoped`, `@SearchableFields`, `@Schema`, `apiError`/`ApiResponse`), request context (`ContextService`, `ContextMiddleware`, `RequestContext`), multi-tenancy (`ITenancyStrategy`, `TENANCY_STRATEGY`, `buildScopeFilters`/`buildScopeWhere`), and audit (`IAuditStrategy`, `AUDIT_STRATEGY`, `AuditSubscriber`) |
 | `@sdcorejs/nestjs/auth` | JWT / Keycloak strategies (`JwtModule`, `JwtStrategy`, `KeycloakJwtStrategy`, `JWT_CONFIG`), plus permission enforcement (`IPermissionStrategy`, `AuthGuard`, `InternalGuard`, `@HasPermission`, `@HasAnyPermission`, `IInternalSecretProvider`, `IInternalContextEnricher`) |
 | `@sdcorejs/nestjs/services` | HTTP client (`HttpService`, axios-based, context-aware) + cache (`CacheService`, `CacheInterceptor`, `@Cached` — memory and redis backends) |
 | `@sdcorejs/nestjs/queue` | `QueueModule`, `BaseWorker` (BullMQ + Redis) |
@@ -138,19 +138,19 @@ export class AppModule {}
 
 ## Multi-tenancy
 
-Tenancy is enforced by **your** `ITenancyStrategy`, injected before every query reaches the database. The library never knows your column names — you mark scoped columns with `@TenantScoped()` (decorator uses the **property name** as the column) and return scope values from the strategy.
+Tenancy is enforced by **your** `ITenancyStrategy`, injected before every query reaches the database. The library never knows your column names — you mark scoped columns with `@Scoped()` (decorator uses the **property name** as the column) and return scope values from the strategy.
 
 ### 1. Mark scoped columns on the entity
 
 ```ts
 import { Entity, Column } from 'typeorm';
-import { BaseEntity, WithAudit, TenantScoped } from '@sdcorejs/nestjs/core';
+import { BaseEntity, WithAudit, Scoped } from '@sdcorejs/nestjs/core';
 
 @Entity()
 export class Product extends WithAudit(BaseEntity) {
   @Column() name!: string;
-  @Column() @TenantScoped() tenantCode!: string;
-  @Column({ nullable: true }) @TenantScoped() departmentCode?: string;
+  @Column() @Scoped() tenantCode!: string;
+  @Column({ nullable: true }) @Scoped() departmentCode?: string;
 }
 ```
 
@@ -180,7 +180,7 @@ export class AppTenancyStrategy implements ITenancyStrategy {
 
 When a strategy is registered, `BaseRepository`:
 
-- **Reads** (`paging`, `all`, `search`, `detail`) — injects a scope filter per `@TenantScoped` column. A **scalar** scope value becomes `EQUAL`; an **array** becomes `IN` (multi-department users); `null` / `undefined` / empty array is skipped.
+- **Reads** (`paging`, `all`, `search`, `detail`) — injects a scope filter per `@Scoped` column. A **scalar** scope value becomes `EQUAL`; an **array** becomes `IN` (multi-department users); `null` / `undefined` / empty array is skipped.
 - **Writes** (`create`, `import`) — auto-fills the scoped columns from `getCurrentScope()`.
 - **`detail(id)`** is scoped too — fetching a known UUID that belongs to another tenant returns `null` (no cross-tenant id leak).
 - **`shouldBypass(ctx) === true`** skips both filter injection and auto-fill.
@@ -582,7 +582,7 @@ Enable with `jobScheduler: {}`.
 
 ## Philosophy
 
-- **Fully neutral** — no `tenantCode`/`departmentCode` hardcoded; consumer chooses column names via `@TenantScoped()` and writes its own strategies.
+- **Fully neutral** — no `tenantCode`/`departmentCode` hardcoded; consumer chooses column names via `@Scoped()` and writes its own strategies.
 - **Strategies are DI tokens, not subclassing** — each concern defines an interface + a `*_STRATEGY` symbol + a `Default*` no-op fallback.
 - **No prototype pollution** — no `String.isUuid()` / `Array.prototype.distinct()`; use the exported helpers.
 - **TypeORM 0.3.x bound** — no ORM abstraction; the library leans into TypeORM directly.

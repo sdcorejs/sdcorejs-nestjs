@@ -5,7 +5,7 @@
 | Removed | Use instead |
 |---|---|
 | `SdFilter` / `SdFilterOperator` / `SdOrder` / `SdPagingReq` / `SdPagingRes` (`/orm`) | `Filter` / `Operator` / `Order` / `PagingReq` / `PagingRes` from `@sdcorejs/utils/models` |
-| `Scoped` / `TenantScoped` / `getScopedColumns` from `/tenancy` | the same symbols from `@sdcorejs/nestjs/orm` |
+| `Scoped` / `TenantScoped` / `getScopedColumns` from `/tenancy` | `Scoped` / `getScopedColumns` from `@sdcorejs/nestjs/core` — the `TenantScoped` alias is **removed**; use `@Scoped()` |
 | `ValidationUtilities` / `ArrayUtilities` / `StringUtilities` / `Utilities` from `/orm` | `@sdcorejs/utils/fns` |
 | `slugify` / `isBlank` / `toMb` / `addDays` / `distinct` from `/file-storage` | internal helpers; use `@sdcorejs/utils` (`ArrayUtilities.distinct`) |
 | internal metadata keys + accessors leaked from `/orm`, `/context`, `/cache`, `/validation`, `/i18n` | not public — see `docs/superpowers/specs/2026-06-07-1.0.0-api-audit-findings.md` |

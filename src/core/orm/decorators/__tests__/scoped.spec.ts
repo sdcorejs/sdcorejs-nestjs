@@ -1,18 +1,18 @@
 import 'reflect-metadata';
-import { TenantScoped, getScopedColumns, TENANT_SCOPED_METADATA } from '../tenant-scoped.decorator';
+import { Scoped, getScopedColumns, SCOPED_METADATA } from '../scoped.decorator';
 
-describe('@TenantScoped', () => {
+describe('@Scoped', () => {
   it('sets per-property metadata', () => {
-    class Scoped {
-      @TenantScoped() tenantCode!: string;
+    class Target {
+      @Scoped() tenantCode!: string;
     }
-    expect(Reflect.getMetadata(TENANT_SCOPED_METADATA, Scoped.prototype, 'tenantCode')).toBe(true);
+    expect(Reflect.getMetadata(SCOPED_METADATA, Target.prototype, 'tenantCode')).toBe(true);
   });
 
   it('getScopedColumns lists all decorated columns', () => {
     class Multi {
-      @TenantScoped() tenantCode!: string;
-      @TenantScoped() departmentCode!: string;
+      @Scoped() tenantCode!: string;
+      @Scoped() departmentCode!: string;
       otherField!: string;
     }
     expect(getScopedColumns(Multi).sort()).toEqual(['departmentCode', 'tenantCode']);
@@ -27,17 +27,17 @@ describe('@TenantScoped', () => {
 
   it('inherits scoped columns through prototype chain', () => {
     class Parent {
-      @TenantScoped() tenantCode!: string;
+      @Scoped() tenantCode!: string;
     }
     class Child extends Parent {
-      @TenantScoped() projectCode!: string;
+      @Scoped() projectCode!: string;
     }
     expect(getScopedColumns(Child).sort()).toEqual(['projectCode', 'tenantCode']);
   });
 
   it('does not duplicate when decorator applied twice on same property', () => {
     class Twice {
-      @TenantScoped() @TenantScoped() tenantCode!: string;
+      @Scoped() @Scoped() tenantCode!: string;
     }
     expect(getScopedColumns(Twice)).toEqual(['tenantCode']);
   });

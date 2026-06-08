@@ -3,7 +3,7 @@ import { Column, Entity, type DataSource } from 'typeorm';
 import { createTestDataSource } from '../../fixtures/pg-mem-datasource';
 import { BaseEntity } from '../../../src/core/orm/base-entity';
 import { WithAudit } from '../../../src/core/orm/mixins';
-import { TenantScoped } from '../../../src/core/orm/decorators/tenant-scoped.decorator';
+import { Scoped } from '../../../src/core/orm/decorators/scoped.decorator';
 import { BaseRepository } from '../../../src/core/orm/base-repository';
 import { ContextService } from '../../../src/core/context/context.service';
 import type { ITenancyStrategy } from '../../../src/core/tenancy/strategy.interface';
@@ -12,8 +12,8 @@ import { buildScopeFilters, applyScopeToEntity, getScopedColumns } from '../../.
 @Entity('scoped_product')
 class ScopedProduct extends WithAudit(BaseEntity) {
   @Column() name!: string;
-  @Column() @TenantScoped() tenantCode!: string;
-  @Column({ nullable: true }) @TenantScoped() departmentCode?: string;
+  @Column() @Scoped() tenantCode!: string;
+  @Column({ nullable: true }) @Scoped() departmentCode?: string;
 }
 
 @Entity('plain_product')
@@ -65,7 +65,7 @@ describe('Tenancy helpers (pure)', () => {
     expect(getScopedColumns(PlainProduct)).toEqual([]);
   });
 
-  it('getScopedColumns on @TenantScoped entity returns column names', () => {
+  it('getScopedColumns on @Scoped entity returns column names', () => {
     expect(getScopedColumns(ScopedProduct).sort()).toEqual(['departmentCode', 'tenantCode']);
   });
 });
@@ -131,7 +131,7 @@ describe('BaseRepository tenancy integration', () => {
     expect(r.total).toBe(3);
   });
 
-  it('entity without @TenantScoped is not scoped even with strategy', async () => {
+  it('entity without @Scoped is not scoped even with strategy', async () => {
     const repo = new PlainRepo(ds, {
       tenancyStrategy: buildStrategy({ tenantCode: 'T1' }),
       contextService: ctx,

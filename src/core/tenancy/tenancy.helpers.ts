@@ -1,6 +1,6 @@
 import { In } from 'typeorm';
 import type { Filter } from '@sdcorejs/utils/models';
-export { getScopedColumns } from '../orm/decorators/tenant-scoped.decorator';
+export { getScopedColumns } from '../orm/decorators/scoped.decorator';
 
 /**
  * Builds a scope filter per scoped column whose value is present (non-null/undefined).

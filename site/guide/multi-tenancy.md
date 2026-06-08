@@ -1,20 +1,20 @@
 # Multi-tenancy
 
 Tenancy is enforced by **your** `ITenancyStrategy`, injected before every query reaches the database.
-The library never knows your column names — you mark scoped columns with `@TenantScoped()` (the
+The library never knows your column names — you mark scoped columns with `@Scoped()` (the
 decorator uses the **property name** as the column) and return scope values from the strategy.
 
 ## 1. Mark scoped columns on the entity
 
 ```ts
 import { Entity, Column } from 'typeorm';
-import { BaseEntity, WithAudit, TenantScoped } from '@sdcorejs/nestjs/core';
+import { BaseEntity, WithAudit, Scoped } from '@sdcorejs/nestjs/core';
 
 @Entity()
 export class Product extends WithAudit(BaseEntity) {
   @Column() name!: string;
-  @Column() @TenantScoped() tenantCode!: string;
-  @Column({ nullable: true }) @TenantScoped() departmentCode?: string;
+  @Column() @Scoped() tenantCode!: string;
+  @Column({ nullable: true }) @Scoped() departmentCode?: string;
 }
 ```
 
@@ -46,7 +46,7 @@ Or skip the class entirely and pass inline callbacks to `SdCoreModule.forRoot({ 
 
 When a strategy is registered, `BaseRepository`:
 
-- **Reads** (`paging`, `all`, `search`, `detail`) — injects a scope filter per `@TenantScoped` column. A
+- **Reads** (`paging`, `all`, `search`, `detail`) — injects a scope filter per `@Scoped` column. A
   **scalar** scope value becomes `EQUAL`; an **array** becomes `IN` (multi-department users); `null` /
   `undefined` / empty array is skipped.
 - **Writes** (`create`, `import`) — auto-fills the scoped columns from `getCurrentScope()`.

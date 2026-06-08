@@ -164,8 +164,8 @@ Apply with `@UseGuards(InternalGuard)`. The enricher's `custom.isInternalCall` i
 ```diff
 - export class Product extends BaseEntity {
 + export class Product extends WithAudit(BaseEntity) {
-    @Column() @TenantScoped() tenantCode: string;
-    @Column() @TenantScoped() departmentCode: string;
+    @Column() @Scoped() tenantCode: string;
+    @Column() @Scoped() departmentCode: string;
 +   // No need to redeclare createdAt/createdBy/creator/modifier — WithAudit adds them.
   }
 ```
@@ -211,7 +211,7 @@ sed -i 's/NOT_END_WIDTH/NOT_END_WITH/g' src/**/*.ts
 
 ## 7. Domain fields → consumer
 
-Lib's `RequestContext` keeps only framework-generic keys: `userId, tenant, lang, token, user, permissions, request, response, custom`. (Note: `tenant`, NOT `tenantCode` — `tenant` is the framework-level identifier *value*; your entity column name is whatever you mark with `@TenantScoped()`.)
+Lib's `RequestContext` keeps only framework-generic keys: `userId, tenant, lang, token, user, permissions, request, response, custom`. (Note: `tenant`, NOT `tenantCode` — `tenant` is the framework-level identifier *value*; your entity column name is whatever you mark with `@Scoped()`.)
 
 Domain values from `be-masterdata` (`departmentCode, project, internalSecret, username, fullName, isSystemAdmin, isTenantAdmin`) MUST move into your app.
 

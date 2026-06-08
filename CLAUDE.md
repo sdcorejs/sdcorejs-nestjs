@@ -18,7 +18,7 @@ Mono-package, **multiple entry points**. Each concern is one folder under `src/`
 | Import | Folder | Surface |
 |---|---|---|
 | `@sdcorejs/nestjs` | [src/index.ts](src/index.ts) | `SdCoreModule.forRoot()` + ergonomic re-exports |
-| `@sdcorejs/nestjs/orm` | [src/orm/](src/orm/) | `BaseEntity`, `WithTimestamps`/`WithAudit` mixins, `BaseRepository`, `BaseService`, `BaseController`, `@TenantScoped`, `@SearchableFields`, `@Schema`, `apiError`/`ApiResponse` |
+| `@sdcorejs/nestjs/orm` | [src/orm/](src/orm/) | `BaseEntity`, `WithTimestamps`/`WithAudit` mixins, `BaseRepository`, `BaseService`, `BaseController`, `@Scoped`, `@SearchableFields`, `@Schema`, `apiError`/`ApiResponse` |
 | `@sdcorejs/nestjs/context` | [src/context/](src/context/) | `ContextService` (AsyncLocalStorage), `ContextMiddleware`, header config |
 | `@sdcorejs/nestjs/tenancy` | [src/tenancy/](src/tenancy/) | `ITenancyStrategy`, `TENANCY_STRATEGY`, `DefaultTenancyStrategy`, helpers |
 | `@sdcorejs/nestjs/audit` | [src/audit/](src/audit/) | `IAuditStrategy`, `AUDIT_STRATEGY`, `AuditSubscriber`, `DefaultAuditStrategy` |
@@ -36,7 +36,7 @@ Adding a sub-path requires editing **four** files in lockstep:
 
 ## Core principles
 
-- **Fully neutral.** No domain column names baked in. Consumers pick columns via `@TenantScoped('orgId')` and supply their own `ITenancyStrategy`/`IAuditStrategy`/`IPermissionStrategy`. Never reintroduce `tenantCode`/`departmentCode`.
+- **Fully neutral.** No domain column names baked in. Consumers pick columns via `@Scoped()` on the column (the property name is the column) and supply their own `ITenancyStrategy`/`IAuditStrategy`/`IPermissionStrategy`. Never reintroduce `tenantCode`/`departmentCode`.
 - **No prototype pollution.** No `String.isUuid()` / `Array.prototype.distinct()` / `Object.propertyOf()`. Import from `@sdcorejs/utils` directly — `ValidationUtilities.isUuid` / `ArrayUtilities.distinct` from `@sdcorejs/utils/fns`; for type-safe field names use the `NestedKeyOf<T>` type from `@sdcorejs/utils/models`. The library does **not** re-export these — no `src/utils/` barrel.
 - **TypeORM 0.3.x bound.** No ORM abstraction layer — lean into TypeORM directly.
 - **Strategies are DI tokens, not subclassing.** Each concern defines an interface + a `*_STRATEGY` symbol token + a `Default*Strategy` no-op fallback.

@@ -7,7 +7,7 @@ import { Generated, PrimaryColumn, BaseEntity as TypeOrmBaseEntity } from 'typeo
  * - `WithTimestamps(BaseEntity)` adds `createdAt`, `updatedAt`, `deletedAt`
  * - `WithAudit(BaseEntity)` adds timestamps + `createdBy`, `modifiedBy`, `creator`, `modifier`
  *
- * Tenancy columns are opt-in via the `@TenantScoped()` property decorator.
+ * Scope columns are opt-in via the `@Scoped()` property decorator.
  *
  * @example
  * @Entity()

@@ -1,7 +1,7 @@
 import type { RequestContext } from '../context/types';
 
 /**
- * Contract for multi-tenancy enforcement. `BaseRepository` reads `@TenantScoped`-marked columns
+ * Contract for multi-tenancy enforcement. `BaseRepository` reads `@Scoped`-marked columns
  * on the entity and, when an `ITenancyStrategy` is registered, calls these methods to:
  * - Inject a filter `EQUAL` for every read (`paging/all/search/detail`)
  * - Auto-fill the same columns on `create/import` unless `shouldBypass(ctx)` returns `true`

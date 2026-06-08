@@ -8,8 +8,8 @@ describe('tenancy public API', () => {
     expect((tenancy as Record<string, unknown>).getScopedColumns).toBeUndefined();
   });
 
-  it('orm still exports the decorators', () => {
-    expect(typeof (orm as Record<string, unknown>).TenantScoped).toBe('function');
+  it('orm exports @Scoped + getScopedColumns (the removed TenantScoped alias is gone)', () => {
+    expect((orm as Record<string, unknown>).TenantScoped).toBeUndefined();
     expect(typeof (orm as Record<string, unknown>).Scoped).toBe('function');
     expect(typeof (orm as Record<string, unknown>).getScopedColumns).toBe('function');
   });
