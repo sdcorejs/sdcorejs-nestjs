@@ -53,13 +53,11 @@ export class SdCoreModule {
     const extraProviders: Provider[] = options.providers ?? [];
     const isCfg = options.internalSecret;
     const internalSecretProvider: Provider | null = isCfg
-      ? ('key' in isCfg
-          ? { provide: INTERNAL_SECRET_PROVIDER, useValue: { getKey: () => isCfg.key, getKeys: () => [isCfg.key] } }
-          : { provide: INTERNAL_SECRET_PROVIDER, useFactory: () => new EnvInternalSecretProvider(isCfg.envVar) })
+      ? 'key' in isCfg
+        ? { provide: INTERNAL_SECRET_PROVIDER, useValue: { getKey: () => isCfg.key, getKeys: () => [isCfg.key] } }
+        : { provide: INTERNAL_SECRET_PROVIDER, useFactory: () => new EnvInternalSecretProvider(isCfg.envVar) }
       : null;
-    const providers: Provider[] = internalSecretProvider
-      ? [internalSecretProvider, ...extraProviders]
-      : extraProviders;
+    const providers: Provider[] = internalSecretProvider ? [internalSecretProvider, ...extraProviders] : extraProviders;
     return {
       module: SdCoreModule,
       global: true,
