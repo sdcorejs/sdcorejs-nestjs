@@ -23,6 +23,27 @@ npm pack   # → sdcorejs-nestjs-0.1.6.tgz (for the enterprise-platform verifica
 
 ---
 
+## Follow-up — uploaded-file / action-history features (2026-06-08, on `release/0.1.0`)
+
+5 commits added ON TOP of the 1.0.0-prep work below — the branch advanced, so **re-push `release/0.1.0`**:
+`2c08f1d` `43db3cb` `a2bf538` `56457fc` `23d4b97`.
+- `UploadedFileConfig.cleanupAfterDays` → opt-in daily **03:00 `@Cron`** orphan-file purge (`isUsed=false`
+  older than N days; optional job-scheduler `runExclusive` lock).
+- `UploadedFile<TExtraData>` generic + `extraData` jsonb; `UploadedFileService` gained
+  `upload` / `download(id)` / `findById` / `setExtraData` (storage driver resolved lazily via `ModuleRef`).
+- Drop-in `UploadedFileController` (`@Controller('uploaded-file')`) + `ActionHistoryController`
+  (`@Controller('action-history')`), guarded by the lib `AuthGuard`; exported from `@sdcorejs/nestjs/features`,
+  NOT auto-registered (consumer adds to a module's `controllers` to inherit its route prefix).
+- **New required peers** (added to `peerDependencies`): `@nestjs/schedule` + `@nestjs/platform-express`.
+  Full required-peer set is now `@nestjs/bullmq` + `bullmq` + `@nestjs/schedule` + `@nestjs/platform-express`.
+- `.changeset/core-1-0-0.md` updated with all the above — still a single **major** bump (`0.1.6`→`1.0.0`).
+- Gate green: lint · typecheck · **314 tests** · check:exports 🌟 · build · pack.
+
+Consumer adoption of all of the above lives on the `enterprise-platform` branch `feat/adopt-sdcorejs-1.0`
+(see that repo's `HANDOFF.md`).
+
+---
+
 ## What is DONE (committed on `release/0.1.0`)
 
 Driven by three spec/plan pairs under `docs/superpowers/` (read these for full detail):
