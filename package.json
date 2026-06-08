@@ -144,9 +144,7 @@
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/schedule": "^4.0.0 || ^5.0.0 || ^6.0.0",
     "@nestjs/typeorm": "^11.0.0",
-    "@sdcorejs/utils": "^1.1.0",
     "aws-sdk": "^2.0.0",
-    "bullmq": "^5.0.0",
     "ioredis": "^5.0.0",
     "jsonwebtoken": "^9.0.0",
     "jwks-rsa": "^3.0.0",
@@ -156,9 +154,6 @@
     "zod": "^4.0.0"
   },
   "peerDependenciesMeta": {
-    "@nestjs/typeorm": {
-      "optional": true
-    },
     "aws-sdk": {
       "optional": true
     },
@@ -176,7 +171,9 @@
     }
   },
   "dependencies": {
+    "@sdcorejs/utils": "^1.1.0",
     "axios": "^1.7.0",
+    "bullmq": "^5.0.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1"
   },
@@ -192,7 +189,6 @@
     "@nestjs/schedule": "^5.0.0",
     "@nestjs/testing": "^11.0.0",
     "@nestjs/typeorm": "^11.0.1",
-    "@sdcorejs/utils": "^1.1.2",
     "@types/jest": "^29.5.0",
     "@types/jsonwebtoken": "^9.0.0",
     "@types/node": "^20.0.0",
@@ -201,7 +197,6 @@
     "@types/supertest": "^6.0.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
-    "bullmq": "^5.0.0",
     "eslint": "^8.57.0",
     "ioredis": "^5.11.0",
     "jest": "^29.7.0",

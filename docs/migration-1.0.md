@@ -31,15 +31,18 @@ from the documented sub-paths, e.g. `@sdcorejs/nestjs/orm`.
 | `@sdcorejs/nestjs/{http,cache}` | consolidated into `@sdcorejs/nestjs/services` |
 | **DB:** table `file` → `uploaded_file` | add a rename migration: `ALTER TABLE "file" RENAME TO "uploaded_file";` |
 
-## Required peer dependencies
+## Dependencies & peers
 
-`@nestjs/bullmq` `^11` and `bullmq` `^5` are now **required** peer dependencies.
-`SdCoreModule` statically imports `QueueModule`, so both packages must be installed even
-if your service does not use background jobs directly.
+`@sdcorejs/utils` and `bullmq` are now bundled as regular `dependencies` (alongside `axios`,
+`passport`, `passport-jwt`) — you no longer install them. `npm install @sdcorejs/nestjs` is enough.
 
-```bash
-npm install @nestjs/bullmq bullmq
-```
+The framework singletons stay **required peers** (so a second copy is never shipped — that would break
+DI / decorator metadata): `@nestjs/common`, `@nestjs/core`, `@nestjs/passport`, `@nestjs/typeorm`,
+`@nestjs/bullmq`, `@nestjs/schedule`, `@nestjs/platform-express`, `typeorm`, `reflect-metadata`, `rxjs`.
+**npm 7+ installs all of these automatically.** On pnpm / yarn-classic, add them to your app or set
+`auto-install-peers=true`. (`@nestjs/typeorm` is no longer marked optional — it is required.)
+
+Optional peers (install only when used): `ioredis`, `zod`, `jwks-rsa` + `jsonwebtoken`, `aws-sdk`.
 
 ## Single-module wiring
 

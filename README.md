@@ -30,33 +30,36 @@
 ## Installation
 
 ```bash
-npm install @sdcorejs/nestjs @sdcorejs/utils
+npm install @sdcorejs/nestjs
 ```
 
-Peer dependencies (already in most NestJS projects):
+**Bundled automatically** (regular `dependencies` — you never install these): `@sdcorejs/utils`
+(shared `Filter` / `PagingReq` / `Order` models + `ValidationUtilities`), `bullmq`, `axios`,
+`passport`, `passport-jwt`.
 
-- `@nestjs/common` `^11.0.0`
-- `@nestjs/core` `^11.0.0`
-- `@nestjs/passport` `^11.0.0`
-- `typeorm` `^0.3.20`
-- `reflect-metadata` `^0.2.0`
-- `rxjs` `^7.8`
-- `@sdcorejs/utils` `^1.1.0` (shared `Filter` / `PagingReq` / `Order` models + `ValidationUtilities`)
+**Required peers** — the framework singletons that must be a single shared copy with your app
+(NestJS DI container, TypeORM metadata, `reflect-metadata` registry). **npm 7+ installs these
+automatically** when you add the package; pnpm / yarn-classic need them listed in your app
+(or `auto-install-peers=true`):
 
-Required peer dependencies (always needed — `SdCoreModule` statically wires the queue, the scheduler, and the uploaded-file HTTP surface):
-
-- `bullmq` `^5` + `@nestjs/bullmq` `^11` — `QueueModule` is statically imported by `SdCoreModule`
+- `@nestjs/common` `^11` · `@nestjs/core` `^11` · `@nestjs/passport` `^11` · `@nestjs/typeorm` `^11`
+- `typeorm` `^0.3.20` · `reflect-metadata` `^0.2` · `rxjs` `^7.8`
+- `@nestjs/bullmq` `^11` — `QueueModule` is statically imported by `SdCoreModule`
 - `@nestjs/schedule` `^4 || ^5 || ^6` — the uploaded-file cleanup `@Cron` (`ScheduleModule.forRoot()`)
 - `@nestjs/platform-express` `^11` — `FileInterceptor` used by the drop-in `UploadedFileController`
 
-Optional peer dependencies — install only when you use the feature:
+> These stay peers (not bundled) on purpose: shipping a second copy of `@nestjs/core` /
+> `reflect-metadata` / `typeorm` would break DI and decorator metadata. They live in `peerDependencies`
+> so npm reuses your app's copy.
+
+**Optional peers** — not auto-installed; add only when you use the feature:
 
 | Package | Enables |
 |---|---|
 | `ioredis` `^5` | redis cache backend (`@sdcorejs/nestjs/services`) |
 | `zod` `^4` | request validation (`@sdcorejs/nestjs/validation`) — **v4 only** |
 | `jwks-rsa` `^3` + `jsonwebtoken` `^9` | Keycloak / OIDC JWKS verification (`@sdcorejs/nestjs/auth`) |
-| `passport` + `passport-jwt` | JWT auth strategies |
+| `aws-sdk` `^2` | S3 driver for uploaded files (`@sdcorejs/nestjs/features`) |
 
 Engines: `node >=18.18`.
 

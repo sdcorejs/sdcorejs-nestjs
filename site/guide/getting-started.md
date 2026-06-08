@@ -8,32 +8,41 @@ DI strategies**. The library ships zero hardcoded column names.
 ## Install
 
 ```bash
-npm install @sdcorejs/nestjs @sdcorejs/utils
+npm install @sdcorejs/nestjs
 ```
 
-### Peer dependencies
+### Bundled automatically
 
-Already present in most NestJS 11 projects:
+Shipped as regular `dependencies` — you never install them: `@sdcorejs/utils` (shared `Filter` /
+`PagingReq` / `Order` models + `ValidationUtilities`), `bullmq`, `axios`, `passport`, `passport-jwt`.
 
-- `@nestjs/common` `^11` · `@nestjs/core` `^11` · `@nestjs/passport` `^11`
-- `@nestjs/typeorm` `^11` · `typeorm` `^0.3.20`
-- `reflect-metadata` `^0.2` · `rxjs` `^7.8`
-- `@sdcorejs/utils` `^1.1` — shared `Filter` / `PagingReq` / `Order` models + `ValidationUtilities`
+### Required peers
 
-Always required (`SdCoreModule` statically wires the queue, scheduler, and upload controller):
+The framework singletons that must be **one shared copy** with your app (NestJS DI container, TypeORM
+metadata, the `reflect-metadata` registry). These stay peers so a second copy is never shipped —
+bundling them would break DI and decorator metadata.
 
-- `bullmq` `^5` + `@nestjs/bullmq` `^11` — `QueueModule` is statically imported
+::: tip npm 7+ installs these for you
+`npm install @sdcorejs/nestjs` pulls every required peer automatically. **pnpm / yarn-classic** don't —
+add them to your app, or set `auto-install-peers=true`.
+:::
+
+- `@nestjs/common` `^11` · `@nestjs/core` `^11` · `@nestjs/passport` `^11` · `@nestjs/typeorm` `^11`
+- `typeorm` `^0.3.20` · `reflect-metadata` `^0.2` · `rxjs` `^7.8`
+- `@nestjs/bullmq` `^11` — `QueueModule` is statically imported by `SdCoreModule`
 - `@nestjs/schedule` `^4 || ^5 || ^6` — the uploaded-file cleanup `@Cron`
 - `@nestjs/platform-express` `^11` — `FileInterceptor` for the `UploadedFileController`
 
-Optional — install only when you use the feature:
+### Optional peers
+
+Not auto-installed — add only when you use the feature:
 
 | Package | Enables |
 |---|---|
 | `ioredis` `^5` | redis cache backend (`@sdcorejs/nestjs/services`) |
 | `zod` `^4` | request validation (`@sdcorejs/nestjs/validation`) — **v4 only** |
 | `jwks-rsa` `^3` + `jsonwebtoken` `^9` | Keycloak / OIDC JWKS verification (`@sdcorejs/nestjs/auth`) |
-| `passport` + `passport-jwt` | JWT auth strategies |
+| `aws-sdk` `^2` | S3 driver for uploaded files (`@sdcorejs/nestjs/features`) |
 
 Engines: `node >=18.18`.
 

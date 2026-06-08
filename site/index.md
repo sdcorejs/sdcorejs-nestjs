@@ -38,13 +38,15 @@ features:
 ## Install
 
 ```bash
-npm install @sdcorejs/nestjs @sdcorejs/utils
+npm install @sdcorejs/nestjs
 ```
 
-Always-required peers: `@nestjs/common` `@nestjs/core` `@nestjs/passport` `@nestjs/typeorm`
-`typeorm` `reflect-metadata` `rxjs`, plus `bullmq` + `@nestjs/bullmq` (queue), `@nestjs/schedule`
-(cleanup cron) and `@nestjs/platform-express` (upload controller). Optional per-feature peers:
-`ioredis` (redis cache), `zod@^4` (validation), `jwks-rsa` + `jsonwebtoken` (Keycloak). See
+`@sdcorejs/utils`, `bullmq`, `axios`, `passport` and `passport-jwt` ship as bundled dependencies.
+The framework singletons (`@nestjs/common` `@nestjs/core` `@nestjs/passport` `@nestjs/typeorm`
+`typeorm` `reflect-metadata` `rxjs`, plus `@nestjs/bullmq` · `@nestjs/schedule` ·
+`@nestjs/platform-express`) stay peers so they reuse your app's copy — **npm 7+ installs them
+automatically**. Optional per-feature peers: `ioredis` (redis cache), `zod@^4` (validation),
+`jwks-rsa` + `jsonwebtoken` (Keycloak), `aws-sdk` (S3). See
 [Getting started](/guide/getting-started) for the full matrix.
 
 ## The 8 entry points
