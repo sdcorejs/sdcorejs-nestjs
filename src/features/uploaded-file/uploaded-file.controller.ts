@@ -9,13 +9,13 @@ import { UploadedFileService } from './services/uploaded-file.service';
  * Drop-in HTTP surface for uploads/downloads so a consumer doesn't have to write its own file
  * controller. NOT auto-registered by {@link UploadedFileModule} — add this class to one of your
  * own module's `controllers` array so it inherits that module's route prefix (e.g. a module routed
- * under `core` exposes `POST /core/file` + `GET /core/file/:id/download`), then it just works.
+ * under `core` exposes `POST /core/uploaded-file` + `GET /core/uploaded-file/:id/download`).
  *
  * Secured by the lib {@link AuthGuard} (JWT via the consumer's passport `jwt` strategy). Depends on
  * the globally-provided {@link UploadedFileService} (wire `uploadedFile` in `SdCoreModule.forRoot`).
  * Requires `@nestjs/platform-express` (`FileInterceptor`) in the host.
  */
-@Controller('file')
+@Controller('uploaded-file')
 @UseGuards(AuthGuard)
 export class UploadedFileController {
   constructor(private readonly service: UploadedFileService) {}
