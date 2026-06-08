@@ -8,10 +8,11 @@ describe('uploaded-file public API', () => {
     }
   });
 
-  it('exports the entity + module + service', () => {
+  it('exports the entity + module + service + controller', () => {
     const api = uploadedFile as Record<string, unknown>;
     expect(api.UploadedFile).toBeDefined();
     expect(api.UploadedFileModule).toBeDefined();
     expect(api.UploadedFileService).toBeDefined();
+    expect(api.UploadedFileController).toBeDefined();
   });
 });
