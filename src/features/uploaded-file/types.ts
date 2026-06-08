@@ -13,6 +13,14 @@ export interface UploadedFileConfig {
   host?: string;
   /** Public CDN base URL used to build the returned `cdn` field for the S3 driver. */
   cdnBaseUrl?: string;
+  /**
+   * Days after which never-attached files (`isUsed = false`) are purged by a self-contained daily
+   * sweep. Omit (or `<= 0`) to disable cleanup entirely — nothing is deleted. No `@nestjs/schedule`
+   * needed (the module runs its own `unref`'d daily timer). When the job-scheduler feature is also
+   * wired, each sweep is guarded by a distributed DB lock so only one instance purges; otherwise it
+   * runs directly.
+   */
+  cleanupAfterDays?: number;
 }
 export const UPLOADED_FILE_CONFIG = Symbol('UPLOADED_FILE_CONFIG');
 

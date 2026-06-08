@@ -5,6 +5,7 @@ import { LocalUploadedFileStorage } from './services/local.service';
 import { UPLOADED_FILE_CONFIG, type UploadedFileConfig, IUploadedFileStorage } from './types';
 import { UploadedFile } from './uploaded-file.entity';
 import { UploadedFileService } from './services/uploaded-file.service';
+import { UploadedFileCleanupJob } from './uploaded-file-cleanup.job';
 
 /**
  * Provides {@link IUploadedFileStorage} (S3 or local-disk driver) + {@link UploadedFileService}.
@@ -27,6 +28,10 @@ export class UploadedFileModule {
       { provide: UPLOADED_FILE_CONFIG, useValue: config },
       { provide: IUploadedFileStorage, useClass: useS3 ? AwsUploadedFileStorage : LocalUploadedFileStorage },
     ];
+    // Opt-in daily orphan-file cleanup (requires the host's ScheduleModule.forRoot()).
+    if (config.cleanupAfterDays && config.cleanupAfterDays > 0) {
+      providers.push(UploadedFileCleanupJob);
+    }
     return {
       module: UploadedFileModule,
       global: true,
