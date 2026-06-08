@@ -40,15 +40,19 @@ Peer dependencies (already in most NestJS projects):
 - `rxjs` `^7.8`
 - `@sdcorejs/utils` `^1.1.0` (shared `Filter` / `PagingReq` / `Order` models + `ValidationUtilities`)
 
+Required peer dependencies for queue support (always needed — `SdCoreModule` statically imports `QueueModule`):
+
+- `bullmq` `^5`
+- `@nestjs/bullmq` `^11`
+
 Optional peer dependencies — install only when you use the feature:
 
 | Package | Enables |
 |---|---|
-| `ioredis` `^5` | redis cache backend (`@sdcorejs/nestjs/cache`) |
+| `ioredis` `^5` | redis cache backend (`@sdcorejs/nestjs/services`) |
 | `zod` `^4` | request validation (`@sdcorejs/nestjs/validation`) — **v4 only** |
-| `jwks-rsa` `^3` + `jsonwebtoken` `^9` | Keycloak / OIDC JWKS verification (`@sdcorejs/nestjs/jwt`) |
+| `jwks-rsa` `^3` + `jsonwebtoken` `^9` | Keycloak / OIDC JWKS verification (`@sdcorejs/nestjs/auth`) |
 | `passport` + `passport-jwt` | JWT auth strategies |
-| `bullmq` `^5` + `@nestjs/bullmq` `^11` | background jobs (`@sdcorejs/nestjs/queue`) |
 
 Engines: `node >=18.18`.
 
@@ -60,17 +64,12 @@ The package has multiple entry points; import only what you use.
 
 | Import | What's inside |
 |---|---|
-| `@sdcorejs/nestjs` | `SdCoreModule.forRoot({...})` + ergonomic re-exports |
-| `@sdcorejs/nestjs/orm` | `BaseEntity`, `WithTimestamps`, `WithAudit`, `BaseRepository`, `BaseService`, `BaseController`, `@TenantScoped`, `@SearchableFields`, `@Schema`, `apiError`/`ApiResponse`, types |
-| `@sdcorejs/nestjs/context` | `ContextService` (AsyncLocalStorage), `ContextMiddleware`, `RequestContext`, header config |
-| `@sdcorejs/nestjs/tenancy` | `ITenancyStrategy`, `TENANCY_STRATEGY`, `DefaultTenancyStrategy`, `buildScopeFilters`/`buildScopeWhere` helpers |
-| `@sdcorejs/nestjs/audit` | `IAuditStrategy`, `AUDIT_STRATEGY`, `AuditSubscriber`, `DefaultAuditStrategy` |
-| `@sdcorejs/nestjs/permission` | `IPermissionStrategy`, `AuthGuard`, `InternalGuard`, `@HasPermission`, `@HasAnyPermission`, `IInternalSecretProvider`, `IInternalContextEnricher` |
-| `@sdcorejs/nestjs/cache` | `CacheService`, `CacheInterceptor`, `@Cached` (memory + redis backends) |
-| `@sdcorejs/nestjs/http` | `HttpService` (axios-based, context-aware) |
-| `@sdcorejs/nestjs/jwt` | `JwtModule`, `JwtStrategy` (symmetric), `KeycloakJwtStrategy` (JWKS/OIDC) |
-| `@sdcorejs/nestjs/validation` | `ZodValidationGuard(schema \| map, source)`, `parseZod`, query presets (`zPaging`, `zUuid`, `zBool`), `ZodIssueDetail` (Zod **v4**) |
+| `@sdcorejs/nestjs` | `SdCoreModule.forRoot({...})` + ergonomic re-exports of all public symbols |
+| `@sdcorejs/nestjs/core` | ORM base classes (`BaseEntity`, `WithTimestamps`, `WithAudit`, `BaseRepository`, `BaseService`, `BaseController`, `@TenantScoped`, `@SearchableFields`, `@Schema`, `apiError`/`ApiResponse`), request context (`ContextService`, `ContextMiddleware`, `RequestContext`), multi-tenancy (`ITenancyStrategy`, `TENANCY_STRATEGY`, `buildScopeFilters`/`buildScopeWhere`), and audit (`IAuditStrategy`, `AUDIT_STRATEGY`, `AuditSubscriber`) |
+| `@sdcorejs/nestjs/auth` | JWT / Keycloak strategies (`JwtModule`, `JwtStrategy`, `KeycloakJwtStrategy`, `JWT_CONFIG`), plus permission enforcement (`IPermissionStrategy`, `AuthGuard`, `InternalGuard`, `@HasPermission`, `@HasAnyPermission`, `IInternalSecretProvider`, `IInternalContextEnricher`) |
+| `@sdcorejs/nestjs/services` | HTTP client (`HttpService`, axios-based, context-aware) + cache (`CacheService`, `CacheInterceptor`, `@Cached` — memory and redis backends) |
 | `@sdcorejs/nestjs/queue` | `QueueModule`, `BaseWorker` (BullMQ + Redis) |
+| `@sdcorejs/nestjs/validation` | `ZodValidationGuard(schema \| map, source)`, `parseZod`, query presets (`zPaging`, `zUuid`, `zBool`), `ZodIssueDetail` (Zod **v4**) |
 | `@sdcorejs/nestjs/i18n` | `II18nResolver`, `ILanguageResolver`, `SimpleI18nResolver`, `DefaultLanguageResolver`, `SdI18nExceptionFilter`, built-in en/vi `core.*` catalogs, `I18nModule` |
 | `@sdcorejs/nestjs/features` | Stateful feature modules — `ActionHistory`, `JobScheduler`, `UploadedFile` (entity + service + module each) |
 
@@ -78,40 +77,58 @@ The package has multiple entry points; import only what you use.
 
 ## Quick start
 
-`SdCoreModule.forRoot({...})` composes every sub-module. Omitted keys fall back to no-op / default strategies (zero overhead, zero magic). JWT is opt-in — wired only when the `jwt` key is present.
+`SdCoreModule.forRoot({...})` is the **single import** that composes every sub-module.
+Always-on: context, tenancy, audit, permission, cache, HTTP client.
+Opt-in (wired only when the config key is present): `jwt`, `i18n`, `uploadedFile`, `actionHistory`, `jobScheduler`, `queue`.
 
 ```ts
 // app.module.ts
 import { Module } from '@nestjs/common';
-import {
-  SdCoreModule,
-  INTERNAL_SECRET_PROVIDER,
-  INTERNAL_CONTEXT_ENRICHER,
-} from '@sdcorejs/nestjs';
+import { SdCoreModule } from '@sdcorejs/nestjs';
+import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
   imports: [
     SdCoreModule.forRoot({
-      context:    { headers: { tenant: 'x-tenant', userId: 'x-user-id' } },
-      tenancy:    { strategy: AppTenancyStrategy },
-      audit:      { strategy: AppAuditStrategy },
-      permission: { strategy: AppPermissionStrategy },
-      cache:      { ttl: 60 },
-      http:       { baseURL: process.env.UPSTREAM_API },
-      jwt:        { jwks: { allowedIssuers: [process.env.KEYCLOAK_ISSUER!] } },
-      i18n:       { fallbackLanguage: 'vi' }, // wires SdI18nExceptionFilter + en/vi core.* catalogs
-      providers: [
-        { provide: INTERNAL_SECRET_PROVIDER,  useClass: AppInternalSecretProvider },
-        { provide: INTERNAL_CONTEXT_ENRICHER, useClass: AppInternalEnricher },
-      ],
+      context: { headers: { tenant: 'x-tenant', userId: 'x-user-id' } },
+      cache: {},
+      i18n: {
+        fallbackLanguage: 'vi',
+        supportedLanguages: ['vi', 'en'],
+        catalogs: MY_CATALOGS,
+      },
+      permission: { strategy: MyPermissionStrategy },
+      // Built-in secret provider — reads process.env[envVar] at request time.
+      // Alternative: pass { key: 'literal-secret' } or omit and provide INTERNAL_SECRET_PROVIDER yourself.
+      internalSecret: { envVar: 'INTERNAL_SECRET_KEY' },
+      // tenancy accepts EITHER a strategy class OR inline { resolve, bypass } callbacks:
+      tenancy: {
+        bypass: (rc) => rc.custom?.isMaster === true,
+        resolve: (rc) => ({
+          tenantCode: rc.tenant,
+          departmentCode: rc.custom?.departmentCode,
+        }),
+      },
+      // Opt-in features — omit any key to disable:
+      jwt: { jwks: { allowedIssuers: [process.env.KEYCLOAK_ISSUER!] } },
+      uploadedFile: { bucket: process.env.S3_BUCKET /* ... */ },
+      actionHistory: { resolveActor: () => ({ /* ... */ }) },
+      jobScheduler: {},
+      queue: { connection: { host: 'localhost', port: 6379 } },
     }),
+    // Register lib entities via autoLoadEntities (UploadedFile, ActionHistory, JobScheduler):
+    TypeOrmModule.forRoot({ autoLoadEntities: true /* ... */ }),
     // your domain modules...
   ],
 })
 export class AppModule {}
 ```
 
-The `providers` array is a passthrough for consumer-side DI tokens; because `SdCoreModule` is global, those tokens resolve into the library's guards (e.g. `InternalGuard` picks up `INTERNAL_SECRET_PROVIDER`).
+> **`tenancy` strategy vs. callbacks** — pass `{ strategy: MyTenancyStrategy }` to supply a full DI-injected class, or use inline `{ resolve, bypass }` callbacks for simple cases that need no extra injected services.
+
+> **Internal secret** — `internalSecret: { envVar: 'INTERNAL_SECRET_KEY' }` wires the built-in `EnvInternalSecretProvider`. To rotate secrets, implement `IInternalSecretProvider` yourself and register it via `providers: [{ provide: INTERNAL_SECRET_PROVIDER, useClass: ... }]`.
+
+> **Feature entities** — `UploadedFile`, `ActionHistory`, `JobScheduler` export from `@sdcorejs/nestjs/features`. Register them with TypeORM via `autoLoadEntities: true` or by listing them explicitly.
 
 ---
 
@@ -123,7 +140,7 @@ Tenancy is enforced by **your** `ITenancyStrategy`, injected before every query 
 
 ```ts
 import { Entity, Column } from 'typeorm';
-import { BaseEntity, WithAudit, TenantScoped } from '@sdcorejs/nestjs/orm';
+import { BaseEntity, WithAudit, TenantScoped } from '@sdcorejs/nestjs/core';
 
 @Entity()
 export class Product extends WithAudit(BaseEntity) {
@@ -137,9 +154,9 @@ export class Product extends WithAudit(BaseEntity) {
 
 ```ts
 import { Injectable } from '@nestjs/common';
-import { ContextService } from '@sdcorejs/nestjs/context';
-import type { ITenancyStrategy } from '@sdcorejs/nestjs/tenancy';
-import type { RequestContext } from '@sdcorejs/nestjs/context';
+import { ContextService } from '@sdcorejs/nestjs/core';
+import type { ITenancyStrategy } from '@sdcorejs/nestjs/core';
+import type { RequestContext } from '@sdcorejs/nestjs/core';
 
 @Injectable()
 export class AppTenancyStrategy implements ITenancyStrategy {
@@ -174,8 +191,8 @@ Permission codes are resolved by **your** `IPermissionStrategy.load(ctx)` once p
 
 ```ts
 import { Injectable } from '@nestjs/common';
-import type { IPermissionStrategy } from '@sdcorejs/nestjs/permission';
-import type { RequestContext } from '@sdcorejs/nestjs/context';
+import type { IPermissionStrategy } from '@sdcorejs/nestjs/auth';
+import type { RequestContext } from '@sdcorejs/nestjs/core';
 
 @Injectable()
 export class AppPermissionStrategy implements IPermissionStrategy {
@@ -196,7 +213,7 @@ Protect routes with decorators:
 
 ```ts
 import { Controller, Get, UseGuards } from '@nestjs/common';
-import { AuthGuard, HasPermission, HasAnyPermission } from '@sdcorejs/nestjs/permission';
+import { AuthGuard, HasPermission, HasAnyPermission } from '@sdcorejs/nestjs/auth';
 
 @Controller('products')
 @UseGuards(AuthGuard)
@@ -238,7 +255,7 @@ To turn the verified token into your app's user, subclass and override `validate
 
 ```ts
 import { Inject, Injectable } from '@nestjs/common';
-import { KeycloakJwtStrategy, JWT_CONFIG, type JwtConfig, type JwtPayload } from '@sdcorejs/nestjs/jwt';
+import { KeycloakJwtStrategy, JWT_CONFIG, type JwtConfig, type JwtPayload } from '@sdcorejs/nestjs/auth';
 
 @Injectable()
 export class AppJwtStrategy extends KeycloakJwtStrategy {
@@ -282,7 +299,7 @@ SdCoreModule.forRoot({ jwt: { secret: process.env.JWT_SECRET! } });
 
 ```ts
 import { Injectable } from '@nestjs/common';
-import type { IInternalSecretProvider } from '@sdcorejs/nestjs/permission';
+import type { IInternalSecretProvider } from '@sdcorejs/nestjs/auth';
 
 @Injectable()
 export class AppInternalSecretProvider implements IInternalSecretProvider {
@@ -304,8 +321,8 @@ Internal calls arrive with no authenticated user. The enricher runs **only after
 ```ts
 import { Injectable } from '@nestjs/common';
 import type { IncomingMessage } from 'node:http';
-import { ContextService } from '@sdcorejs/nestjs/context';
-import type { IInternalContextEnricher } from '@sdcorejs/nestjs/permission';
+import { ContextService } from '@sdcorejs/nestjs/core';
+import type { IInternalContextEnricher } from '@sdcorejs/nestjs/auth';
 
 @Injectable()
 export class AppInternalEnricher implements IInternalContextEnricher {
@@ -323,7 +340,7 @@ Apply per route:
 
 ```ts
 import { Controller, Post, UseGuards } from '@nestjs/common';
-import { InternalGuard } from '@sdcorejs/nestjs/permission';
+import { InternalGuard } from '@sdcorejs/nestjs/auth';
 
 @Controller('internal/sync')
 @UseGuards(InternalGuard)
@@ -352,7 +369,7 @@ Register both providers via `SdCoreModule.forRoot({ providers: [...] })` (see [Q
 The library keeps only framework-generic keys. Domain values go in `ctx.custom`, or add typed fields via declaration merging:
 
 ```ts
-declare module '@sdcorejs/nestjs/context' {
+declare module '@sdcorejs/nestjs/core' {
   interface RequestContext {
     departmentCode?: string;
     isSystemAdmin?: boolean;
@@ -370,7 +387,7 @@ declare module '@sdcorejs/nestjs/context' {
 // repository.ts
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { BaseRepository } from '@sdcorejs/nestjs/orm';
+import { BaseRepository } from '@sdcorejs/nestjs/core';
 
 @Injectable()
 export class ProductRepository extends BaseRepository<Product> {
@@ -403,7 +420,7 @@ export class ProductRepository extends BaseRepository<Product> {
 ```ts
 import { z } from 'zod';
 import { UseGuards } from '@nestjs/common';
-import { AuthGuard } from '@sdcorejs/nestjs/permission';
+import { AuthGuard } from '@sdcorejs/nestjs/auth';
 import { ZodValidationGuard, zPaging } from '@sdcorejs/nestjs/validation';
 
 const CreateProduct = z.object({
@@ -434,7 +451,7 @@ Express 5 note: `query` / `params` are getter-only, so the guard mutates them in
 Producers across the library throw i18n **codes**, not sentences:
 
 ```ts
-import { apiError } from '@sdcorejs/nestjs/orm';
+import { apiError } from '@sdcorejs/nestjs/core';
 throw new BadRequestException(apiError('core.validation.failed', 'Validation failed', { issues }));
 ```
 
