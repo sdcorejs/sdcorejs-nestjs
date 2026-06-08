@@ -56,7 +56,7 @@ automatically. Feature libs (`ioredis`, `zod@^4`, `jwks-rsa` + `jsonwebtoken`, `
 | `@sdcorejs/nestjs/core` | ORM base classes, request context, multi-tenancy, audit |
 | `@sdcorejs/nestjs/auth` | JWT / Keycloak strategies + permission guards & decorators |
 | `@sdcorejs/nestjs/services` | context-aware HTTP client + cache (memory / redis) |
-| `@sdcorejs/nestjs/queue` | BullMQ `QueueModule` + `BaseWorker` |
+| `@sdcorejs/nestjs/queue` | BullMQ `QueueModule` + `SdWorkerHost` |
 | `@sdcorejs/nestjs/validation` | `ZodValidationGuard` + query presets (Zod v4) |
 | `@sdcorejs/nestjs/i18n` | i18n resolver + exception filter + en/vi `core.*` catalogs |
 | `@sdcorejs/nestjs/features` | `UploadedFile`, `ActionHistory`, `JobScheduler` + drop-in controllers |

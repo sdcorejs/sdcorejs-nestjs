@@ -44,7 +44,10 @@ export default defineConfig({
         },
         {
           text: 'Feature modules',
-          items: [{ text: 'Uploads · History · Jobs', link: '/guide/features' }],
+          items: [
+            { text: 'Background jobs (BullMQ)', link: '/guide/queue' },
+            { text: 'Uploads · History · Jobs', link: '/guide/features' },
+          ],
         },
       ],
     },

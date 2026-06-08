@@ -21,6 +21,7 @@
 - [ORM base classes](#orm-base-classes)
 - [Validation (Zod v4)](#validation-zod-v4)
 - [Internationalised errors](#internationalised-errors)
+- [Background jobs (BullMQ)](#background-jobs-bullmq)
 - [Features](#features)
 - [Philosophy](#philosophy)
 - [License](#license)
@@ -72,7 +73,7 @@ The package has multiple entry points; import only what you use.
 | `@sdcorejs/nestjs/core` | ORM base classes (`BaseEntity`, `WithTimestamps`, `WithAudit`, `BaseRepository`, `BaseService`, `BaseController`, `@Scoped`, `@SearchableFields`, `@Schema`, `apiError`/`ApiResponse`), request context (`ContextService`, `ContextMiddleware`, `RequestContext`), multi-tenancy (`ITenancyStrategy`, `TENANCY_STRATEGY`, `buildScopeFilters`/`buildScopeWhere`), and audit (`IAuditStrategy`, `AUDIT_STRATEGY`, `AuditSubscriber`) |
 | `@sdcorejs/nestjs/auth` | JWT / Keycloak strategies (`JwtModule`, `JwtStrategy`, `KeycloakJwtStrategy`, `JWT_CONFIG`), plus permission enforcement (`IPermissionStrategy`, `AuthGuard`, `InternalGuard`, `@HasPermission`, `@HasAnyPermission`, `IInternalSecretProvider`, `IInternalContextEnricher`) |
 | `@sdcorejs/nestjs/services` | HTTP client (`HttpService`, axios-based, context-aware) + cache (`CacheService`, `CacheInterceptor`, `@Cached` — memory and redis backends) |
-| `@sdcorejs/nestjs/queue` | `QueueModule`, `BaseWorker` (BullMQ + Redis) |
+| `@sdcorejs/nestjs/queue` | `QueueModule`, `SdWorkerHost` (BullMQ + Redis) + re-exported `Processor`/`InjectQueue`/`Job`/`Queue` |
 | `@sdcorejs/nestjs/validation` | `ZodValidationGuard(schema \| map, source)`, `parseZod`, query presets (`zPaging`, `zUuid`, `zBool`), `ZodIssueDetail` (Zod **v4**) |
 | `@sdcorejs/nestjs/i18n` | `II18nResolver`, `ILanguageResolver`, `SimpleI18nResolver`, `DefaultLanguageResolver`, `SdI18nExceptionFilter`, built-in en/vi `core.*` catalogs, `I18nModule` |
 | `@sdcorejs/nestjs/features` | Stateful feature modules — `ActionHistory`, `JobScheduler`, `UploadedFile` (entity + service + module each), plus drop-in `UploadedFileController` / `ActionHistoryController` |
@@ -483,6 +484,42 @@ SdCoreModule.forRoot({
 ```
 
 `ApiResponse.ok(data)` / `ApiResponse.noContent()` wrap successful responses.
+
+---
+
+## Background jobs (BullMQ)
+
+`@sdcorejs/nestjs/queue` wraps `@nestjs/bullmq` with one shared Redis connection + production job
+defaults (`attempts: 3`, exponential backoff, bounded `removeOnComplete`/`removeOnFail`). Import every
+primitive from this one entry — `QueueModule`, `SdWorkerHost`, and the re-exported `Processor` /
+`InjectQueue` / `Job` / `Queue`.
+
+```ts
+// 1. open the connection (or via SdCoreModule.forRoot({ queue: { connection } }))
+@Module({ imports: [QueueModule.forRoot({ connection: { host: 'localhost', port: 6379, db: 1 } })] })
+export class AppModule {}
+
+// 2. register queues per module
+@Module({ imports: [QueueModule.registerQueue('emails')], providers: [EmailsProcessor] })
+export class EmailsModule {}
+
+// 3. produce
+@Injectable()
+export class EmailsService {
+  constructor(@InjectQueue('emails') private emails: Queue) {}
+  welcome(userId: string) { return this.emails.add('welcome', { userId }, { delay: 5000 }); }
+}
+
+// 4. consume — subclass SdWorkerHost, throw on failure → BullMQ retries with backoff
+@Processor('emails', { concurrency: 5 })
+export class EmailsProcessor extends SdWorkerHost<{ userId: string }> {
+  async handle(job: Job<{ userId: string }>) { await sendWelcome(job.data.userId); }
+}
+```
+
+> Don't override `process()` or swallow errors — `SdWorkerHost` re-throws so BullMQ records the failed
+> attempt and applies `attempts` + `backoff`. Use the queue for fan-out work; use
+> [`JobScheduler.runExclusive`](#features) when N nodes fire the same scheduled task and only one should run it.
 
 ---
 
