@@ -7,7 +7,7 @@
 
 Set `jwt.jwks` and `SdCoreModule` wires `KeycloakJwtStrategy`. The signing key is fetched per-token from
 the issuer's JWKS endpoint, so multiple realms / tenants (different `iss`) work with no shared secret.
-Requires `jwks-rsa` + `jsonwebtoken`.
+Requires `jwks-rsa@^4` + `jsonwebtoken@^9`.
 
 ```ts
 SdCoreModule.forRoot({
@@ -49,6 +49,17 @@ jwks: { issuerValidator: (iss) => /^https:\/\/kc\.example\.com\/realms\/[a-z0-9-
 
 The three options compose — an `iss` is accepted if it matches `allowedIssuers`, OR its origin is in
 `allowedIssuerHosts`, OR `issuerValidator(iss)` returns `true`.
+
+::: tip JWKS client cache
+One `JwksClient` per issuer is created and reused across requests (signing keys are stable). The
+strategy holds a maximum of **100** clients (LRU-eviction by insertion order) so long-running services
+with `allowedIssuerHosts` don't accumulate unbounded memory as new realms are provisioned over time.
+:::
+
+::: tip Normalizing allowedIssuerHosts
+Values in `allowedIssuerHosts` are normalized to their bare origin at strategy construction —
+`https://kc.example.com/` and `https://kc.example.com` are treated identically.
+:::
 
 To turn the verified token into your app's user, subclass and override `validate()`:
 

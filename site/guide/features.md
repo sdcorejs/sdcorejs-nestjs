@@ -83,9 +83,49 @@ async syncOrders() {
 }
 ```
 
-- Atomic `INSERT ... ON CONFLICT DO NOTHING` claims the lock. On conflict it re-claims **only a
-  previously `FAIL` run** — a `SUCCESS` run stays locked (run-once for `INITIAL` jobs) and a `RUNNING`
-  row is left to its owner. The winner runs `fn` and records `SUCCESS` / `FAIL`; on error the run is
-  marked `FAIL` and the error re-thrown.
+### How the lock works
+
+1. `INSERT ... ON CONFLICT DO NOTHING RETURNING id` — wins if no row exists for `lockKey`.
+2. On conflict, re-claims:
+   - A `FAIL` row — transient failure can be retried on the next fire.
+   - A `RUNNING` row whose `modifiedAt` is older than `leaseMs` — the node that held it crashed.
+   - `SUCCESS` rows stay locked permanently (run-once semantics for `INITIAL` jobs).
+3. The winner runs `fn`, records `SUCCESS` or `FAIL`, and returns the result.
+
+### Heartbeat — preventing false stale-lease reclaims
+
+`runExclusive` bumps `modifiedAt` on the lock row every `heartbeatMs` (default **60 s**) while `fn`
+is running. This keeps the row inside its lease window so a live-but-slow job is never reclaimed by
+another node. Only disable heartbeating (`heartbeatMs: 0`) for jobs guaranteed to finish in less than
+`leaseMs`.
+
+### `JobAcquireOptions`
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `code` | `string` | required | Stable job identifier |
+| `runKey` | `string` | — | Per-tick discriminator for `SCHEDULE` jobs (e.g. ISO timestamp truncated to the cron period) |
+| `type` | `JobSchedulerType` | `SCHEDULE` | `SCHEDULE` (recurring) or `INITIAL` (run-once) |
+| `leaseMs` | `number` | `900_000` (15 min) | Stale-lock window. Set above worst-case job runtime + heartbeat interval. |
+| `heartbeatMs` | `number` | `60_000` (60 s) | How often to touch `modifiedAt`. Set below `leaseMs / 2`. Set `0` to disable. |
+
+```ts
+// Long-running nightly import — widen the lease, tighten the heartbeat.
+await this.jobs.runExclusive(
+  {
+    code: 'nightly-import',
+    runKey: dayIso,
+    type: JobSchedulerType.SCHEDULE,
+    leaseMs: 2 * 60 * 60 * 1000,  // 2 hours
+    heartbeatMs: 30_000,           // touch every 30 s
+  },
+  () => this.doImport(),
+);
+```
 
 Enable with `jobScheduler: {}`.
+
+::: warning Register the entity
+`JobScheduler` must be registered with TypeORM — either via `autoLoadEntities: true` or explicit listing.
+`ScheduleModule.forRoot()` is needed when the `uploadedFile.cleanupAfterDays` cleanup cron is also active.
+:::

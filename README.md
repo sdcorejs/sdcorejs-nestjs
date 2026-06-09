@@ -1,10 +1,17 @@
 # @sdcorejs/nestjs
 
-> Neutral NestJS framework library — base classes plus the cross-cutting concerns every multi-tenant service re-implements (multi-tenancy, audit, permission, request context, cache, HTTP client, JWT/Keycloak, Zod validation, BullMQ queue). **Every domain specific is injected via DI strategies** — the library ships zero hardcoded column names. Extracted from `be-masterdata/core-be/` and refactored to be reusable across any NestJS 11 + TypeORM 0.3.x project.
+[![npm version](https://img.shields.io/npm/v/@sdcorejs/nestjs.svg?logo=npm&color=crimson)](https://www.npmjs.com/package/@sdcorejs/nestjs)
+[![node](https://img.shields.io/node/v/@sdcorejs/nestjs.svg?label=node)](https://nodejs.org)
+[![license](https://img.shields.io/npm/l/@sdcorejs/nestjs.svg)](./LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/sdcorejs/sdcorejs-nestjs/ci.yml?label=CI&logo=github)](https://github.com/sdcorejs/sdcorejs-nestjs/actions)
+[![coverage](https://img.shields.io/badge/coverage-93%25-brightgreen)](https://github.com/sdcorejs/sdcorejs-nestjs)
+[![peer: NestJS 11](https://img.shields.io/badge/peer-NestJS%2011-E0234E?logo=nestjs)](https://nestjs.com)
 
-**Status**: `1.0.0` — stable. Public API follows [Semantic Versioning](https://semver.org/).
+> Neutral NestJS framework library — base classes plus the cross-cutting concerns every multi-tenant service re-implements: multi-tenancy, audit, permission, request context, cache, HTTP client, JWT/Keycloak, Zod validation, BullMQ queue, i18n. **Every domain specific is injected via DI strategies** — zero hardcoded column names.
 
-📖 **Showcase & guides**: [sdcorejs.github.io/sdcorejs-nestjs](https://sdcorejs.github.io/sdcorejs-nestjs/)
+**Version**: `1.0.0` — stable. Public API follows [Semantic Versioning](https://semver.org/).
+
+📖 **Full guides + showcase**: [sdcorejs.github.io/sdcorejs-nestjs](https://sdcorejs.github.io/sdcorejs-nestjs/)
 
 ---
 
@@ -34,30 +41,51 @@
 npm install @sdcorejs/nestjs
 ```
 
-**Peer dependencies — just two** (every NestJS app already has them):
+### Peer dependencies
 
-- `@nestjs/common` `^11` · `@nestjs/core` `^11`
+Only **two** — every NestJS app already has them:
 
-Everything else installs automatically with the package, on any package manager.
-
-**Bundled** (`dependencies` — you never install these): `@nestjs/passport`, `@nestjs/typeorm`,
-`@nestjs/bullmq` (queue), `@nestjs/schedule` (cleanup `@Cron`), `@nestjs/platform-express`
-(`FileInterceptor`), `typeorm`, `reflect-metadata`, `rxjs`, `@sdcorejs/utils` (shared `Filter` /
-`PagingReq` / `Order` models + `ValidationUtilities`), `axios`, `bullmq`, `passport`, `passport-jwt`.
-
-**Optional** (`optionalDependencies` — auto-installed, but a failed install won't break yours; skip with
-`--no-optional` if you don't use the feature):
-
-| Package | Enables |
+| Package | Version |
 |---|---|
-| `ioredis` `^5` | redis cache backend (`@sdcorejs/nestjs/services`) |
-| `zod` `^4` | request validation (`@sdcorejs/nestjs/validation`) — **v4 only** |
-| `jwks-rsa` `^3` + `jsonwebtoken` `^9` | Keycloak / OIDC JWKS verification (`@sdcorejs/nestjs/auth`) |
-| `aws-sdk` `^2` | S3 driver for uploaded files (`@sdcorejs/nestjs/features`) |
+| `@nestjs/common` | `^11.0.0` |
+| `@nestjs/core` | `^11.0.0` |
 
-> Only `@nestjs/common` / `@nestjs/core` stay peers so they reuse your app's instances (DI container).
-> `typeorm` / `reflect-metadata` are bundled too — npm hoists a single copy when your app's versions
+They stay peers so the library shares your app's DI container (one NestJS instance, no duplicated injectors).
+
+### Bundled (`dependencies`)
+
+Installed automatically with the package — you never add these yourself:
+
+| Package | Purpose |
+|---|---|
+| `@nestjs/passport` `^11` | Passport integration |
+| `@nestjs/typeorm` `^11` | TypeORM module |
+| `@nestjs/bullmq` `^11` | BullMQ queue module |
+| `@nestjs/schedule` `^6` | `@Cron` for file cleanup |
+| `@nestjs/platform-express` `^11` | `FileInterceptor` |
+| `typeorm` `^0.3` | ORM core |
+| `reflect-metadata` `^0.2` | Decorator metadata |
+| `rxjs` `^7.8` | RxJS |
+| `@sdcorejs/utils` `^1.1` | `Filter` / `PagingReq` / `Order` models + `ValidationUtilities` |
+| `axios` `^1.7` | HTTP client |
+| `bullmq` `^5` | BullMQ core |
+| `passport` `^0.7` | Passport |
+| `passport-jwt` `^4` | JWT passport strategy |
+
+> `typeorm` and `reflect-metadata` are singletons — npm hoists a single copy when your app's versions
 > are compatible (the whole NestJS 11 ecosystem is on `typeorm@^0.3` / `reflect-metadata@^0.2`).
+
+### Optional (`optionalDependencies`)
+
+Auto-installed, but a failed install won't break your project. Skip with `--no-optional` if unused:
+
+| Package | Version | Enables |
+|---|---|---|
+| `ioredis` | `^5` | Redis cache backend (`/services`) |
+| `zod` | `^4` ⚠️ v4 only | Request validation (`/validation`) |
+| `jwks-rsa` | `^4` | Keycloak / OIDC JWKS key verification (`/auth`) |
+| `jsonwebtoken` | `^9` | JWT decode + verify (`/auth`) |
+| `aws-sdk` | `^2` | S3 storage driver for uploaded files (`/features`) |
 
 Engines: `node >=18.18`.
 
@@ -243,7 +271,7 @@ export class ProductController {
 
 ### Keycloak / OIDC (asymmetric, JWKS)
 
-Set `jwt.jwks` and `SdCoreModule` wires `KeycloakJwtStrategy`. The signing key is fetched per-token from the issuer's JWKS endpoint, so multiple realms / tenants (different `iss`) work with no shared secret. Requires `jwks-rsa` + `jsonwebtoken`.
+Set `jwt.jwks` and `SdCoreModule` wires `KeycloakJwtStrategy`. The signing key is fetched per-token from the issuer's JWKS endpoint, so multiple realms / tenants (different `iss`) work with no shared secret. Requires `jwks-rsa@^4` + `jsonwebtoken@^9`.
 
 ```ts
 SdCoreModule.forRoot({
@@ -614,10 +642,21 @@ async syncOrders() {
 }
 ```
 
-- Atomic `INSERT ... ON CONFLICT DO NOTHING` claims the lock. On conflict it re-claims **only a
-  previously `FAIL` run** — a `SUCCESS` run stays locked (run-once for `INITIAL` jobs) and a `RUNNING`
-  row is left to its owner. The winner runs `fn` and records `SUCCESS` / `FAIL`; on error the run is
-  marked `FAIL` and the error re-thrown.
+- Atomic `INSERT ... ON CONFLICT DO NOTHING` claims the lock. On conflict it re-claims a `FAIL` run OR
+  a `RUNNING` row whose lease has expired (default **15 min**, `leaseMs`) — `SUCCESS` stays locked
+  (run-once for `INITIAL` jobs). The winner runs `fn` and records `SUCCESS` / `FAIL`; on error the run
+  is marked `FAIL` and re-thrown.
+- **Heartbeat** — while `fn` runs, `runExclusive` touches `modifiedAt` every **60 s** (default,
+  `heartbeatMs`) so the lock stays inside its lease. Long-running jobs won't be reclaimed by another
+  node. Disable with `heartbeatMs: 0` only for jobs guaranteed to finish in < `leaseMs`.
+
+```ts
+// Long-running import — extend lease + heartbeat interval accordingly.
+await this.jobs.runExclusive(
+  { code: 'nightly-import', runKey: dayIso, leaseMs: 2 * 60 * 60 * 1000, heartbeatMs: 30_000 },
+  () => this.doImport(),
+);
+```
 
 Enable with `jobScheduler: {}`.
 

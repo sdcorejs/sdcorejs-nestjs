@@ -37,16 +37,22 @@ features:
 
 ## Install
 
+<p>
+  <a href="https://www.npmjs.com/package/@sdcorejs/nestjs"><img src="https://img.shields.io/npm/v/@sdcorejs/nestjs.svg?logo=npm&color=crimson" alt="npm version" /></a>
+  <a href="https://nodejs.org"><img src="https://img.shields.io/node/v/@sdcorejs/nestjs.svg?label=node" alt="node" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/npm/l/@sdcorejs/nestjs.svg" alt="license" /></a>
+  <a href="https://github.com/sdcorejs/sdcorejs-nestjs/actions"><img src="https://img.shields.io/github/actions/workflow/status/sdcorejs/sdcorejs-nestjs/ci.yml?label=CI&logo=github" alt="CI" /></a>
+  <a href="https://github.com/sdcorejs/sdcorejs-nestjs"><img src="https://img.shields.io/badge/coverage-93%25-brightgreen" alt="coverage" /></a>
+</p>
+
 ```bash
 npm install @sdcorejs/nestjs
 ```
 
-**Only two peer dependencies** — `@nestjs/common` `^11` and `@nestjs/core` `^11`, which every NestJS
-app already has. Everything else (`@nestjs/passport` · `@nestjs/typeorm` · `@nestjs/bullmq` ·
-`@nestjs/schedule` · `@nestjs/platform-express` · `typeorm` · `reflect-metadata` · `rxjs` ·
-`@sdcorejs/utils` · `axios` · `bullmq` · `passport` · `passport-jwt`) is bundled and installs
-automatically. Feature libs (`ioredis`, `zod@^4`, `jwks-rsa` + `jsonwebtoken`, `aws-sdk`) ship as
-`optionalDependencies`. See [Getting started](/guide/getting-started) for the full matrix.
+**Only two peer dependencies** — `@nestjs/common ^11` and `@nestjs/core ^11`, which every NestJS app
+already has. Everything else is bundled and installs automatically. Optional feature libs (`ioredis`,
+`zod@^4`, `jwks-rsa@^4` + `jsonwebtoken`, `aws-sdk`) ship as `optionalDependencies`.
+See [Getting started](/guide/getting-started) for the full matrix.
 
 ## The 8 entry points
 
