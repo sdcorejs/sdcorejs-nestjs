@@ -49,9 +49,32 @@ export class KeycloakJwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
     const uriFromIssuer = jwks.jwksUriFromIssuer ?? DEFAULT_JWKS_URI;
     const allowed = jwks.allowedIssuers;
+    const allowedHosts = jwks.allowedIssuerHosts;
+    const issuerValidator = jwks.issuerValidator;
     const cache = jwks.cache ?? true;
     const rateLimit = jwks.rateLimit ?? true;
     const clients = new Map<string, JwksClientLike>();
+
+    // Secure by default: a JWKS strategy MUST declare which issuers it trusts. Without a policy the
+    // signing key would be fetched from any token-supplied `iss` URL (issuer-spoof + SSRF). For
+    // dynamic multi-realm, set `allowedIssuerHosts` to pin the Keycloak origin (any realm under it).
+    if (!allowed?.length && !allowedHosts?.length && !issuerValidator) {
+      throw new Error(
+        'KeycloakJwtStrategy requires an issuer policy: set jwks.allowedIssuers, jwks.allowedIssuerHosts, or jwks.issuerValidator',
+      );
+    }
+
+    const isIssuerAllowed = (iss: string): boolean => {
+      if (allowed?.includes(iss)) return true;
+      if (allowedHosts?.length) {
+        try {
+          if (allowedHosts.includes(new URL(iss).origin)) return true;
+        } catch {
+          /* not a URL → only an exact allowedIssuers / validator match can accept it */
+        }
+      }
+      return issuerValidator ? issuerValidator(iss) : false;
+    };
 
     const secretOrKeyProvider: SecretOrKeyProvider = (_req, rawToken, done) => {
       try {
@@ -59,7 +82,7 @@ export class KeycloakJwtStrategy extends PassportStrategy(Strategy, 'jwt') {
         const iss = decoded?.payload?.iss;
         const kid = decoded?.header?.kid;
         if (!iss || !kid) return done(new Error('Invalid token: missing iss/kid'), undefined);
-        if (allowed && !allowed.includes(iss)) return done(new Error(`Issuer not allowed: ${iss}`), undefined);
+        if (!isIssuerAllowed(iss)) return done(new Error(`Issuer not allowed: ${iss}`), undefined);
 
         let client = clients.get(iss);
         if (!client) {

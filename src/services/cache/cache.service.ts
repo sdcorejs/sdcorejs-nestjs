@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger, type OnModuleDestroy, Optional } from '@nestjs/common';
 import type { CacheBackend } from './backends/cache-backend';
 import { MemoryCacheBackend } from './backends/memory-cache.backend';
 import { RedisCacheBackend } from './backends/redis-cache.backend';
@@ -23,7 +23,7 @@ import { CACHE_CONFIG, type CacheBackendKind, type CacheConfig } from './types';
  *   - `load(key, factory, ttl?)` cache-aside helper with factory deduplication.
  */
 @Injectable()
-export class CacheService implements CacheBackend {
+export class CacheService implements CacheBackend, OnModuleDestroy {
   private static readonly logger = new Logger(CacheService.name);
 
   private readonly backend: CacheBackend;
@@ -115,6 +115,14 @@ export class CacheService implements CacheBackend {
     })();
     this.loadLocks.set(key, p);
     return p;
+  }
+
+  /** Release backend resources on shutdown (e.g. the redis connection). No-op for memory. */
+  async onModuleDestroy(): Promise<void> {
+    const disposable = this.backend as CacheBackend & { dispose?: () => Promise<void> };
+    if (typeof disposable.dispose === 'function') {
+      await disposable.dispose().catch((e) => CacheService.logger.warn(`Cache backend dispose failed: ${(e as Error).message}`));
+    }
   }
 
   // --- internals ----------------------------------------------------------

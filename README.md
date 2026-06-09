@@ -249,12 +249,19 @@ Set `jwt.jwks` and `SdCoreModule` wires `KeycloakJwtStrategy`. The signing key i
 SdCoreModule.forRoot({
   jwt: {
     jwks: {
-      allowedIssuers: [process.env.KEYCLOAK_ISSUER!], // reject unknown issuers before any network call
+      allowedIssuers: [process.env.KEYCLOAK_ISSUER!], // exact-match list for static, known realms
       // jwksUriFromIssuer defaults to `${iss}/protocol/openid-connect/certs` (Keycloak)
     },
   },
 });
 ```
+
+> **An issuer policy is required** — set at least one of `allowedIssuers`, `allowedIssuerHosts`, or
+> `issuerValidator` (the strategy throws otherwise; without it the JWKS would be fetched from any
+> token-supplied `iss` → spoofing + SSRF). For **dynamic multi-realm** (realms created at runtime), pin
+> the Keycloak origin instead of listing realms: `allowedIssuerHosts: ['https://kc.example.com']`
+> accepts any realm under that host and keeps JWKS fetches on that host. Use `issuerValidator(iss)` for
+> custom rules.
 
 To turn the verified token into your app's user, subclass and override `validate()`, then register it as the strategy:
 
@@ -407,12 +414,11 @@ export class ProductRepository extends BaseRepository<Product> {
 | Method | Route | Service call |
 |---|---|---|
 | POST | `/search` | `search(keyword, filters)` |
-| POST | `/paging` | `paging(req)` |
-| GET | `/all` | `all()` |
+| POST | `/paging` | `paging(req)` — `pageSize` capped at **200** |
 | GET | `/:id` | `detail(id)` (tenancy-scoped) |
 | DELETE | `/:id` | `delete(id)` |
 
-`@SearchableFields({ exact, contain, activeColumn })` configures the `search` endpoint; `@Schema` adds DTO introspection metadata.
+`all()` (unbounded full-table read), `pagingDeleted`, soft-delete and restore live on `BaseService`/`BaseRepository` but are **not** exposed by the controller — add an `@Get('all')` in your subclass for the specific entities where a full read is appropriate. `@SearchableFields({ exact, contain, activeColumn })` configures the `search` endpoint; `@Schema` adds DTO introspection metadata.
 
 ---
 

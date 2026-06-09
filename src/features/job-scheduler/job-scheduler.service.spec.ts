@@ -77,6 +77,16 @@ describe('JobSchedulerService', () => {
       const res = await svc.acquire({ code: 'seed', type: JobSchedulerType.INITIAL });
       expect(res).toEqual({ acquired: false });
     });
+
+    it('re-claims a STALE RUNNING run (lease expired → crashed node) via the conditional update', async () => {
+      const repo = makeRepo({ insert: [], update: [{ id: 'jStale' }] });
+      const svc = new JobSchedulerService(repo);
+      const res = await svc.acquire({ code: 'seed', type: JobSchedulerType.INITIAL, leaseMs: 1000 });
+      expect(res).toEqual({ acquired: true, id: 'jStale' });
+      const whereParams = repo.__builders[1].where.mock.calls[0][1];
+      expect(whereParams).toMatchObject({ failed: JobSchedulerStatus.FAIL, running: JobSchedulerStatus.RUNNING });
+      expect(whereParams.staleBefore).toBeInstanceOf(Date);
+    });
   });
 
   describe('runExclusive', () => {

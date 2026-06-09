@@ -11,10 +11,24 @@ export interface JwksConfig {
    */
   jwksUriFromIssuer?: (iss: string) => string;
   /**
-   * Optional issuer allowlist. When set, a token whose `iss` is not listed is rejected before any
-   * network call. Default: allow any issuer (multi-tenant).
+   * Exact-match issuer allowlist. A token whose `iss` is one of these is accepted; the JWKS is
+   * fetched only from that exact issuer. Use when the set of realms is known and static.
    */
   allowedIssuers?: string[];
+  /**
+   * Origin allowlist for **dynamic** multi-realm setups (the recommended approach when realms are
+   * created at runtime). A token is accepted when `new URL(iss).origin` matches one of these, so any
+   * realm under a trusted Keycloak host is allowed (e.g. `['https://kc.example.com']` accepts
+   * `https://kc.example.com/realms/<any-tenant>`). Because the JWKS is fetched from that same origin,
+   * this also closes the SSRF surface — the server never calls an attacker-controlled host.
+   */
+  allowedIssuerHosts?: string[];
+  /**
+   * Full-control predicate escape hatch — return `true` to accept the `iss`. Runs in addition to
+   * `allowedIssuers` / `allowedIssuerHosts`. Use for custom rules (regex, DB lookup of provisioned
+   * realms, etc.).
+   */
+  issuerValidator?: (iss: string) => boolean;
   /** Accepted signing algorithms. Default: `['RS256']`. */
   algorithms?: string[];
   /** Cache signing keys (jwks-rsa `cache`). Default: `true`. */

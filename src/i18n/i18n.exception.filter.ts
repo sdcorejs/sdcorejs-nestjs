@@ -42,7 +42,24 @@ export class SdI18nExceptionFilter implements ExceptionFilter {
 
     const localized: ApiErrorBody = { ...errBody };
     if (this.i18n) {
-      localized.message = this.i18n.translate(errBody.code, this.ctx?.lang, errBody.data);
+      const lang = this.ctx?.lang;
+      localized.message = this.i18n.translate(errBody.code, lang, errBody.data);
+      // Validation envelopes carry per-field i18n codes in `data.issues[].message` (the top-level
+      // `code` is the generic `core.validation.failed`). Localize each issue too, merging its
+      // `params` for interpolation, so clients get field-level localized messages.
+      const data = errBody.data as { issues?: unknown[] } | undefined;
+      if (Array.isArray(data?.issues)) {
+        localized.data = {
+          ...data,
+          issues: data.issues.map((iss) => {
+            if (iss && typeof iss === 'object' && typeof (iss as { message?: unknown }).message === 'string') {
+              const detail = iss as { message: string; params?: Record<string, unknown> };
+              return { ...detail, message: this.i18n!.translate(detail.message, lang, detail.params) };
+            }
+            return iss; // leave non-issue-shaped entries untouched
+          }),
+        };
+      }
     }
     res.status(status).json({ error: localized });
   }

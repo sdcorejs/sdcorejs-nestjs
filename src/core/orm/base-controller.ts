@@ -10,13 +10,14 @@ import { ApiResponse } from './types/api-response.types';
  * to mount the standard endpoint set:
  *
  *   POST   /search    → service.search(keyword, filters)
- *   POST   /paging    → service.paging(req)
- *   GET    /all       → service.all()
+ *   POST   /paging    → service.paging(req)   (pageSize capped at 200)
  *   GET    /:id       → service.detail(id)
  *   DELETE /:id       → service.delete(id)
  *
- * Soft-delete, restore, and paging-deleted live on `BaseService` for code paths that need them
- * (e.g. admin tools) but are not exposed by default at the controller layer.
+ * `all()` (unbounded fetch), soft-delete, restore, and paging-deleted live on `BaseService` for code
+ * paths that need them but are NOT exposed by default at the controller layer — a full-table read is
+ * rarely safe to expose generically. Add an `@Get('all')` in your subclass for the specific entities
+ * where it is appropriate.
  *
  * Add `@HasPermission(...)` per endpoint in your subclass (override + super-call) to enforce
  * permission checks per route.
@@ -32,11 +33,6 @@ export abstract class BaseController<T extends ObjectLiteral, TDto extends Dto> 
   @Post('paging')
   async paging(@Body() req: PagingReq<T>) {
     return ApiResponse.ok(await this.baseService.paging(req));
-  }
-
-  @Get('all')
-  async all() {
-    return ApiResponse.ok(await this.baseService.all());
   }
 
   @Get(':id')

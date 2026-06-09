@@ -137,17 +137,23 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
 
   // --- Internal helpers -----------------------------------------------------
 
+  /** Max rows a single `paging` page may return — hard cap on the public paging path. */
+  static readonly MAX_PAGE_SIZE = 200;
+
   private preparePagingReq(req: PagingReq<T>): Required<PagingReq<T>> {
     return {
       pageNumber: Math.max(req.pageNumber ?? 0, 0),
-      pageSize: Math.min(req.pageSize ?? 10, 1000),
+      // 0-based pages (system default page 0). pageSize is capped at MAX_PAGE_SIZE; a missing or
+      // non-positive value falls back to 10 — `paging` never returns the whole table. Unbounded
+      // reads go through `all()`, which bypasses this via `createBaseQueryBuilder(.., paginate=false)`.
+      pageSize: req.pageSize && req.pageSize > 0 ? Math.min(req.pageSize, BaseRepository.MAX_PAGE_SIZE) : 10,
       orders: prepareSorts(req.orders ?? []) as Order<T>[],
       filters: this.addonFilter(req.filters) as Filter<T>[],
       fields: (req.fields ?? []) as never,
     };
   }
 
-  private createBaseQueryBuilder(req: Required<PagingReq<T>>, args?: BaseRepositoryArgs<T>): SelectQueryBuilder<T> {
+  private createBaseQueryBuilder(req: Required<PagingReq<T>>, args?: BaseRepositoryArgs<T>, paginate = true): SelectQueryBuilder<T> {
     const { pageNumber, pageSize, orders, filters } = req;
     const alias = 'e';
     const meta = this.repository.metadata;
@@ -199,7 +205,7 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
       });
     }
 
-    if (pageSize > 0) query.skip(pageNumber * pageSize).take(pageSize);
+    if (paginate && pageSize > 0) query.skip(pageNumber * pageSize).take(pageSize);
 
     return query;
   }
@@ -217,25 +223,30 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
   };
 
   all = async (filters?: Filter<T>[], args?: BaseRepositoryArgs<T>): Promise<T[]> => {
-    const req: PagingReq<T> = { pageNumber: 0, pageSize: 0, filters };
-    const q = this.createBaseQueryBuilder(this.preparePagingReq(req), args);
+    // Unbounded fetch — bypass the paging cap (paginate=false → no LIMIT/OFFSET).
+    const q = this.createBaseQueryBuilder(this.preparePagingReq({ pageNumber: 0, filters }), args, false);
     return q.getMany();
   };
 
   search = async (keyword: string, filters?: Filter<T>[]): Promise<T[]> => {
     const term = keyword?.trim();
     const repo = this.repository;
+    const meta = repo.metadata;
 
-    // UUID input: exact-match by id, bypass filters + tenancy.
+    // UUID input: exact-match by id, but STILL apply tenancy scope (no cross-tenant id leak).
     if (term && isUuid(term)) {
-      return repo.createQueryBuilder('e').where('e.id = :id', { id: term }).take(1).getMany();
+      const query = repo.createQueryBuilder('e').where('e.id = :id', { id: term });
+      const scopeFilters = this.addonFilter([]); // [] of user filters → just the injected tenancy scope
+      if (scopeFilters.length) {
+        query.andWhere(new Brackets((qb) => scopeFilters.forEach((f, i) => applyFilterToQuery(qb, f, i, 'e', meta))));
+      }
+      return query.take(1).getMany();
     }
 
     const config = getSearchableConfig(this._target as never);
     if (!config) return [];
 
     const finalFilters = this.addonFilter(filters) ?? [];
-    const meta = repo.metadata;
     const query = repo.createQueryBuilder('e');
 
     if (finalFilters.length) {

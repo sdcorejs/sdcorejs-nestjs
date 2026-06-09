@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { type CallHandler, type ExecutionContext } from '@nestjs/common';
-import { firstValueFrom, of } from 'rxjs';
+import { firstValueFrom, from, of } from 'rxjs';
 import { CacheService } from './cache.service';
 import { CacheInterceptor } from './cache.interceptor';
 import { Cached } from './decorators/cached.decorator';
@@ -11,6 +11,11 @@ class TestService {
   expensive(input: number): number {
     this.callCount++;
     return input * 2;
+  }
+
+  @Cached({ keyResolver: () => 'kr-fixed' })
+  byResolver(input: number): number {
+    return input;
   }
 
   uncached(): string {
@@ -72,5 +77,60 @@ describe('CacheInterceptor', () => {
     await firstValueFrom(interceptor.intercept(buildExecCtx(service, 'expensive', [2]), makeHandler(++counter)));
     await Promise.resolve();
     await expect(cache.size()).resolves.toBe(2);
+  });
+
+  it('single-flights concurrent misses — the handler runs once (no stampede)', async () => {
+    const cache = new CacheService({ ttl: 60 });
+    const interceptor = new CacheInterceptor(cache);
+    const service = new TestService();
+    let calls = 0;
+    const handler: CallHandler = {
+      handle: () =>
+        from(
+          new Promise<number>((r) =>
+            setTimeout(() => {
+              calls++;
+              r(99);
+            }, 10),
+          ),
+        ),
+    };
+    const ctx = buildExecCtx(service, 'expensive', [7]);
+    const [a, b] = await Promise.all([
+      firstValueFrom(interceptor.intercept(ctx, handler)),
+      firstValueFrom(interceptor.intercept(ctx, handler)),
+    ]);
+    expect(a).toBe(99);
+    expect(b).toBe(99);
+    expect(calls).toBe(1);
+  });
+
+  it('uses a custom keyResolver as the cache key (ignores args)', async () => {
+    const cache = new CacheService();
+    const interceptor = new CacheInterceptor(cache);
+    const service = new TestService();
+    await firstValueFrom(interceptor.intercept(buildExecCtx(service, 'byResolver', [1]), { handle: () => of(1) }));
+    let called = false;
+    // different args, same keyResolver → same key → served from cache
+    const res = await firstValueFrom(
+      interceptor.intercept(buildExecCtx(service, 'byResolver', [999]), {
+        handle: () => {
+          called = true;
+          return of(2);
+        },
+      }),
+    );
+    expect(res).toBe(1);
+    expect(called).toBe(false);
+  });
+
+  it('folds the tenant into the key when a context is present', async () => {
+    const cache = new CacheService();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const interceptor = new CacheInterceptor(cache, { store: { tenant: 't1' } } as any);
+    const service = new TestService();
+    const res = await firstValueFrom(interceptor.intercept(buildExecCtx(service, 'expensive', [3]), { handle: () => of(6) }));
+    expect(res).toBe(6);
+    await expect(cache.size()).resolves.toBe(1);
   });
 });

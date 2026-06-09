@@ -140,10 +140,4 @@ describe('Consumer-app E2E — full SdCoreModule.forRoot() integration', () => {
     expect(res.status).toBe(201);
     expect(res.body.data.total).toBe(1);
   });
-
-  it('GET /all envelope includes ApiResponse wrapper', async () => {
-    const res = await request(app.getHttpServer()).get('/products/all').set('X-Tenant', 'ACME');
-    expect(res.status).toBe(200);
-    expect(res.body.data).toHaveLength(2);
-  });
 });

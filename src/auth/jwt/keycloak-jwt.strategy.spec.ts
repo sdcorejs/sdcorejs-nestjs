@@ -38,7 +38,7 @@ describe('KeycloakJwtStrategy', () => {
     decode.mockReturnValue({ header: { kid: 'k1' }, payload: { iss: 'https://kc/realms/a' } });
     getSigningKey.mockResolvedValue({ getPublicKey: () => 'PUBKEY' });
 
-    const provider = providerOf({ jwks: {} });
+    const provider = providerOf({ jwks: { allowedIssuerHosts: ['https://kc'] } });
     provider({}, 'raw.token', (err, key) => {
       expect(err).toBeNull();
       expect(key).toBe('PUBKEY');
@@ -51,7 +51,7 @@ describe('KeycloakJwtStrategy', () => {
 
   it('rejects a token missing iss/kid', (done) => {
     decode.mockReturnValue({ header: {}, payload: {} });
-    const provider = providerOf({ jwks: {} });
+    const provider = providerOf({ jwks: { allowedIssuerHosts: ['https://kc'] } });
     provider({}, 'raw', (err, key) => {
       expect(err).toBeInstanceOf(Error);
       expect(key).toBeUndefined();
@@ -72,7 +72,7 @@ describe('KeycloakJwtStrategy', () => {
   it('caches one JwksClient per issuer', (done) => {
     decode.mockReturnValue({ header: { kid: 'k1' }, payload: { iss: 'https://kc/realms/a' } });
     getSigningKey.mockResolvedValue({ getPublicKey: () => 'PUBKEY' });
-    const provider = providerOf({ jwks: {} });
+    const provider = providerOf({ jwks: { allowedIssuerHosts: ['https://kc'] } });
     provider({}, 't1', () => {
       provider({}, 't2', () => {
         expect(jwksClientCtor).toHaveBeenCalledTimes(1);
@@ -84,7 +84,7 @@ describe('KeycloakJwtStrategy', () => {
   it('honours a custom jwksUriFromIssuer', (done) => {
     decode.mockReturnValue({ header: { kid: 'k1' }, payload: { iss: 'iss-x' } });
     getSigningKey.mockResolvedValue({ getPublicKey: () => 'P' });
-    const provider = providerOf({ jwks: { jwksUriFromIssuer: (iss) => `${iss}/jwks.json` } });
+    const provider = providerOf({ jwks: { allowedIssuers: ['iss-x'], jwksUriFromIssuer: (iss) => `${iss}/jwks.json` } });
     provider({}, 't', () => {
       expect(jwksClientCtor).toHaveBeenCalledWith(expect.objectContaining({ jwksUri: 'iss-x/jwks.json' }));
       done();
@@ -93,7 +93,43 @@ describe('KeycloakJwtStrategy', () => {
 
   it('default validate() returns the payload', async () => {
     decode.mockReturnValue({ header: { kid: 'k' }, payload: { iss: 'i' } });
-    const strat = new KeycloakJwtStrategy({ jwks: {} });
+    const strat = new KeycloakJwtStrategy({ jwks: { allowedIssuerHosts: ['https://kc'] } });
     await expect(strat.validate({ sub: 'u1' })).resolves.toEqual({ sub: 'u1' });
+  });
+
+  it('allowedIssuerHosts accepts ANY realm under a trusted host (dynamic multi-realm)', (done) => {
+    decode.mockReturnValue({ header: { kid: 'k1' }, payload: { iss: 'https://kc/realms/tenant-99' } });
+    getSigningKey.mockResolvedValue({ getPublicKey: () => 'P' });
+    const provider = providerOf({ jwks: { allowedIssuerHosts: ['https://kc'] } });
+    provider({}, 't', (err, key) => {
+      expect(err).toBeNull();
+      expect(key).toBe('P');
+      done();
+    });
+  });
+
+  it('allowedIssuerHosts rejects a realm on a DIFFERENT host', (done) => {
+    decode.mockReturnValue({ header: { kid: 'k1' }, payload: { iss: 'https://evil/realms/x' } });
+    const provider = providerOf({ jwks: { allowedIssuerHosts: ['https://kc'] } });
+    provider({}, 't', (err) => {
+      expect(err).toBeInstanceOf(Error);
+      expect(getSigningKey).not.toHaveBeenCalled();
+      done();
+    });
+  });
+
+  it('issuerValidator predicate gates the issuer', (done) => {
+    decode.mockReturnValue({ header: { kid: 'k1' }, payload: { iss: 'https://kc/realms/ok' } });
+    getSigningKey.mockResolvedValue({ getPublicKey: () => 'P' });
+    const provider = providerOf({ jwks: { issuerValidator: (iss) => iss.endsWith('/ok') } });
+    provider({}, 't', (err, key) => {
+      expect(err).toBeNull();
+      expect(key).toBe('P');
+      done();
+    });
+  });
+
+  it('throws at construction when NO issuer policy is configured (secure by default)', () => {
+    expect(() => new KeycloakJwtStrategy({ jwks: {} })).toThrow(/issuer policy/);
   });
 });

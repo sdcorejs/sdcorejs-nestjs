@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 import { JobScheduler } from './job-scheduler.entity';
-import { type JobAcquireOptions, type JobAcquireResult, JobSchedulerStatus, JobSchedulerType } from './types';
+import { DEFAULT_LEASE_MS, type JobAcquireOptions, type JobAcquireResult, JobSchedulerStatus, JobSchedulerType } from './types';
 
 /** Outcome of {@link JobSchedulerService.runExclusive}. */
 export interface RunExclusiveResult<T> {
@@ -63,12 +63,21 @@ export class JobSchedulerService {
     const insertedRow = (inserted.raw as Array<{ id: string }> | undefined)?.[0];
     if (insertedRow) return { acquired: true, id: insertedRow.id };
 
-    // 2. Conflict: re-claim ONLY a previously FAILED run (SUCCESS / RUNNING stay blocked).
+    // 2. Conflict: re-claim a previously FAILED run, OR a RUNNING run whose lease has expired (the
+    //    node that held it crashed before recording SUCCESS/FAIL). A SUCCESS row stays locked
+    //    (run-once), and a RUNNING row within its lease is left to its owner. The conditional UPDATE
+    //    is atomic, so only one node can match-and-return a given reclaimable row.
+    const staleBefore = new Date(Date.now() - (opts.leaseMs ?? DEFAULT_LEASE_MS));
     const reclaimed = await this.repository
       .createQueryBuilder()
       .update(JobScheduler)
       .set({ status: JobSchedulerStatus.RUNNING, data: null } as never)
-      .where('"lockKey" = :lockKey AND status = :failed', { lockKey, failed: JobSchedulerStatus.FAIL })
+      .where('"lockKey" = :lockKey AND (status = :failed OR (status = :running AND "modifiedAt" < :staleBefore))', {
+        lockKey,
+        failed: JobSchedulerStatus.FAIL,
+        running: JobSchedulerStatus.RUNNING,
+        staleBefore,
+      })
       .returning(['id'])
       .execute();
 

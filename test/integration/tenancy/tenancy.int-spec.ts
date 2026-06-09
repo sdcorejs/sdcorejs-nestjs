@@ -180,6 +180,21 @@ describe('BaseRepository tenancy integration', () => {
     expect(found?.name).toBe('B1');
   });
 
+  it('search by UUID is tenancy-scoped (no cross-tenant id leak)', async () => {
+    const b1 = await ds.getRepository(ScopedProduct).findOneBy({ name: 'B1' }); // tenant T2
+    const repo = new ScopedRepo(ds, { tenancyStrategy: buildStrategy({ tenantCode: 'T1' }), contextService: ctx });
+    const found = await repo.search(b1!.id);
+    expect(found).toEqual([]); // B1 belongs to T2 → filtered out under scope T1
+  });
+
+  it('search by UUID returns an in-scope row', async () => {
+    const a1 = await ds.getRepository(ScopedProduct).findOneBy({ name: 'A1' }); // tenant T1
+    const repo = new ScopedRepo(ds, { tenancyStrategy: buildStrategy({ tenantCode: 'T1' }), contextService: ctx });
+    const found = await repo.search(a1!.id);
+    expect(found).toHaveLength(1);
+    expect(found[0].name).toBe('A1');
+  });
+
   it('create auto-fills scoped columns from scope', async () => {
     const repo = new ScopedRepo(ds, {
       tenancyStrategy: buildStrategy({ tenantCode: 'T3', departmentCode: 'D9' }),

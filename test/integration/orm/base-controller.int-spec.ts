@@ -73,12 +73,6 @@ describe('BaseController (HTTP integration)', () => {
     expect(res.body.data.items).toHaveLength(2);
   });
 
-  it('GET /test-products/all returns ApiResponse', async () => {
-    const res = await request(app.getHttpServer()).get('/test-products/all');
-    expect(res.status).toBe(200);
-    expect(res.body.data).toHaveLength(2);
-  });
-
   it('GET /test-products/:id returns single entity', async () => {
     const [first] = await ds.getRepository(TestProduct).find();
     const res = await request(app.getHttpServer()).get(`/test-products/${first.id}`);

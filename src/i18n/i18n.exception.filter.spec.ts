@@ -41,6 +41,24 @@ describe('SdI18nExceptionFilter', () => {
     expect(sent.body).toMatchObject({ error: { code: 'core.validation.failed', data: { issues: [1] } } });
   });
 
+  it('localizes per-field Zod issue messages (code) inside data.issues', () => {
+    const filter = new SdI18nExceptionFilter(stubResolver, { lang: 'en' } as never);
+    const { host, sent } = buildHost();
+    filter.catch(
+      new BadRequestException({
+        code: 'core.validation.failed',
+        message: 'x',
+        data: { issues: [{ message: 'core.name.min', code: 'too_small', params: { minimum: 3 } }] },
+      }),
+      host,
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const body = sent.body as any;
+    expect(body.error.message).toBe('[en]core.validation.failed');
+    expect(body.error.data.issues[0].message).toBe('[en]core.name.min');
+    expect(body.error.data.issues[0].code).toBe('too_small'); // non-message fields preserved
+  });
+
   it('passes through non-apiError responses untouched', () => {
     const filter = new SdI18nExceptionFilter(stubResolver, undefined);
     const { host, sent } = buildHost();

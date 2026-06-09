@@ -1,6 +1,6 @@
 import { type CallHandler, type ExecutionContext, Inject, Injectable, type NestInterceptor, Optional } from '@nestjs/common';
 import { Utilities } from '@sdcorejs/utils/fns';
-import { from, type Observable, of, switchMap, tap } from 'rxjs';
+import { firstValueFrom, from, type Observable } from 'rxjs';
 import { ContextService } from '../../core/context/context.service';
 import { CacheService } from './cache.service';
 import { CACHED_METADATA, type CachedOptions } from './decorators/cached.decorator';
@@ -27,16 +27,10 @@ export class CacheInterceptor implements NestInterceptor {
     const args = execCtx.getArgs();
     const key = this.buildKey(cls.name, handler.name, args, opts);
 
-    return from(this.cache.get(key)).pipe(
-      switchMap((hit) => {
-        if (hit !== undefined) return of(hit);
-        return next.handle().pipe(
-          tap((value) => {
-            void this.cache.set(key, value, opts.ttl);
-          }),
-        );
-      }),
-    );
+    // Route through `cache.load` for single-flight dedup: N concurrent misses for the same key run
+    // the handler ONCE (the rest await the in-flight result) instead of stampeding the downstream.
+    // `@Cached` is therefore for single-value (request/response) handlers, not multi-emit streams.
+    return from(this.cache.load(key, () => firstValueFrom(next.handle()), opts.ttl));
   }
 
   private buildKey(className: string, methodName: string, args: unknown[], opts: CachedOptions): string {
