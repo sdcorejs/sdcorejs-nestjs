@@ -6,6 +6,35 @@
 
 ---
 
+## Update 2026-06-09 — final review fixes (pushed to `release/0.1.0`)
+
+A deep pre-1.0.0 review (5 parallel module reviewers, verified against source) → fixes + big coverage lift.
+Commits `63cfb35`→`ce86647` are **pushed** to `origin/release/0.1.0` (still `0.1.6` pre-publish). Gate green:
+typecheck · lint (0 err) · **420 tests** · coverage thresholds raised (branch 76 / fn 85 / lines 90 / stmt 88) ·
+build · check:exports 🌟.
+
+What changed (all in the staged `0.1.6`→`1.0.0` changeset `.changeset/core-1-0-0.md`):
+- **Coverage 82→92.6% stmt / 68→78.7% branch / 73→88% fn** (314→420 tests). New specs: filter-builder
+  operators + injection guard, Auth/Internal guards, AuditSubscriber, memory+redis backends, AWS S3 driver,
+  HttpService propagation, paging-cap, search-scope, JWKS host/validator.
+- **Behavior/breaking (see migration-1.0 + changeset):** `BaseController` drops `GET /all` (use a per-entity
+  `@Get('all')`); `paging` caps `pageSize` at **200** (`BaseRepository.MAX_PAGE_SIZE`, default 10, 0-based);
+  `search` by UUID is now **tenancy-scoped**; **`KeycloakJwtStrategy` requires an issuer policy** —
+  `jwks.allowedIssuers` / new **`allowedIssuerHosts`** (origin allowlist for dynamic multi-realm) /
+  `issuerValidator` (throws if none → closes issuer-spoof + SSRF); `CacheService` disposes its backend on
+  shutdown + `@Cached` single-flights (stampede); i18n filter localizes per-field Zod issue messages;
+  JobScheduler reclaims a stale `RUNNING` lock after a lease (`leaseMs`, default 15m).
+- Earlier same session: VitePress showcase site + GH Pages workflow; `@TenantScoped` removed (use `@Scoped`);
+  deps restructured to peers = `@nestjs/common`+`@nestjs/core` only (rest bundled / optionalDependencies).
+
+**Consumer adopted** these on `enterprise-platform@dev` (re-vendored tgz + JWKS policy fix; build + 154 tests
+green) — see that repo's HANDOFF.
+
+**Next:** PR `release/0.1.0` → `main` → changesets "Version Packages" PR (`0.1.6`→`1.0.0`) → merge → CI
+publishes (needs `NPM_TOKEN`) + docs Action deploys the site (needs Settings → Pages → Source = GitHub Actions).
+
+---
+
 ## TL;DR
 
 This branch turns the preview `0.1.6` library into a clean, stable **1.0.0**: standardized public API,
