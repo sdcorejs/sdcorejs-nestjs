@@ -2,7 +2,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 import { JobScheduler } from './job-scheduler.entity';
-import { DEFAULT_HEARTBEAT_MS, DEFAULT_LEASE_MS, type JobAcquireOptions, type JobAcquireResult, JobSchedulerStatus, JobSchedulerType } from './types';
+import {
+  DEFAULT_HEARTBEAT_MS,
+  DEFAULT_LEASE_MS,
+  type JobAcquireOptions,
+  type JobAcquireResult,
+  JobSchedulerStatus,
+  JobSchedulerType,
+} from './types';
 
 /** Outcome of {@link JobSchedulerService.runExclusive}. */
 export interface RunExclusiveResult<T> {
