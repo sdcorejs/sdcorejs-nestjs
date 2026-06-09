@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 import { JobScheduler } from './job-scheduler.entity';
-import { DEFAULT_LEASE_MS, type JobAcquireOptions, type JobAcquireResult, JobSchedulerStatus, JobSchedulerType } from './types';
+import { DEFAULT_HEARTBEAT_MS, DEFAULT_LEASE_MS, type JobAcquireOptions, type JobAcquireResult, JobSchedulerStatus, JobSchedulerType } from './types';
 
 /** Outcome of {@link JobSchedulerService.runExclusive}. */
 export interface RunExclusiveResult<T> {
@@ -102,6 +102,19 @@ export class JobSchedulerService {
   async runExclusive<T>(opts: JobAcquireOptions, fn: () => Promise<T>): Promise<RunExclusiveResult<T>> {
     const lock = await this.acquire(opts);
     if (!lock.acquired || !lock.id) return { acquired: false };
+
+    // Heartbeat: touch modifiedAt periodically so the lock stays within its lease window.
+    // Prevents a live-but-slow run from being reclaimed by another node.
+    const heartbeatMs = opts.heartbeatMs ?? DEFAULT_HEARTBEAT_MS;
+    const heartbeat =
+      heartbeatMs > 0
+        ? setInterval(() => {
+            void this.repository.update(lock.id!, { modifiedAt: new Date() } as never).catch((e: Error) => {
+              this.logger.warn(`Job '${opts.code}' heartbeat failed: ${e.message}`);
+            });
+          }, heartbeatMs)
+        : null;
+
     try {
       const result = await fn();
       await this.complete(lock.id, JobSchedulerStatus.SUCCESS);
@@ -110,6 +123,8 @@ export class JobSchedulerService {
       await this.complete(lock.id, JobSchedulerStatus.FAIL, { error: String(err) });
       this.logger.error(`Job '${opts.code}' failed: ${String(err)}`);
       throw err;
+    } finally {
+      if (heartbeat) clearInterval(heartbeat);
     }
   }
 }

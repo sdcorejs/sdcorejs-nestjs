@@ -49,11 +49,18 @@ export class KeycloakJwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
     const uriFromIssuer = jwks.jwksUriFromIssuer ?? DEFAULT_JWKS_URI;
     const allowed = jwks.allowedIssuers;
-    const allowedHosts = jwks.allowedIssuerHosts;
+    // Normalize allowedIssuerHosts to bare origins (strip trailing slash / path / port defaults) so
+    // `https://kc.example.com/` and `https://kc.example.com` both match `new URL(iss).origin`.
+    const allowedHosts = jwks.allowedIssuerHosts?.map((h) => {
+      try {
+        return new URL(h).origin;
+      } catch {
+        return h; // not a URL — keep as-is, validator / exact match only
+      }
+    });
     const issuerValidator = jwks.issuerValidator;
     const cache = jwks.cache ?? true;
     const rateLimit = jwks.rateLimit ?? true;
-    const clients = new Map<string, JwksClientLike>();
 
     // Secure by default: a JWKS strategy MUST declare which issuers it trusts. Without a policy the
     // signing key would be fetched from any token-supplied `iss` URL (issuer-spoof + SSRF). For
@@ -74,6 +81,23 @@ export class KeycloakJwtStrategy extends PassportStrategy(Strategy, 'jwt') {
         }
       }
       return issuerValidator ? issuerValidator(iss) : false;
+    };
+
+    // LRU-bounded client cache (max 100 entries). Map preserves insertion order; on overflow the
+    // oldest entry is evicted. `allowedIssuerHosts` can accept any realm under the trusted host
+    // so without a cap an attacker could exhaust memory with distinct iss URLs before verification.
+    const MAX_CLIENTS = 100;
+    const clientMap = new Map<string, JwksClientLike>();
+    const clients = {
+      get: (iss: string) => clientMap.get(iss),
+      set: (iss: string, client: JwksClientLike) => {
+        if (clientMap.size >= MAX_CLIENTS) {
+          // evict least-recently-inserted (Map.keys() is insertion-ordered)
+          const oldest = clientMap.keys().next().value;
+          if (oldest !== undefined) clientMap.delete(oldest);
+        }
+        clientMap.set(iss, client);
+      },
     };
 
     const secretOrKeyProvider: SecretOrKeyProvider = (_req, rawToken, done) => {

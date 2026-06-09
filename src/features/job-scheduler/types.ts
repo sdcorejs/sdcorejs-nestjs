@@ -26,14 +26,24 @@ export interface JobAcquireOptions {
   /**
    * Lease window in ms. A `RUNNING` lock whose row has not been touched within this window is
    * assumed dead (the node that held it crashed before recording SUCCESS/FAIL) and is reclaimed by
-   * the next caller. Set this comfortably ABOVE the job's worst-case runtime — there is no
-   * heartbeat, so a run that exceeds the lease can be picked up by another node. Default: 15 min.
+   * the next caller. Should be set above `heartbeatMs` × 2 at minimum. Default: 15 min.
    */
   leaseMs?: number;
+  /**
+   * Heartbeat interval in ms. While the job runs, `runExclusive` periodically touches the lock row
+   * (`modifiedAt` bump) so it stays within its lease — preventing a live-but-slow run from being
+   * reclaimed by another node. Set below `leaseMs / 2`. Default: 60 s.
+   *
+   * Set to `0` to disable heartbeating (only safe for jobs guaranteed to finish well within `leaseMs`).
+   */
+  heartbeatMs?: number;
 }
 
 /** Default {@link JobAcquireOptions.leaseMs} — a `RUNNING` lock older than this is reclaimable. */
 export const DEFAULT_LEASE_MS = 15 * 60 * 1000;
+
+/** Default {@link JobAcquireOptions.heartbeatMs} — touch the lock row this often while the job runs. */
+export const DEFAULT_HEARTBEAT_MS = 60 * 1000;
 
 export interface JobAcquireResult {
   /** True when THIS node won the lock and should run the job. */
