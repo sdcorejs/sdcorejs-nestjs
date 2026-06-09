@@ -1,0 +1,218 @@
+{
+  "name": "@sdcorejs/nestjs",
+  "version": "0.1.6",
+  "description": "Neutral NestJS framework library: Base classes, multi-tenancy, audit, permission, request context (AsyncLocalStorage), cache, HTTP client, JWT — all domain specifics injected via DI strategies.",
+  "license": "MIT",
+  "author": "Trần Thuận Nghĩa",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sdcorejs/sdcorejs-nestjs.git"
+  },
+  "homepage": "https://github.com/sdcorejs/sdcorejs-nestjs#readme",
+  "bugs": "https://github.com/sdcorejs/sdcorejs-nestjs/issues",
+  "keywords": [
+    "nestjs",
+    "typeorm",
+    "multi-tenancy",
+    "audit",
+    "permission",
+    "context",
+    "async-local-storage",
+    "framework",
+    "library"
+  ],
+  "engines": {
+    "node": ">=18.18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/cjs/index.cjs",
+  "module": "./dist/esm/index.mjs",
+  "types": "./dist/cjs/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.mts",
+        "default": "./dist/esm/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.cjs"
+      }
+    },
+    "./core": {
+      "import": {
+        "types": "./dist/esm/core/index.d.mts",
+        "default": "./dist/esm/core/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/core/index.d.ts",
+        "default": "./dist/cjs/core/index.cjs"
+      }
+    },
+    "./auth": {
+      "import": {
+        "types": "./dist/esm/auth/index.d.mts",
+        "default": "./dist/esm/auth/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/auth/index.d.ts",
+        "default": "./dist/cjs/auth/index.cjs"
+      }
+    },
+    "./services": {
+      "import": {
+        "types": "./dist/esm/services/index.d.mts",
+        "default": "./dist/esm/services/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/services/index.d.ts",
+        "default": "./dist/cjs/services/index.cjs"
+      }
+    },
+    "./validation": {
+      "import": {
+        "types": "./dist/esm/validation/index.d.mts",
+        "default": "./dist/esm/validation/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/validation/index.d.ts",
+        "default": "./dist/cjs/validation/index.cjs"
+      }
+    },
+    "./queue": {
+      "import": {
+        "types": "./dist/esm/queue/index.d.mts",
+        "default": "./dist/esm/queue/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/queue/index.d.ts",
+        "default": "./dist/cjs/queue/index.cjs"
+      }
+    },
+    "./i18n": {
+      "import": {
+        "types": "./dist/esm/i18n/index.d.mts",
+        "default": "./dist/esm/i18n/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/i18n/index.d.ts",
+        "default": "./dist/cjs/i18n/index.cjs"
+      }
+    },
+    "./features": {
+      "import": {
+        "types": "./dist/esm/features/index.d.mts",
+        "default": "./dist/esm/features/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/features/index.d.ts",
+        "default": "./dist/cjs/features/index.cjs"
+      }
+    }
+  },
+  "scripts": {
+    "build": "rimraf dist && tsup",
+    "build:types": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit",
+    "build:bundle": "tsup",
+    "check:exports": "publint --strict && attw --pack .",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "test:e2e": "jest --testRegex='.*\\.e2e-spec\\.ts$' --runInBand",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
+    "changeset": "changeset",
+    "changeset:version": "changeset version",
+    "release": "npm run build && changeset publish",
+    "clean": "rimraf dist coverage"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0"
+  },
+  "dependencies": {
+    "@nestjs/bullmq": "^11.0.0",
+    "@nestjs/passport": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/schedule": "^6.0.0",
+    "@nestjs/typeorm": "^11.0.0",
+    "@sdcorejs/utils": "^1.1.0",
+    "axios": "^1.7.0",
+    "bullmq": "^5.0.0",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "reflect-metadata": "^0.2.0",
+    "rxjs": "^7.8.0",
+    "typeorm": "^0.3.20"
+  },
+  "optionalDependencies": {
+    "aws-sdk": "^2.0.0",
+    "ioredis": "^5.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "jwks-rsa": "^4.0.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@anatine/esbuild-decorators": "^0.2.19",
+    "@arethetypeswrong/cli": "^0.18.3",
+    "@changesets/cli": "^2.27.0",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/testing": "^11.0.0",
+    "@types/jest": "^29.5.0",
+    "@types/jsonwebtoken": "^9.0.0",
+    "@types/node": "^20.0.0",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/pg": "^8.20.0",
+    "@types/supertest": "^6.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0",
+    "pg": "^8.21.0",
+    "pg-mem": "^3.0.2",
+    "prettier": "^3.3.0",
+    "publint": "^0.3.21",
+    "rimraf": "^6.0.0",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.2.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.0"
+  },
+  "type": "commonjs",
+  "typesVersions": {
+    "*": {
+      "core": [
+        "./dist/cjs/core/index.d.ts"
+      ],
+      "auth": [
+        "./dist/cjs/auth/index.d.ts"
+      ],
+      "services": [
+        "./dist/cjs/services/index.d.ts"
+      ],
+      "validation": [
+        "./dist/cjs/validation/index.d.ts"
+      ],
+      "queue": [
+        "./dist/cjs/queue/index.d.ts"
+      ],
+      "i18n": [
+        "./dist/cjs/i18n/index.d.ts"
+      ],
+      "features": [
+        "./dist/cjs/features/index.d.ts"
+      ]
+    }
+  }
+}
