@@ -36,8 +36,12 @@ export class UploadedFileCleanupJob {
   async tick(): Promise<void> {
     const days = this.config.cleanupAfterDays;
     if (!days || days <= 0) return; // cleanup disabled
-    const cutoff = new Date(Date.now() - days * DAY_MS);
-    const runKey = cutoff.toISOString().slice(0, 10);
+    const now = Date.now();
+    const cutoff = new Date(now - days * DAY_MS);
+    // Lock key is the RUN day (not the cutoff): every node firing the same 03:00 tick computes the
+    // same key → exactly one wins. (Keying off the cutoff let two nodes straddling midnight derive
+    // different keys and both run.)
+    const runKey = new Date(now).toISOString().slice(0, 10);
     const run = () => this.purge(cutoff, days);
     if (this.jobs) {
       await this.jobs.runExclusive({ code: 'uploaded-file-orphan-cleanup', runKey, type: JobSchedulerType.SCHEDULE }, run);
