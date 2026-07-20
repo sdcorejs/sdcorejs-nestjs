@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import type { ITenancyStrategy } from './strategy.interface';
 
 /**
- * No-op default — tenancy effectively disabled. Repositories see empty scope and always bypass.
- * Replace via `TenancyModule.forRoot({ strategy: MyTenancyStrategy })` to activate.
+ * Fail-closed default. It leaves unscoped entities unchanged, while a `@Scoped()` entity rejects
+ * access until the consumer configures a strategy that supplies every required scope value.
  */
 @Injectable()
 export class DefaultTenancyStrategy implements ITenancyStrategy {
@@ -11,6 +11,6 @@ export class DefaultTenancyStrategy implements ITenancyStrategy {
     return {};
   }
   shouldBypass(): boolean {
-    return true;
+    return false;
   }
 }

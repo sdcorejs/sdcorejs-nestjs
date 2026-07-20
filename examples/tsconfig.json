@@ -1,0 +1,21 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "..",
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": true,
+    "paths": {
+      "@sdcorejs/nestjs": ["src/index.ts"],
+      "@sdcorejs/nestjs/core": ["src/core/index.ts"],
+      "@sdcorejs/nestjs/auth": ["src/auth/index.ts"],
+      "@sdcorejs/nestjs/services": ["src/services/index.ts"],
+      "@sdcorejs/nestjs/validation": ["src/validation/index.ts"],
+      "@sdcorejs/nestjs/queue": ["src/queue/index.ts"],
+      "@sdcorejs/nestjs/i18n": ["src/i18n/index.ts"],
+      "@sdcorejs/nestjs/features": ["src/features/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["../node_modules", "../dist", "../coverage"]
+}

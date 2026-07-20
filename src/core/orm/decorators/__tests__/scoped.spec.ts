@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { Scoped, getScopedColumns, SCOPED_METADATA } from '../scoped.decorator';
+import { Scoped, getScopedColumnMetadata, getScopedColumns, SCOPED_METADATA } from '../scoped.decorator';
 
 describe('@Scoped', () => {
   it('sets per-property metadata', () => {
@@ -16,6 +16,18 @@ describe('@Scoped', () => {
       otherField!: string;
     }
     expect(getScopedColumns(Multi).sort()).toEqual(['departmentCode', 'tenantCode']);
+  });
+
+  it('marks scopes required by default and preserves explicit optional metadata', () => {
+    class Target {
+      @Scoped() tenantCode!: string;
+      @Scoped({ required: false }) departmentCode?: string;
+    }
+
+    expect(getScopedColumnMetadata(Target)).toEqual([
+      { propertyName: 'tenantCode', required: true },
+      { propertyName: 'departmentCode', required: false },
+    ]);
   });
 
   it('getScopedColumns returns [] when no decorator applied', () => {

@@ -3,7 +3,7 @@ import type { Brackets, ObjectLiteral } from 'typeorm';
 export interface BaseRepositoryArgs<T = unknown> {
   /** Relations to join + select (supports nested via dot-paths, e.g. `creator.team`). */
   relations?: string[];
-  /** Include soft-deleted rows (`deletedAt IS NOT NULL`). */
+  /** Include active and soft-deleted rows. TypeORM excludes soft-deleted rows by default. */
   withDeleted?: boolean;
   /** Custom `andWhere` clauses prepended to the filter chain. Use for non-trivial joins. */
   andWheres?: {

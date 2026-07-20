@@ -4,7 +4,8 @@ export * from './sd-core.types';
 // Re-export commonly-needed pieces for ergonomic root import. Sub-paths remain the canonical
 // import points for the full surface area of each module.
 export { ContextService } from './core/context/context.service';
-export { CONTEXT_HEADERS_CONFIG } from './core/context/tokens';
+export { defaultVerifiedPrincipalResolver } from './core/context/identity.resolver';
+export { CONTEXT_HEADERS_CONFIG, CONTEXT_IDENTITY_CONFIG } from './core/context/tokens';
 export { TENANCY_STRATEGY } from './core/tenancy/tokens';
 export { AUDIT_STRATEGY } from './core/audit/tokens';
 export { PERMISSION_STRATEGY, PERMISSION_METADATA_KEY } from './auth/permission/tokens';
@@ -18,4 +19,13 @@ export { I18N_RESOLVER, LANGUAGE_RESOLVER, type II18nResolver, type ILanguageRes
 export type { ITenancyStrategy } from './core/tenancy/strategy.interface';
 export type { IAuditStrategy } from './core/audit/strategy.interface';
 export type { IPermissionStrategy } from './auth/permission/strategy.interface';
-export type { RequestContext, HeadersConfig } from './core/context/types';
+export type {
+  ContextIdentityOptions,
+  HeadersConfig,
+  IdentityContextSource,
+  RequestContext,
+  ResolvedContextIdentity,
+  ResolvedContextIdentityOptions,
+  TrustedHeaderIdentityOptions,
+  VerifiedPrincipalResolver,
+} from './core/context/types';

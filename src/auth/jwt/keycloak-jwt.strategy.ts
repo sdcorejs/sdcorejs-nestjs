@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, type SecretOrKeyProvider, Strategy, type StrategyOptionsWithoutRequest } from 'passport-jwt';
+import { type SecretOrKeyProvider, Strategy, type StrategyOptionsWithoutRequest } from 'passport-jwt';
+import { createJwtFromRequest } from './jwt-extractor';
 import { JWT_CONFIG, type JwtConfig, type JwtPayload } from './types';
 
 /** Minimal slice of a jwks-rsa client we depend on — kept loose so the type graph stays clean. */
@@ -123,7 +124,7 @@ export class KeycloakJwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     };
 
     const options: StrategyOptionsWithoutRequest = {
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: createJwtFromRequest(cfg.cookieName),
       ignoreExpiration: false,
       algorithms: (jwks.algorithms ?? ['RS256']) as StrategyOptionsWithoutRequest['algorithms'],
       secretOrKeyProvider,

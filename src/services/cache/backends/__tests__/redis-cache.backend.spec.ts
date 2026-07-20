@@ -14,13 +14,22 @@ jest.mock('ioredis', () => {
 });
 
 import { RedisCacheBackend } from '../redis-cache.backend';
+import { InvalidRedisCacheKeyPrefixError } from '../../errors';
 // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
 const client = (require('ioredis') as any).__client;
 
 describe('RedisCacheBackend', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  const make = (defaultTtl = 60) => new RedisCacheBackend({ keyPrefix: 'p:' } as never, defaultTtl);
+  const make = (defaultTtl = 60) => new RedisCacheBackend({ keyPrefix: 'p:' }, defaultTtl);
+
+  it.each([undefined, '', '   ', 'p:*', 'p:?', 'p:[ab]', 'p:]ab', 'p:\\'])(
+    'rejects a missing, blank, or pattern-capable key prefix before creating a client (%p)',
+    (keyPrefix) => {
+      const options = keyPrefix === undefined ? undefined : { keyPrefix };
+      expect(() => new RedisCacheBackend(options as never, 60)).toThrow(InvalidRedisCacheKeyPrefixError);
+    },
+  );
 
   it('get parses a JSON hit and prefixes the key', async () => {
     client.get.mockResolvedValueOnce(JSON.stringify({ a: 1 }));

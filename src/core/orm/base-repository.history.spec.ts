@@ -9,15 +9,20 @@ class TestEntity {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function makeRepoMock(): any {
+  let current = { id: 'id1', name: 'old' };
   return {
-    metadata: { tableName: 'test_table' },
+    metadata: { tableName: 'test_table', tablePath: 'audit.test_table' },
     create: jest.fn((e: unknown) => e),
     save: jest.fn(async (e: { id?: string }) => ({ id: e.id ?? 'new-id', ...e })),
-    findOne: jest.fn(async () => ({ id: 'id1', name: 'old' })),
+    findOne: jest.fn(async () => ({ ...current })),
     find: jest.fn(async () => [
       { id: 'id1', name: 'o1' },
       { id: 'id2', name: 'o2' },
     ]),
+    update: jest.fn(async (_where: unknown, patch: Record<string, unknown>) => {
+      current = { ...current, ...patch };
+      return { affected: 1 };
+    }),
     delete: jest.fn(async () => ({ affected: 2 })),
   };
 }
@@ -37,7 +42,15 @@ describe('BaseRepository history hook', () => {
 
   beforeEach(() => {
     repoMock = makeRepoMock();
-    ds = { getRepository: jest.fn(() => repoMock) };
+    const queryRunner = {
+      manager: { getRepository: jest.fn(() => repoMock) },
+      connect: jest.fn(async () => undefined),
+      startTransaction: jest.fn(async () => undefined),
+      commitTransaction: jest.fn(async () => undefined),
+      rollbackTransaction: jest.fn(async () => undefined),
+      release: jest.fn(async () => undefined),
+    };
+    ds = { getRepository: jest.fn(() => repoMock), createQueryRunner: jest.fn(() => queryRunner) };
     recorder = { record: jest.fn(async () => undefined) };
     // Reset the global recorder so the fallback test is deterministic.
     registerHistoryRecorder(undefined as unknown as IHistoryRecorder);
@@ -48,7 +61,7 @@ describe('BaseRepository history hook', () => {
     await repo.create({ name: 'a' } as Partial<TestEntity>);
     expect(recorder.record).toHaveBeenCalledTimes(1);
     const entry = recorder.record.mock.calls[0][0] as HistoryEntry;
-    expect(entry).toMatchObject({ table: 'test_table', type: 'CREATE', tableId: 'new-id', fromData: null });
+    expect(entry).toMatchObject({ table: 'audit.test_table', type: 'CREATE', tableId: 'new-id', fromData: null });
     expect(entry.toData).toMatchObject({ id: 'new-id', name: 'a' });
   });
 
@@ -57,7 +70,7 @@ describe('BaseRepository history hook', () => {
     await repo.update({ id: 'id1', name: 'b' } as Partial<TestEntity>);
     expect(repoMock.findOne).toHaveBeenCalled();
     const entry = recorder.record.mock.calls[0][0] as HistoryEntry;
-    expect(entry).toMatchObject({ table: 'test_table', type: 'UPDATE', tableId: 'id1' });
+    expect(entry).toMatchObject({ table: 'audit.test_table', type: 'UPDATE', tableId: 'id1' });
     expect(entry.fromData).toMatchObject({ id: 'id1', name: 'old' });
     expect(entry.toData).toMatchObject({ id: 'id1', name: 'b' });
   });
@@ -76,7 +89,7 @@ describe('BaseRepository history hook', () => {
     await repo.create({ name: 'a' } as Partial<TestEntity>);
     await repo.update({ id: 'id1', name: 'b' } as Partial<TestEntity>);
     expect(recorder.record).not.toHaveBeenCalled();
-    expect(repoMock.findOne).not.toHaveBeenCalled();
+    expect(repoMock.findOne).toHaveBeenCalledTimes(1);
   });
 
   it('falls back to the globally-registered recorder when none is passed', async () => {

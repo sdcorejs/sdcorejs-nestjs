@@ -1,4 +1,5 @@
-import { type FindOptionsWhere, In, type ObjectLiteral, type QueryRunner } from 'typeorm';
+import { NotFoundException } from '@nestjs/common';
+import { type ObjectLiteral, type QueryRunner } from 'typeorm';
 import type { DeepPartial } from 'typeorm';
 import type { Filter, PagingReq, PagingRes } from '@sdcorejs/utils/models';
 import type { IBaseRepository } from './base-repository.interface';
@@ -7,6 +8,7 @@ import type { BaseRepositoryArgs } from './types/repository-args.types';
 import type { Dto } from './types/dto.types';
 import type { ClassRef } from './types/class-ref.types';
 import { getSchema, getSchemaProps, type SchemaOptions, type SchemaPropOptions } from './decorators/schema.decorator';
+import { apiError } from './types/api-response.types';
 
 /**
  * Generic service layer over a `BaseRepository`. Maps entities to DTOs via the abstract
@@ -55,7 +57,6 @@ export abstract class BaseService<T extends ObjectLiteral, TDto extends Dto> imp
   }
 
   async update(id: string, entity: DeepPartial<T>, qr?: QueryRunner): Promise<T> {
-    await this.repository.detail(id);
     return this.repository.update({ ...entity, id } as DeepPartial<T>, qr);
   }
 
@@ -94,13 +95,19 @@ export abstract class BaseService<T extends ObjectLiteral, TDto extends Dto> imp
   }
 
   private async collectDtos(id: string, allow: (dto: TDto) => boolean): Promise<TDto[]> {
-    const ids = id
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const ids = Array.from(
+      new Set(
+        id
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
+      ),
+    );
     if (!ids.length) return [];
-    const where: FindOptionsWhere<T> = { id: In(ids) } as never;
-    const entities = await this.repository.repository.find({ where, withDeleted: true });
+    const entities = await this.repository.findByIds(ids, { withDeleted: true });
+    if (entities.length !== ids.length) {
+      throw new NotFoundException(apiError('core.repository.not-found', 'Resource not found'));
+    }
     return entities.map((e) => this.mapDTO(e)).filter((d): d is TDto => !!d && allow(d));
   }
 }

@@ -1,6 +1,6 @@
 import * as orm from './core/orm';
 import * as context from './core/context';
-import * as cache from './services/cache'; // eslint-disable-line @typescript-eslint/no-unused-vars
+import * as cache from './services/cache';
 import * as validation from './validation';
 import * as i18n from './i18n';
 
@@ -26,6 +26,12 @@ describe('1.0.0 public API — internal symbols are not leaked', () => {
   });
   it('context drops DEFAULT_HEADERS_CONFIG', () => {
     undef(context as Record<string, unknown>, ['DEFAULT_HEADERS_CONFIG']);
+    const c = context as Record<string, unknown>;
+    expect(c.CONTEXT_IDENTITY_CONFIG).toBeDefined();
+    expect(c.defaultVerifiedPrincipalResolver).toBeDefined();
+  });
+  it('cache keeps its scoped decorator surface public', () => {
+    expect((cache as Record<string, unknown>).Cached).toBeDefined();
   });
   it('validation drops toIssues but keeps parseZod', () => {
     undef(validation as Record<string, unknown>, ['toIssues']);

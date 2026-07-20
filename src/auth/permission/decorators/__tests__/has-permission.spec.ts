@@ -7,7 +7,9 @@ describe('@HasPermission / @HasAnyPermission', () => {
   it('@HasPermission sets metadata with single code', () => {
     class C {
       @HasPermission('product:create')
-      m() {}
+      m(): void {
+        return;
+      }
     }
     const meta = Reflect.getMetadata(PERMISSION_METADATA_KEY, C.prototype.m);
     expect(meta).toEqual(['product:create']);
@@ -16,7 +18,9 @@ describe('@HasPermission / @HasAnyPermission', () => {
   it('@HasAnyPermission sets metadata with multiple codes', () => {
     class C {
       @HasAnyPermission('a', 'b', 'c')
-      m() {}
+      m(): void {
+        return;
+      }
     }
     const meta = Reflect.getMetadata(PERMISSION_METADATA_KEY, C.prototype.m);
     expect(meta).toEqual(['a', 'b', 'c']);

@@ -8,11 +8,11 @@ export interface RegisteredTenancy {
 }
 
 /**
- * Held on `globalThis` under a global symbol — NOT a module-level `let` — because the package ships
- * one bundle per subpath entry (`orm`, `tenancy`, …) with no code-splitting, so a module-level
- * singleton would be DUPLICATED across bundles: `TenancyModule` (tenancy entry) would register into
- * one copy while `BaseRepository` (orm entry) read another, and tenancy would silently never activate.
- * A `globalThis` slot keyed by `Symbol.for` is shared across every bundle copy in the process.
+ * Held on `globalThis` under a global symbol — NOT a module-level `let` — because consumers can load
+ * the package through different public subpaths or physical dependency copies. A module-level
+ * singleton could then be duplicated: `TenancyModule` would register into one graph while
+ * `BaseRepository` read another, and tenancy would silently never activate. A `globalThis` slot
+ * keyed by `Symbol.for` is shared across every package graph in the process.
  */
 const SLOT = Symbol.for('@sdcorejs/nestjs:tenancy-registry');
 interface Holder {

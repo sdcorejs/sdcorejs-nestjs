@@ -1,28 +1,87 @@
-import type { Readable } from 'node:stream';
+import type { RequestContext } from '../../core/context/types';
+import type { RemoteCloneOptions } from './remote-fetcher';
 
-/** Runtime configuration for the uploaded-file module. */
+/** Authorized operation evaluated by the uploaded-file policy. */
+export type UploadedFileOperation = 'create' | 'read' | 'update' | 'mark-used' | 'delete' | 'clone';
+
+/** Bounded policy result; mandatory tenant/department predicates always remain in force. */
+export type UploadedFileAccessDecision = 'owner' | 'tenant' | 'deny';
+
+/** Trusted tenant, optional department, and owner dimensions for an uploaded-file request. */
+export interface UploadedFileScope {
+  /** Mandatory tenant boundary. */
+  tenantCode: string;
+  /** Optional narrower tenant boundary. */
+  departmentCode?: string;
+  /** Mandatory owning user. */
+  userId: string;
+}
+
+/** Input supplied to the consumer authorization policy after scope normalization. */
+export interface UploadedFileAuthorizationRequest {
+  /** Requested service operation. */
+  operation: UploadedFileOperation;
+  /** Current trusted request context. */
+  context: Readonly<RequestContext>;
+  /** Trusted tenant/department/owner scope. */
+  scope: Readonly<UploadedFileScope>;
+  /** Exact row ids involved in the request, bounded by the public batch limit. */
+  resourceIds: readonly string[];
+  /** Exact storage references involved in the request, bounded by the public batch limit. */
+  storageReferences: readonly string[];
+}
+
+/**
+ * Query-safe sharing policy. It returns only a bounded access level; mandatory tenant/department
+ * predicates are always added by the library and cannot be replaced with raw SQL.
+ */
+export type UploadedFileAuthorizationPolicy = (
+  request: UploadedFileAuthorizationRequest,
+) => UploadedFileAccessDecision | Promise<UploadedFileAccessDecision>;
+
+/** Runtime configuration for the uploaded-file module. Secure defaults are applied by the module. */
 export interface UploadedFileConfig {
-  /** `'s3'` when S3 creds are present, else `'local'`. Auto-detected from creds when omitted. */
+  /** Auto-detects S3 from a complete explicit credential pair; set `'s3'` to use the AWS default credential chain. */
   driver?: 's3' | 'local';
+  /** Optional explicit AWS access-key id. Must be supplied together with `accessKey`. */
   accessId?: string;
+  /** Optional explicit AWS secret access key. Must be supplied together with `accessId`. */
   accessKey?: string;
+  /** Optional AWS region. Omit to use the AWS SDK v3 default region provider chain. */
+  region?: string;
+  /** Required and non-blank whenever the resolved driver is S3. */
   bucket?: string;
-  /** Primary folder prefix for permanent files. Default `'core'`. */
+  /** Primary object-key prefix. Default `'core'`; traversal components are rejected at startup. */
   folder?: string;
-  /** Base host for the local driver's public URLs (e.g. `https://api.example.com/`). */
+  /** Absolute or relative local storage root. Default `<cwd>/upload`; canonicalized before use. */
+  localRoot?: string;
+  /** Base host for authenticated download URLs. */
   host?: string;
-  /** Public CDN base URL used to build the returned `cdn` field for the S3 driver. */
+  /** Public CDN base URL. Used only when `publicFiles` is explicitly enabled. */
   cdnBaseUrl?: string;
+  /** Explicit opt-in for unauthenticated/public object URLs. Default `false`. */
+  publicFiles?: boolean;
+  /** Route segment appended to `host` for private downloads. Default `uploaded-file`. */
+  downloadPath?: string;
+  /** Hard service-level size limit. Values above the library ceiling are clamped. */
+  maxFileSizeBytes?: number;
+  /** Server-side MIME allowlist. Defaults to common image/document formats. */
+  allowedMimeTypes?: readonly string[];
+  /** Practical magic-byte/UTF-8 validation. Default `true`. */
+  validateMagicBytes?: boolean;
+  /** Remote cloning is disabled unless `enabled: true`; every hop is independently validated. */
+  remoteClone?: RemoteCloneOptions;
+  /** Optional trusted mapping from request context to file tenant/owner scope. */
+  resolveScope?: (context: Readonly<RequestContext>) => Partial<UploadedFileScope>;
+  /** Defaults to owner-only. A policy may grant same-scope tenant access but never cross-tenant access. */
+  authorizationPolicy?: UploadedFileAuthorizationPolicy;
   /**
    * Days after which never-attached files (`isUsed = false`) are purged by a daily 03:00 cron.
-   * Omit (or `<= 0`) to disable cleanup entirely — nothing is deleted. When set, the host MUST
-   * import `@nestjs/schedule` `ScheduleModule.forRoot()` (the cron is a fixed `@Cron('0 3 * * *')`).
-   * When the job-scheduler feature is also wired, each sweep is guarded by a distributed DB lock so
-   * only one instance purges; otherwise it runs directly.
+   * Omit (or `<= 0`) to disable age-based purging. Durable pending deletions are still retried.
+   * Temporary uploads require a positive finite value so they always have a tracked lifecycle.
    */
   cleanupAfterDays?: number;
 }
-export const UPLOADED_FILE_CONFIG = Symbol('UPLOADED_FILE_CONFIG');
 
 export interface UploadedFileResult {
   /** Persisted `uploaded_file` row id (UUID). */
@@ -41,16 +100,20 @@ export interface UploadedFileMeta {
   type?: string;
 }
 
-/** Storage driver contract — same surface for S3 and local-disk implementations. */
-export interface IUploadedFileStorage {
-  upload(buffer: Buffer, fileName?: string, meta?: UploadedFileMeta): Promise<UploadedFileResult>;
-  cloneFromUrl(url: string, fileName?: string): Promise<UploadedFileResult>;
-  uploadTemporary(buffer: Buffer, fileName?: string): Promise<{ key: string; cdn: string }>;
-  download(key: string): Readable;
-  downloadByFolder(folder: string, key: string): Readable;
-  useFiles(keyOrCdns: string[], entity?: string, entityId?: string): Promise<void>;
-  changeFiles(olds: string[], news: string[], entity?: string, entityId?: string): Promise<void>;
-  /** Mark the given `uploaded_file` rows used (by id), optionally stamping provenance. */
-  markUsed(ids: string[], meta?: UploadedFileMeta): Promise<void>;
+/** Optional server-validated attributes for one upload. */
+export interface UploadedFileUploadOptions {
+  /** Untrusted client-declared MIME; validated against allowlist, extension, and signature. */
+  contentType?: string;
 }
-export const IUploadedFileStorage = Symbol('IUploadedFileStorage');
+
+/** Maximum number of IDs or storage references accepted by one public batch operation. */
+export const UPLOADED_FILE_BATCH_LIMIT = 100;
+
+/** Maximum length of one exact storage key/private URL reference accepted by batch operations. */
+export const UPLOADED_FILE_REFERENCE_MAX_LENGTH = 1024;
+
+/** SSRF-hardened, bounded configuration for explicitly enabled remote cloning. */
+export type UploadedFileRemoteCloneConfig = RemoteCloneOptions;
+
+/** DI token for the resolved {@link UploadedFileConfig}. */
+export const UPLOADED_FILE_CONFIG = Symbol('UPLOADED_FILE_CONFIG');

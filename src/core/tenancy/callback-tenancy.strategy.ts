@@ -1,9 +1,12 @@
 import type { RequestContext } from '../context/types';
-import type { ITenancyStrategy } from './strategy.interface';
+import type { ITenancyStrategy, TenancyBypassGrant } from './strategy.interface';
 
 export interface TenancyCallbacks {
   resolve?: (rc: RequestContext) => Record<string, unknown>;
+  /** @deprecated Boolean `true` is rejected. Use `bypassGrant` with verified identity and audit. */
   bypass?: (rc: RequestContext) => boolean;
+  /** Resolve an explicit authorized and auditable privileged-access grant. */
+  bypassGrant?: (rc: RequestContext) => TenancyBypassGrant | undefined;
 }
 
 /** Wraps inline resolve/bypass callbacks into an ITenancyStrategy — lets consumers express tenancy
@@ -15,5 +18,8 @@ export class CallbackTenancyStrategy implements ITenancyStrategy {
   }
   shouldBypass(ctx: RequestContext): boolean {
     return this.cb.bypass?.(ctx) ?? false;
+  }
+  getBypassGrant(ctx: RequestContext): TenancyBypassGrant | undefined {
+    return this.cb.bypassGrant?.(ctx);
   }
 }

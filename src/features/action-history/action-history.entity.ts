@@ -3,16 +3,21 @@ import { ActionHistoryType } from '../action-history/types';
 
 /**
  * Standalone audit-trail row (manual action log with before/after snapshots), distinct from the
- * entity-change `AuditSubscriber` in `@sdcorejs/nestjs/audit`. Consumers must register this entity
+ * entity-change `AuditSubscriber` in `@sdcorejs/nestjs/core`. Consumers must register this entity
  * in their TypeORM datasource `entities` array for the repository to resolve.
  */
 @Entity('action-history')
+@Index(['tenantCode', 'table', 'tableId', 'createdAt'])
 export class ActionHistory {
   @PrimaryColumn({ type: 'uuid' })
   @Generated('uuid')
   id!: string;
 
+  /** Trusted tenant attributed from the persisted resource scope. */
   @Column({ type: 'varchar', length: 64, update: false })
+  tenantCode!: string;
+
+  @Column({ type: 'varchar', length: 256, update: false })
   table!: string;
 
   @Column({ type: 'uuid', update: false })

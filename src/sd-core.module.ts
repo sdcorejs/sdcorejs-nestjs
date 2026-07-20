@@ -15,19 +15,27 @@ import { QueueModule } from './queue/queue.module';
 import type { SdCoreModuleOptions } from './sd-core.types';
 
 /**
- * Top-level module composing every sub-module's `forRoot`. Pass per-sub-module overrides;
- * omitted keys use the no-op / default strategy. The optional `providers` array is a
- * passthrough for consumer-side DI tokens (e.g. `INTERNAL_SECRET_PROVIDER`).
+ * Top-level module composing the always-on context/tenancy/audit/permission/cache/HTTP modules and
+ * explicitly configured feature modules. Security-sensitive features remain disabled or fail
+ * closed when their required strategy/context is absent. The optional `providers` array passes
+ * consumer DI hooks such as `INTERNAL_SECRET_PROVIDER` through the global module.
  *
  * @example
  * SdCoreModule.forRoot({
- *   context: { headers: { tenant: 'X-Org-Id' } },
+ *   context: {
+ *     identity: {
+ *       principalResolver: (principal: unknown) => {
+ *         const claims = AppClaimsSchema.parse(principal); // application-owned strict validator
+ *         return { userId: claims.sub, tenant: claims.tenant };
+ *       },
+ *     },
+ *   },
  *   tenancy: { strategy: MyTenancyStrategy },
  *   audit:   { strategy: MyAuditStrategy },
  *   permission: { strategy: MyPermissionStrategy },
- *   cache:   { ttl: 120 },
- *   http:    { baseURL: 'http://api.internal' },
- *   jwt:     { secret: process.env.JWT_SECRET! },
+ *   cache:   { backend: 'memory', ttl: 120 },
+ *   http:    { baseURL: 'https://api.internal', trustedOrigins: ['https://api.internal'] },
+ *   jwt:     { jwks: { allowedIssuers: [process.env.OIDC_ISSUER!] } },
  *   providers: [
  *     { provide: INTERNAL_SECRET_PROVIDER, useClass: MyInternalSecretProvider },
  *   ],

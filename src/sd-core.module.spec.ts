@@ -4,7 +4,7 @@ import { SdCoreModule } from './sd-core.module';
 import { ContextService } from './core/context/context.service';
 import { CacheService } from './services/cache/cache.service';
 import { HttpService } from './services/http/http.service';
-import { CONTEXT_HEADERS_CONFIG } from './core/context/tokens';
+import { CONTEXT_HEADERS_CONFIG, CONTEXT_IDENTITY_CONFIG } from './core/context/tokens';
 import { TENANCY_STRATEGY } from './core/tenancy/tokens';
 import { AUDIT_STRATEGY } from './core/audit/tokens';
 import { PERMISSION_STRATEGY } from './auth/permission/tokens';
@@ -17,6 +17,7 @@ describe('SdCoreModule.forRoot', () => {
     expect(mod.get(CacheService)).toBeInstanceOf(CacheService);
     expect(mod.get(HttpService)).toBeInstanceOf(HttpService);
     expect(mod.get(CONTEXT_HEADERS_CONFIG)).toBeDefined();
+    expect(mod.get(CONTEXT_IDENTITY_CONFIG)).toMatchObject({ principalResolver: expect.any(Function) });
     expect(mod.get(TENANCY_STRATEGY)).toBeDefined();
     expect(mod.get(AUDIT_STRATEGY)).toBeDefined();
     expect(mod.get(PERMISSION_STRATEGY)).toBeDefined();
@@ -27,15 +28,15 @@ describe('SdCoreModule.forRoot', () => {
     const mod = await Test.createTestingModule({
       imports: [
         SdCoreModule.forRoot({
-          context: { headers: { tenantCode: 'X-Org-Id' } },
+          context: { headers: { tenant: 'X-Org-Id' } },
           cache: { ttl: 120 },
-          http: { baseURL: 'http://api.internal' },
+          http: { baseURL: 'http://api.internal', trustedOrigins: ['http://api.internal'] },
           jwt: { secret: 'test-secret' },
         }),
       ],
     }).compile();
-    const cfg = mod.get<{ tenantCode: string }>(CONTEXT_HEADERS_CONFIG);
-    expect(cfg.tenantCode).toBe('X-Org-Id');
+    const cfg = mod.get<{ tenant: string }>(CONTEXT_HEADERS_CONFIG);
+    expect(cfg.tenant).toBe('X-Org-Id');
     await mod.close();
   });
 

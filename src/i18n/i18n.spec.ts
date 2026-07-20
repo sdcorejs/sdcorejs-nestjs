@@ -1,7 +1,33 @@
 import 'reflect-metadata';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import ts from 'typescript';
 import { DefaultLanguageResolver } from './language.resolver';
 import { SimpleI18nResolver } from './simple-i18n.resolver';
 import { CORE_CATALOG_EN, CORE_CATALOG_VI } from './catalog';
+
+function productionTypeScriptFiles(root: string): string[] {
+  return readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) return productionTypeScriptFiles(path);
+    return entry.isFile() && path.endsWith('.ts') && !path.endsWith('.spec.ts') ? [path] : [];
+  });
+}
+
+function productionCoreCodes(): string[] {
+  const codes = new Set<string>();
+  for (const file of productionTypeScriptFiles(resolve(__dirname, '..'))) {
+    const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, false, ts.ScriptKind.TS);
+    const visit = (node: ts.Node): void => {
+      if ((ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) && node.text.startsWith('core.')) {
+        codes.add(node.text);
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(source);
+  }
+  return [...codes].sort();
+}
 
 describe('DefaultLanguageResolver', () => {
   const r = new DefaultLanguageResolver({ supported: ['en', 'vi'], fallback: 'en' });
@@ -63,5 +89,16 @@ describe('SimpleI18nResolver', () => {
       fallbackLang: 'en',
     });
     expect(r.translate('x.t', 'en', {})).toBe('Hi {name}');
+  });
+});
+
+describe('built-in core catalogs', () => {
+  it('keeps English and Vietnamese keys in parity', () => {
+    expect(Object.keys(CORE_CATALOG_VI).sort()).toEqual(Object.keys(CORE_CATALOG_EN).sort());
+  });
+
+  it('contains every core.* code used by production TypeScript', () => {
+    const missing = productionCoreCodes().filter((code) => !(code in CORE_CATALOG_EN));
+    expect(missing).toEqual([]);
   });
 });

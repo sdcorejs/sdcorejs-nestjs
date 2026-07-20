@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, releases/*]
+    branches: [main, release/*, releases/*]
   pull_request:
     branches: [main]
 
@@ -13,13 +13,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ['18.18', '20.x']
+        node: ['20.x', '22.x']
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Node ${{ matrix.node }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ matrix.node }}
           cache: npm
@@ -36,11 +36,17 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Compile consumer example
+        run: npm run examples:typecheck
+
       - name: Test (with coverage)
         run: npm run test:coverage
 
       - name: Build
         run: npm run build
+
+      - name: Verify package DI identity
+        run: npm run check:package-di
 
       - name: Validate package exports (publint + attw)
         run: npm run check:exports
@@ -48,9 +54,23 @@ jobs:
       - name: Pack (dry-run, sanity check)
         run: npm pack --dry-run
 
+      - name: Install documentation dependencies
+        if: matrix.node == '22.x'
+        run: npm ci --prefix site
+
+      - name: Validate and build documentation
+        if: matrix.node == '22.x'
+        run: npm run docs:check
+
+      - name: Audit dependency trees
+        if: matrix.node == '22.x'
+        run: |
+          npm audit
+          npm audit --prefix site
+
       - name: Upload coverage
-        if: matrix.node == '20.x'
-        uses: codecov/codecov-action@v4
+        if: matrix.node == '22.x'
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
         with:
           files: ./coverage/lcov.info
           fail_ci_if_error: false

@@ -18,6 +18,8 @@ import { PERMISSION_STRATEGY } from '../../src/auth/permission/tokens';
 import { SampleAuditStrategy, SamplePermissionStrategy, SampleTenancyStrategy } from '../fixtures/sample-strategies';
 import { createTestDataSource } from '../fixtures/pg-mem-datasource';
 
+const TEST_GATEWAY_PROOF_HEADER = 'X-Test-Trusted-Gateway';
+
 @SearchableFields({ exact: ['code'], contain: ['name'], activeColumn: 'isActive' })
 @Entity('e2e_product')
 class E2eProduct extends WithAudit(BaseEntity) {
@@ -90,6 +92,15 @@ describe('Consumer-app E2E — full SdCoreModule.forRoot() integration', () => {
     @Module({
       imports: [
         SdCoreModule.forRoot({
+          context: {
+            identity: {
+              trustedHeaders: {
+                // Test-only gateway proof. Production consumers should verify their actual proxy,
+                // mTLS peer, or signed-header boundary here.
+                isTrustedRequest: (incoming) => incoming.headers['x-test-trusted-gateway'] === 'verified',
+              },
+            },
+          },
           tenancy: { strategy: SampleTenancyStrategy },
           audit: { strategy: SampleAuditStrategy },
           permission: { strategy: SamplePermissionStrategy },
@@ -127,6 +138,7 @@ describe('Consumer-app E2E — full SdCoreModule.forRoot() integration', () => {
   it('paging scoped to tenant ACME via X-Tenant header (mapped to entity tenantCode column)', async () => {
     const res = await request(app.getHttpServer())
       .post('/products/paging')
+      .set(TEST_GATEWAY_PROOF_HEADER, 'verified')
       .set('X-Tenant', 'ACME')
       .set('X-User-Id', '00000000-0000-4000-a000-000000000001')
       .send({ pageNumber: 0, pageSize: 10 });
@@ -136,8 +148,17 @@ describe('Consumer-app E2E — full SdCoreModule.forRoot() integration', () => {
   });
 
   it('paging scoped to tenant BETA returns only BETA rows', async () => {
-    const res = await request(app.getHttpServer()).post('/products/paging').set('X-Tenant', 'BETA').send({ pageNumber: 0, pageSize: 10 });
+    const res = await request(app.getHttpServer())
+      .post('/products/paging')
+      .set(TEST_GATEWAY_PROOF_HEADER, 'verified')
+      .set('X-Tenant', 'BETA')
+      .send({ pageNumber: 0, pageSize: 10 });
     expect(res.status).toBe(201);
     expect(res.body.data.total).toBe(1);
+  });
+
+  it('rejects a tenant identity header without trusted-gateway proof', async () => {
+    const res = await request(app.getHttpServer()).post('/products/paging').set('X-Tenant', 'ACME').send({ pageNumber: 0, pageSize: 10 });
+    expect(res.status).toBe(401);
   });
 });

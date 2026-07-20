@@ -16,12 +16,12 @@ jobs:
       id-token: write # npm provenance
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20.x'
           registry-url: 'https://registry.npmjs.org'
@@ -30,16 +30,26 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify (lint + typecheck + test + build + export check)
+      - name: Install documentation dependencies
+        run: npm ci --prefix site
+
+      - name: Verify release
         run: |
           npm run lint
+          npm run format:check
           npm run typecheck
+          npm run examples:typecheck
           npm run test:coverage
           npm run build
+          npm run check:package-di
           npm run check:exports
+          npm pack --dry-run
+          npm run docs:check
+          npm audit
+          npm audit --prefix site
 
       - name: Create Release PR or publish to npm
-        uses: changesets/action@v1
+        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
           version: npm run changeset:version
           publish: npm run release

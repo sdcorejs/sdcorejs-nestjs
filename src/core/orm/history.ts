@@ -5,13 +5,15 @@ export type HistoryActionType = 'CREATE' | 'UPDATE' | 'DELETE';
 
 /** One change to persist to the audit trail, emitted by `BaseRepository` CUD methods. */
 export interface HistoryEntry {
-  /** Resolved TypeORM table name of the changed entity. */
+  /** Stable, schema-qualified TypeORM `EntityMetadata.tablePath` of the changed entity. */
   table: string;
   /** Primary id of the changed row. */
   tableId: string;
   type: HistoryActionType;
   fromData?: unknown;
   toData?: unknown;
+  /** Scope values copied from the persisted resource row, never from request input alone. */
+  resourceScope?: Readonly<Record<string, unknown>>;
   /** Active transaction, so the history row is written in the same unit of work. */
   queryRunner?: QueryRunner;
 }
@@ -25,12 +27,20 @@ export interface IHistoryRecorder {
   record(entry: HistoryEntry): Promise<void>;
 }
 
+/** Raised before commit when a scoped persisted row cannot provide its complete history scope. */
+export class MissingHistoryResourceScopeError extends Error {
+  constructor() {
+    super('A scoped persisted row did not expose the resource scope required for action history');
+    this.name = 'MissingHistoryResourceScopeError';
+  }
+}
+
 /**
- * Held on `globalThis` (not a module-level `let`) because the package ships one bundle per subpath
- * entry with no code-splitting: the action-history entry and the orm entry would otherwise each get
- * their OWN copy of this singleton, so `ActionHistoryModule` would register into one while
- * `BaseRepository` read another and `logHistory` rows would silently never be written. A
- * `Symbol.for` slot on `globalThis` is shared across every bundle copy in the process.
+ * Held on `globalThis` (not a module-level `let`) because consumers can load different public
+ * subpaths or physical dependency copies. The action-history and ORM module graphs could otherwise
+ * receive different copies of this singleton, so `ActionHistoryModule` would register into one
+ * while `BaseRepository` read another and `logHistory` rows would silently never be written. A
+ * `Symbol.for` slot on `globalThis` is shared across every package graph in the process.
  */
 const SLOT = Symbol.for('@sdcorejs/nestjs:history-recorder');
 interface Holder {

@@ -1,7 +1,7 @@
 module.exports = {
   parser: '@typescript-eslint/parser',
   parserOptions: {
-    project: 'tsconfig.json',
+    project: ['tsconfig.json', 'examples/tsconfig.json', 'site/tsconfig.json'],
     sourceType: 'module',
     ecmaVersion: 2022,
   },
@@ -17,10 +17,7 @@ module.exports = {
     '@typescript-eslint/explicit-function-return-type': 'off',
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     '@typescript-eslint/no-explicit-any': 'warn',
-    '@typescript-eslint/no-unused-vars': [
-      'error',
-      { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
-    ],
+    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     '@typescript-eslint/no-empty-function': ['warn', { allow: ['constructors'] }],
     'no-restricted-imports': [
       'error',
@@ -43,16 +40,7 @@ module.exports = {
     ],
     'no-extend-native': 'error',
   },
-  ignorePatterns: [
-    'dist/',
-    'coverage/',
-    'node_modules/',
-    '*.config.ts',
-    '*.config.cjs',
-    'tsup.config.ts',
-    'jest.config.ts',
-    '.sdcorejs/',
-  ],
+  ignorePatterns: ['dist/', 'coverage/', 'node_modules/', '*.config.ts', '*.config.cjs', 'tsup.config.ts', 'jest.config.ts', '.sdcorejs/'],
   overrides: [
     {
       files: ['**/*.spec.ts', '**/*.int-spec.ts', '**/*.e2e-spec.ts', 'test/**/*.ts'],

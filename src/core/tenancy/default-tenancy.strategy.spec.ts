@@ -5,7 +5,7 @@ describe('DefaultTenancyStrategy', () => {
   it('getCurrentScope returns empty object', () => {
     expect(s.getCurrentScope()).toEqual({});
   });
-  it('shouldBypass returns true (tenancy effectively off)', () => {
-    expect(s.shouldBypass()).toBe(true);
+  it('shouldBypass returns false (scoped entities fail closed)', () => {
+    expect(s.shouldBypass()).toBe(false);
   });
 });

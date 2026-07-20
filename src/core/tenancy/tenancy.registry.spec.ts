@@ -3,10 +3,11 @@ import { Scoped } from '../orm/decorators/scoped.decorator';
 import { BaseRepository } from '../orm/base-repository';
 import { registerTenancy, getTenancy } from './tenancy.registry';
 import type { ITenancyStrategy } from './strategy.interface';
+import { UnauthorizedTenancyBypassError } from './errors';
 
 class Foo {
   @Scoped() tenantCode!: string;
-  @Scoped() departmentCode!: string;
+  @Scoped({ required: false }) departmentCode!: string;
 }
 
 class FooRepo extends BaseRepository<Foo> {
@@ -55,17 +56,17 @@ describe('tenancy registry', () => {
     expect(repo.fill({})).toEqual({ tenantCode: 't1', departmentCode: 'd1' });
   });
 
-  it('bypass → no filters, no fill', () => {
+  it('legacy boolean bypass is rejected', () => {
     registerTenancy(withCtx({}, strategy({ tenantCode: 't1' }, true)));
     const repo = new FooRepo();
-    expect(repo.addon([])).toEqual([]);
-    expect(repo.fill({})).toEqual({});
+    expect(() => repo.addon([])).toThrow(UnauthorizedTenancyBypassError);
+    expect(() => repo.fill({})).toThrow(UnauthorizedTenancyBypassError);
   });
 
-  it('no registry → no-op', () => {
+  it('no registry → scoped repository fails closed', () => {
     const repo = new FooRepo();
-    expect(repo.addon([])).toEqual([]);
-    expect(repo.where()).toEqual({});
+    expect(() => repo.addon([])).toThrow();
+    expect(() => repo.where()).toThrow();
   });
 
   it('per-repo tenancyStrategy option overrides the global registry', () => {

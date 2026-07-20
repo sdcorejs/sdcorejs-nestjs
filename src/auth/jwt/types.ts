@@ -42,6 +42,10 @@ export interface JwtConfig {
   secret?: string;
   /** Enable asymmetric JWKS/OIDC verification (Keycloak). Mutually exclusive with `secret`. */
   jwks?: JwksConfig;
+  /**
+   * @deprecated This verification-only library does not issue tokens, so this value is unused.
+   * Put an `exp` claim on tokens in the issuing service; both strategies always verify expiry.
+   */
   expiresIn?: string | number;
   issuer?: string;
   audience?: string;

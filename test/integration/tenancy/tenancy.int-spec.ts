@@ -6,14 +6,15 @@ import { WithAudit } from '../../../src/core/orm/mixins';
 import { Scoped } from '../../../src/core/orm/decorators/scoped.decorator';
 import { BaseRepository } from '../../../src/core/orm/base-repository';
 import { ContextService } from '../../../src/core/context/context.service';
-import type { ITenancyStrategy } from '../../../src/core/tenancy/strategy.interface';
+import { TENANCY_OPERATIONS, type ITenancyStrategy, type TenancyBypassGrant } from '../../../src/core/tenancy/strategy.interface';
 import { buildScopeFilters, applyScopeToEntity, getScopedColumns } from '../../../src/core/tenancy/tenancy.helpers';
+import { InvalidTenancyScopeError, MissingTenancyContextError, UnauthorizedTenancyBypassError } from '../../../src/core/tenancy/errors';
 
 @Entity('scoped_product')
 class ScopedProduct extends WithAudit(BaseEntity) {
   @Column() name!: string;
   @Column() @Scoped() tenantCode!: string;
-  @Column({ nullable: true }) @Scoped() departmentCode?: string;
+  @Column({ nullable: true }) @Scoped({ required: false }) departmentCode?: string;
 }
 
 @Entity('plain_product')
@@ -32,14 +33,27 @@ class PlainRepo extends BaseRepository<PlainProduct> {
   }
 }
 
-const buildStrategy = (scope: Record<string, unknown>, bypass = false): ITenancyStrategy => ({
+const buildStrategy = (scope: Record<string, unknown>, bypass = false, grant?: TenancyBypassGrant): ITenancyStrategy => ({
   getCurrentScope: () => scope,
   shouldBypass: () => bypass,
+  getBypassGrant: () => grant,
+});
+
+const bypassGrant = (audit = jest.fn()): TenancyBypassGrant => ({
+  authorized: true,
+  actorId: 'admin-1',
+  reason: 'test-support',
+  allowedTargets: ['scoped_product'],
+  allowedOperations: TENANCY_OPERATIONS,
+  audit,
 });
 
 describe('Tenancy helpers (pure)', () => {
   it('buildScopeFilters emits EQUAL per scoped column with present value', () => {
-    const filters = buildScopeFilters({ tenantCode: 'A', departmentCode: null }, ['tenantCode', 'departmentCode']);
+    const filters = buildScopeFilters({ tenantCode: 'A', departmentCode: null }, [
+      { propertyName: 'tenantCode', required: true },
+      { propertyName: 'departmentCode', required: false },
+    ]);
     expect(filters).toHaveLength(1);
     expect(filters[0]).toEqual({ field: 'tenantCode', operator: 'EQUAL', data: 'A' });
   });
@@ -49,9 +63,13 @@ describe('Tenancy helpers (pure)', () => {
     expect(filters).toEqual([{ field: 'departmentCode', operator: 'IN', data: ['D1', 'D2'] }]);
   });
 
-  it('buildScopeFilters skips empty array scope value', () => {
+  it('buildScopeFilters preserves empty array as a deny-all scope value', () => {
     const filters = buildScopeFilters({ departmentCode: [] }, ['departmentCode']);
-    expect(filters).toEqual([]);
+    expect(filters).toEqual([{ field: 'departmentCode', operator: 'IN', data: [] }]);
+  });
+
+  it.each(['', '   '])('rejects a blank required scope value %p', (tenantCode) => {
+    expect(() => buildScopeFilters({ tenantCode }, ['tenantCode'])).toThrow(InvalidTenancyScopeError);
   });
 
   it('applyScopeToEntity writes scope values into entity', () => {
@@ -88,10 +106,9 @@ describe('BaseRepository tenancy integration', () => {
     await ds.destroy();
   });
 
-  it('no strategy registered → repository ignores tenancy (zero overhead)', async () => {
+  it('no strategy registered → scoped repository fails closed', async () => {
     const repo = new ScopedRepo(ds, undefined);
-    const r = await repo.paging({ pageNumber: 0, pageSize: 10 });
-    expect(r.total).toBe(3);
+    await expect(repo.paging({ pageNumber: 0, pageSize: 10 })).rejects.toBeInstanceOf(MissingTenancyContextError);
   });
 
   it('strategy active + scope T1 → only T1 rows surface', async () => {
@@ -122,13 +139,23 @@ describe('BaseRepository tenancy integration', () => {
     expect(r.total).toBe(2);
   });
 
-  it('shouldBypass=true skips filter injection', async () => {
+  it('legacy shouldBypass=true is rejected', async () => {
     const repo = new ScopedRepo(ds, {
       tenancyStrategy: buildStrategy({ tenantCode: 'T1' }, true),
       contextService: ctx,
     });
+    await expect(repo.paging({ pageNumber: 0, pageSize: 10 })).rejects.toBeInstanceOf(UnauthorizedTenancyBypassError);
+  });
+
+  it('authorized bypass grant skips filtering and is audited', async () => {
+    const audit = jest.fn();
+    const repo = new ScopedRepo(ds, {
+      tenancyStrategy: buildStrategy({ tenantCode: 'T1' }, false, bypassGrant(audit)),
+      contextService: ctx,
+    });
     const r = await repo.paging({ pageNumber: 0, pageSize: 10 });
     expect(r.total).toBe(3);
+    expect(audit).toHaveBeenCalledWith(expect.objectContaining({ operation: 'read', target: 'scoped_product' }));
   });
 
   it('entity without @Scoped is not scoped even with strategy', async () => {
@@ -148,6 +175,18 @@ describe('BaseRepository tenancy integration', () => {
     });
     const found = await repo.detail(row!.id);
     expect(found?.name).toBe('A1');
+  });
+
+  it('detail excludes soft-deleted rows by default and includes them only when explicitly requested', async () => {
+    const row = await ds.getRepository(ScopedProduct).findOneByOrFail({ name: 'A1' });
+    await ds.getRepository(ScopedProduct).softDelete(row.id);
+    const repo = new ScopedRepo(ds, {
+      tenancyStrategy: buildStrategy({ tenantCode: 'T1' }),
+      contextService: ctx,
+    });
+
+    await expect(repo.detail(row.id)).resolves.toBeNull();
+    await expect(repo.detail(row.id, { withDeleted: true })).resolves.toMatchObject({ id: row.id, name: 'A1' });
   });
 
   it('detail returns null for an out-of-scope row (no cross-tenant id leak)', async () => {
@@ -170,10 +209,10 @@ describe('BaseRepository tenancy integration', () => {
     expect(found?.name).toBe('A2');
   });
 
-  it('detail with shouldBypass ignores scope', async () => {
+  it('detail with authorized bypass ignores scope', async () => {
     const row = await ds.getRepository(ScopedProduct).findOneBy({ name: 'B1' }); // tenant T2
     const repo = new ScopedRepo(ds, {
-      tenancyStrategy: buildStrategy({ tenantCode: 'T1' }, true),
+      tenancyStrategy: buildStrategy({ tenantCode: 'T1' }, false, bypassGrant()),
       contextService: ctx,
     });
     const found = await repo.detail(row!.id);
@@ -205,9 +244,9 @@ describe('BaseRepository tenancy integration', () => {
     expect(saved.departmentCode).toBe('D9');
   });
 
-  it('shouldBypass=true skips auto-fill on create', async () => {
+  it('authorized bypass skips auto-fill on create', async () => {
     const repo = new ScopedRepo(ds, {
-      tenancyStrategy: buildStrategy({ tenantCode: 'T3' }, true),
+      tenancyStrategy: buildStrategy({ tenantCode: 'T3' }, false, bypassGrant()),
       contextService: ctx,
     });
     const saved = await repo.create({ name: 'C', tenantCode: 'T_custom' });

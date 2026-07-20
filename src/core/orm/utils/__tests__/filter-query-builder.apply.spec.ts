@@ -34,6 +34,10 @@ describe('resolveColumnName', () => {
     expect(resolveColumnName('name', 'e', meta())).toBe('e."name"');
   });
 
+  it('uses the mapped database name for a simple property', () => {
+    expect(resolveColumnName('tenantCode', 'e', meta({ col: { databaseName: 'tenant_code' } }))).toBe('e."tenant_code"');
+  });
+
   it('emits a JSON path for a jsonb column with nested segments', () => {
     const out = resolveColumnName('extraData.a.b', 'e', meta({ col: { type: 'jsonb' } }));
     expect(out).toBe(`e."extraData" -> 'a' ->> 'b'`);
@@ -54,6 +58,9 @@ describe('resolveSortColumn', () => {
   });
   it('returns alias.field for an existing column', () => {
     expect(resolveSortColumn('name', 'e', meta({ col: {} }))).toBe('e.name');
+  });
+  it('uses the mapped database name for an existing column', () => {
+    expect(resolveSortColumn('tenantCode', 'e', meta({ col: { databaseName: 'tenant_code' } }))).toBe('e."tenant_code"');
   });
   it('throws when the root relation of a nested sort is unknown', () => {
     expect(() => resolveSortColumn('rel.name', 'e', meta({ rel: undefined }))).toThrow();

@@ -2,7 +2,7 @@
   "name": "@sdcorejs/nestjs-docs",
   "version": "0.0.0",
   "private": true,
-  "description": "Showcase & guides for @sdcorejs/nestjs",
+  "description": "Guides, complete examples, API reference, security, and release documentation for @sdcorejs/nestjs",
   "type": "module",
   "scripts": {
     "docs:dev": "vitepress dev",
@@ -11,5 +11,11 @@
   },
   "devDependencies": {
     "vitepress": "^1.6.4"
+  },
+  "overrides": {
+    "vite": "6.4.3"
+  },
+  "dependencies": {
+    "@sdcorejs/nestjs": "file:.."
   }
 }
