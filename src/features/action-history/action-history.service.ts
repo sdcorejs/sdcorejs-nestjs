@@ -27,6 +27,7 @@ const MAX_SNAPSHOT_DEPTH = 32;
 const MAX_SNAPSHOT_NODES = 10_000;
 const MAX_SNAPSHOT_UTF8_BYTES = 1024 * 1024;
 const REDACTED = '[REDACTED]';
+const UNSAFE_SNAPSHOT_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
 const { isUuid } = ValidationUtilities;
 const DEFAULT_SENSITIVE_FIELDS = new Set([
   'password',
@@ -76,6 +77,14 @@ export class ActionHistorySnapshotLimitError extends Error {
   constructor() {
     super('Action-history snapshot exceeds the safe depth, node, or UTF-8 byte limit');
     this.name = 'ActionHistorySnapshotLimitError';
+  }
+}
+
+/** Thrown before persistence when a snapshot contains accessors or prototype-sensitive keys. */
+export class ActionHistoryUnsafeSnapshotError extends Error {
+  constructor() {
+    super('Action-history snapshot contains an unsafe property');
+    this.name = 'ActionHistoryUnsafeSnapshotError';
   }
 }
 
@@ -230,21 +239,47 @@ export class ActionHistoryService implements IHistoryRecorder {
     const walk = (current: unknown, path: string, depth: number): unknown => {
       consume(current, path, depth);
       if (current === null || typeof current !== 'object') return current;
-      if (current instanceof Date) return current.toISOString();
+      if (current instanceof Date) return Date.prototype.toISOString.call(current);
       if (seen.has(current)) return REDACTED;
       seen.add(current);
-      if (Array.isArray(current)) return current.map((item, index) => walk(item, path ? `${path}.${index}` : String(index), depth + 1));
+      if (Array.isArray(current)) {
+        const output = new Array<unknown>(current.length);
+        for (let index = 0; index < current.length; index += 1) {
+          const descriptor = Object.getOwnPropertyDescriptor(current, String(index));
+          if (!descriptor) continue;
+          if (!('value' in descriptor)) throw new ActionHistoryUnsafeSnapshotError();
+          output[index] = walk(descriptor.value, path ? `${path}.${index}` : String(index), depth + 1);
+        }
+        for (const key of Reflect.ownKeys(current)) {
+          if (key === 'length') continue;
+          if (typeof key === 'string') {
+            const index = Number(key);
+            if (Number.isSafeInteger(index) && index >= 0 && index < current.length && String(index) === key) continue;
+          }
+          const descriptor = Object.getOwnPropertyDescriptor(current, key);
+          if (descriptor?.enumerable) throw new ActionHistoryUnsafeSnapshotError();
+        }
+        return output;
+      }
 
-      const output: Record<string, unknown> = {};
-      for (const [key, child] of Object.entries(current as Record<string, unknown>)) {
+      const output = Object.create(null) as Record<string, unknown>;
+      for (const key of Reflect.ownKeys(current)) {
+        const descriptor = Object.getOwnPropertyDescriptor(current, key);
+        if (!descriptor?.enumerable) continue;
+        if (typeof key !== 'string' || UNSAFE_SNAPSHOT_KEYS.has(key) || !('value' in descriptor)) {
+          throw new ActionHistoryUnsafeSnapshotError();
+        }
+        const child = descriptor.value;
         const childPath = path ? `${path}.${key}` : key;
+        let sanitized: unknown;
         if (isSensitiveField(key) || configured.has(key.toLowerCase()) || configured.has(childPath.toLowerCase())) {
           // Count the redacted node and key path without reading/counting the secret value itself.
           consume(undefined, childPath, depth + 1);
-          output[key] = REDACTED;
+          sanitized = REDACTED;
         } else {
-          output[key] = walk(child, childPath, depth + 1);
+          sanitized = walk(child, childPath, depth + 1);
         }
+        Object.defineProperty(output, key, { value: sanitized, enumerable: true, configurable: true, writable: true });
       }
       return output;
     };

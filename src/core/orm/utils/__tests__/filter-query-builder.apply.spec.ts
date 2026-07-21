@@ -12,9 +12,9 @@ function makeQb() {
 }
 
 // Metadata mock; column/relation lookups are configurable per test.
-function meta(opts: { col?: unknown; rel?: unknown } = {}) {
+function meta(opts: { col?: unknown; cols?: Record<string, unknown>; rel?: unknown } = {}) {
   return {
-    findColumnWithPropertyName: jest.fn(() => opts.col),
+    findColumnWithPropertyName: jest.fn((field: string) => opts.cols?.[field] ?? opts.col),
     findRelationWithPropertyPath: jest.fn(() => opts.rel),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
@@ -102,6 +102,99 @@ describe('applyFilterToQuery — leaf operators', () => {
     expect(Object.values(lastParams(qb))[0]).toEqual(['a', 'b']);
   });
 
+  it('maps empty IN to false and empty NOT_IN to a no-op', () => {
+    const include = makeQb();
+    const exclude = makeQb();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    applyFilterToQuery(include as any, { field: 'id', operator: 'IN', data: [] } as any, 1, 'e', meta());
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    applyFilterToQuery(exclude as any, { field: 'id', operator: 'NOT_IN', data: [] } as any, 2, 'e', meta());
+    expect(lastSql(include)).toBe('1 = 0');
+    expect(exclude.andWhere).not.toHaveBeenCalled();
+  });
+
+  it('resolves a field operand to a quoted RHS column without binding it as a literal', () => {
+    const qb = makeQb();
+    const metadata = meta({ cols: { price: { databaseName: 'price' }, cost: { databaseName: 'unit_cost' } } });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    applyFilterToQuery(qb as any, { field: 'price', operator: 'GREATER_THAN', dataType: 'field', data: 'cost' } as any, 3, 'e', metadata);
+    expect(lastSql(qb)).toBe('e."price" > e."unit_cost"');
+    expect(lastParams(qb)).toEqual({});
+  });
+
+  it('uses PostgreSQL array membership semantics for a field operand', () => {
+    const qb = makeQb();
+    const metadata = meta({ cols: { code: {}, allowedCodes: { isArray: true } } });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    applyFilterToQuery(qb as any, { field: 'code', operator: 'IN', dataType: 'field', data: 'allowedCodes' } as any, 4, 'e', metadata);
+    expect(lastSql(qb)).toContain('ANY(e."allowedCodes")');
+    expect(lastParams(qb)).toEqual({});
+  });
+
+  it('rejects field membership when the RHS column is not a PostgreSQL array', () => {
+    const qb = makeQb();
+    const metadata = meta({ cols: { code: {}, otherCode: { isArray: false } } });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(() =>
+      applyFilterToQuery(qb as any, { field: 'code', operator: 'IN', dataType: 'field', data: 'otherCode' } as any, 4, 'e', metadata),
+    ).toThrow();
+    expect(qb.andWhere).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['date-today', 'TODAY', undefined],
+    ['date-relative', { amount: 2, direction: 'previous', unit: 'day' }, -2],
+  ])('resolves %s operands to deterministic Date parameters', (dataType, data, dayOffset) => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-07-21T10:30:00.000Z'));
+    try {
+      const qb = makeQb();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      applyFilterToQuery(qb as any, { field: 'createdAt', operator: 'GREATER_OR_EQUAL', dataType, data } as any, 5, 'e', meta());
+      const value = Object.values(lastParams(qb))[0];
+      expect(value).toBeInstanceOf(Date);
+      const expected = new Date();
+      expected.setHours(0, 0, 0, 0);
+      if (dayOffset !== undefined) expected.setDate(expected.getDate() + dayOffset);
+      expect((value as Date).getTime()).toBe(expected.getTime());
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('converts explicit numeric timestamp units to Date parameters', () => {
+    const qb = makeQb();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    applyFilterToQuery(
+      qb as any,
+      { field: 'createdAt', operator: 'GREATER_OR_EQUAL', timestampUnit: 'seconds', data: 1_700_000_000 } as any,
+      6,
+      'e',
+      meta({ col: { type: 'timestamp' } }),
+    );
+    expect((Object.values(lastParams(qb))[0] as Date).getTime()).toBe(1_700_000_000_000);
+  });
+
+  it('resolves relative dates back to explicit epoch units for numeric date columns', () => {
+    const qb = makeQb();
+    const now = new Date('2026-07-21T10:30:00.000Z');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    applyFilterToQuery(
+      qb as any,
+      {
+        field: 'createdAtEpoch',
+        operator: 'GREATER_OR_EQUAL',
+        dataType: 'date-relative',
+        timestampUnit: 'seconds',
+        data: { amount: 1, direction: 'previous', unit: 'hour' },
+      } as any,
+      7,
+      'e',
+      meta({ col: { type: 'bigint' } }),
+      now,
+    );
+    expect(Object.values(lastParams(qb))[0]).toBe((now.getTime() - 3_600_000) / 1000);
+  });
+
   it('BETWEEN binds _from and _to', () => {
     const qb = makeQb();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -132,6 +225,13 @@ describe('applyFilterToQuery — leaf operators', () => {
     const qb = makeQb();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(() => applyFilterToQuery(qb as any, { field: 'a;b', operator: 'EQUAL', data: 1 } as any, 0, 'e', meta())).toThrow();
+  });
+
+  it('throws on an unsupported operator when called directly', () => {
+    const qb = makeQb();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(() => applyFilterToQuery(qb as any, { field: 'name', operator: 'EXPLOIT', data: 1 } as any, 0, 'e', meta())).toThrow();
+    expect(qb.andWhere).not.toHaveBeenCalled();
   });
 });
 

@@ -22,7 +22,7 @@
     "library"
   ],
   "engines": {
-    "node": ">=20"
+    "node": "^20.0.0 || ^22.0.0 || ^24.0.0"
   },
   "publishConfig": {
     "access": "public"
@@ -159,7 +159,7 @@
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/schedule": "^6.0.0",
     "@nestjs/typeorm": "^11.0.0",
-    "@sdcorejs/utils": "^1.1.0",
+    "@sdcorejs/utils": "^1.2.0",
     "axios": "^1.18.1",
     "bullmq": "^5.0.0",
     "passport": "^0.7.0",

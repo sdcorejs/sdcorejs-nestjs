@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { ValidationUtilities } from '@sdcorejs/utils/fns';
 
-const { isUuid } = ValidationUtilities;
+const { isUuid, isUuidV4 } = ValidationUtilities;
 
 /**
  * Zod presets for query-string validation. Query params arrive as strings, so these coerce
@@ -24,6 +24,10 @@ export const zPaging = z.object({ pageNumber: zPageNumber, pageSize: zPageSize }
 
 /** UUID string validator (uses the same `isUuid` helper as `BaseRepository`). */
 export const zUuid = (message = 'core.validation.uuid'): z.ZodString => z.string().refine(isUuid, { message }) as unknown as z.ZodString;
+
+/** RFC-variant UUID v4 validator for identifiers that must come from v4 generation. */
+export const zUuidV4 = (message = 'core.validation.uuid-v4'): z.ZodString =>
+  z.string().refine(isUuidV4, { message }) as unknown as z.ZodString;
 
 /** Coerce `'true'`/`'1'`/`'yes'` (case-insensitive) to `true`, anything else string → `false`. */
 export const zBool = z.preprocess((v) => (typeof v === 'string' ? ['true', '1', 'yes'].includes(v.toLowerCase()) : v), z.boolean());

@@ -8,9 +8,9 @@ describe('prepareFilter', () => {
     expect(prepareFilter(null as unknown as Filter[])).toEqual([]);
   });
 
-  it('drops leaf filters without field', () => {
+  it('rejects leaf filters without field', () => {
     const f = [{ operator: 'EQUAL', data: 'x' }] as unknown as Filter[];
-    expect(prepareFilter(f)).toEqual([]);
+    expect(() => prepareFilter(f)).toThrow();
   });
 
   it('drops filters with null/undefined data (except NULL operators)', () => {
@@ -31,20 +31,18 @@ describe('prepareFilter', () => {
     expect(prepareFilter(f)).toHaveLength(2);
   });
 
-  it('drops IN with empty array; keeps IN with values', () => {
+  it('keeps empty IN so the query builder can produce an always-false predicate', () => {
     const f: Filter[] = [
       { field: 'id', operator: 'IN', data: [] },
       { field: 'id', operator: 'IN', data: ['a', 'b'] },
     ];
-    expect(prepareFilter(f)).toHaveLength(1);
+    expect(prepareFilter(f)).toEqual(f);
   });
 
-  it('drops BETWEEN missing from/to; keeps full BETWEEN', () => {
-    const f: Filter[] = [
-      { field: 'price', operator: 'BETWEEN', data: { from: 1, to: undefined } as never },
-      { field: 'price', operator: 'BETWEEN', data: { from: 0, to: 0 } }, // both zero — keep
-    ];
-    expect(prepareFilter(f)).toHaveLength(1);
+  it('rejects malformed BETWEEN and keeps zero bounds', () => {
+    expect(() => prepareFilter([{ field: 'price', operator: 'BETWEEN', data: { from: 1, to: undefined } as never }])).toThrow();
+    const valid: Filter[] = [{ field: 'price', operator: 'BETWEEN', data: { from: 0, to: 0 } }];
+    expect(prepareFilter(valid)).toEqual(valid);
   });
 
   it('recurses into AND/OR; drops empty groups', () => {
@@ -86,6 +84,40 @@ describe('prepareFilter', () => {
     expect(out).toHaveLength(1);
     const orData = (out[0] as { data: Filter[] }).data;
     expect(orData).toHaveLength(2);
+  });
+
+  it('rejects unsupported operators instead of silently treating them as EQUAL', () => {
+    expect(() => prepareFilter([{ field: 'name', operator: 'EXPLOIT', data: 'x' } as never])).toThrow();
+  });
+
+  it('rejects accessor-backed filter properties without invoking the accessor', () => {
+    const getter = jest.fn(() => 'EQUAL');
+    const filter = { field: 'name', data: 'x' } as Record<string, unknown>;
+    Object.defineProperty(filter, 'operator', { enumerable: true, get: getter });
+
+    expect(() => prepareFilter([filter as never])).toThrow();
+    expect(getter).not.toHaveBeenCalled();
+  });
+
+  it('preserves utils 1.2 operand metadata after validation', () => {
+    const filters: Filter[] = [
+      { field: 'price', operator: 'GREATER_THAN', dataType: 'field', data: 'cost' },
+      { field: 'createdAt', operator: 'GREATER_OR_EQUAL', dataType: 'date-today', data: 'TODAY' },
+      {
+        field: 'createdAt',
+        operator: 'GREATER_OR_EQUAL',
+        dataType: 'date-relative',
+        data: { amount: 7, direction: 'previous', unit: 'day' },
+      },
+      { field: 'createdAt', operator: 'GREATER_OR_EQUAL', timestampUnit: 'seconds', data: 1_700_000_000 },
+    ];
+
+    expect(prepareFilter(filters)).toEqual(filters);
+  });
+
+  it('keeps field-backed membership filters for SQL array handling', () => {
+    const filters: Filter[] = [{ field: 'code', operator: 'IN', dataType: 'field', data: 'allowedCodes' }];
+    expect(prepareFilter(filters)).toEqual(filters);
   });
 });
 

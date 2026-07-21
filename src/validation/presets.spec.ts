@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { zPaging, zPageNumber, zPageSize, zUuid, zBool } from './presets';
+import { zPaging, zPageNumber, zPageSize, zUuid, zUuidV4, zBool } from './presets';
 
 describe('zod query presets', () => {
   describe('zPaging', () => {
@@ -31,6 +31,22 @@ describe('zod query presets', () => {
       const r = zUuid('core.validation.uuid').safeParse('not-a-uuid');
       expect(r.success).toBe(false);
       if (!r.success) expect(r.error.issues[0].message).toBe('core.validation.uuid');
+    });
+  });
+
+  describe('zUuidV4', () => {
+    it('accepts only RFC-variant UUID v4 values', () => {
+      const v4 = '11111111-1111-4111-8111-111111111111';
+      expect(zUuidV4().parse(v4)).toBe(v4);
+      expect(zUuid().parse('11111111-1111-1111-8111-111111111111')).toBeTruthy();
+      expect(zUuidV4().safeParse('11111111-1111-1111-8111-111111111111').success).toBe(false);
+      expect(zUuidV4().safeParse('11111111-1111-4111-7111-111111111111').success).toBe(false);
+    });
+
+    it('uses the supplied i18n message', () => {
+      const result = zUuidV4('core.validation.uuid-v4').safeParse('not-a-uuid');
+      expect(result.success).toBe(false);
+      if (!result.success) expect(result.error.issues[0].message).toBe('core.validation.uuid-v4');
     });
   });
 
