@@ -32,8 +32,9 @@
 - **Documentation and verification:** rebuild the VitePress portal with global left navigation,
   complete public API reference, source-backed guides, compile-checked consumer example, security /
   schema / REST references, 1.1.0 release notes, and automated link/API coverage gates.
-- **Development dependency security:** pin the supported audit-clean esbuild 0.27.2 toolchain while
-  retaining the documented, build-tested VitePress/Vite compatibility exception.
+- **Dependency security:** require Axios 1.18+, refresh Express's transitive `body-parser` to 2.3+,
+  and pin the supported audit-clean esbuild 0.27.2 toolchain while retaining the documented,
+  build-tested VitePress/Vite compatibility exception.
 
 ## 1.0.0
 

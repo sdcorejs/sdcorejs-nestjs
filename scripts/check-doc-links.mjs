@@ -74,10 +74,10 @@ function anchorsFor(markdown) {
   return anchors;
 }
 
-function frontmatterLinks(markdown) {
+function frontmatterUrls(markdown) {
   const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(markdown)?.[1];
   if (!frontmatter) return [];
-  return [...frontmatter.matchAll(/^\s*link:\s*['"]?([^'"\s]+)['"]?\s*$/gm)].map((match) => match[1]);
+  return [...frontmatter.matchAll(/^\s*(?:link|src):\s*['"]?([^'"\s]+)['"]?\s*$/gm)].map((match) => match[1]);
 }
 
 const markdownFiles = walk(siteRoot, '.md');
@@ -121,10 +121,12 @@ function validateLink(source, href, label) {
 
   const extension = extname(pathname);
   if (extension && !['.md', '.html'].includes(extension) && !/^\.\d+$/.test(extension)) {
-    const target = raw.startsWith('/')
-      ? join(siteRoot, pathname.replace(/^\//, ''))
-      : resolve(dirname(source), pathname.split('/').pop() ?? '');
-    if (!existsSync(target)) errors.push(`${relative(repositoryRoot, source)}: missing asset '${raw}'`);
+    const targets = raw.startsWith('/')
+      ? [join(siteRoot, 'public', pathname.replace(/^\//, '')), join(siteRoot, pathname.replace(/^\//, ''))]
+      : [resolve(dirname(source), pathname)];
+    if (!targets.some((target) => existsSync(target))) {
+      errors.push(`${relative(repositoryRoot, source)}: missing asset '${raw}'`);
+    }
     return;
   }
 
@@ -139,8 +141,8 @@ for (const file of markdownFiles) {
   for (const match of markdown.matchAll(/\b(?:href|src)\s*=\s*['"]([^'"]+)['"]/gi)) {
     validateLink(file, match[1], 'HTML link');
   }
-  for (const link of frontmatterLinks(markdown)) {
-    validateLink(file, link, 'frontmatter link');
+  for (const url of frontmatterUrls(markdown)) {
+    validateLink(file, url, 'frontmatter URL');
   }
 }
 

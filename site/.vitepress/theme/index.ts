@@ -1,6 +1,7 @@
 import { inBrowser, type Theme } from 'vitepress';
 import DefaultTheme from 'vitepress/theme';
 import { installLocalePreference } from './locale-preference';
+import './styles.css';
 
 export default {
   extends: DefaultTheme,

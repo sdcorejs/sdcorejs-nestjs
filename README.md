@@ -76,7 +76,7 @@ Installed automatically with the package — you never add these yourself:
 | `reflect-metadata` `^0.2`        | Decorator metadata                                              |
 | `rxjs` `^7.8`                    | RxJS                                                            |
 | `@sdcorejs/utils` `^1.1`         | `Filter` / `PagingReq` / `Order` models + `ValidationUtilities` |
-| `axios` `^1.7`                   | HTTP client                                                     |
+| `axios` `^1.18`                  | HTTP client                                                     |
 | `bullmq` `^5`                    | BullMQ core                                                     |
 | `passport` `^0.7`                | Passport                                                        |
 | `passport-jwt` `^4`              | JWT passport strategy                                           |

@@ -1,0 +1,51 @@
+:root {
+  --vp-c-brand-1: #0848b8;
+  --vp-c-brand-2: #0838a8;
+  --vp-c-brand-3: #072f91;
+  --vp-c-brand-soft: rgba(8, 152, 248, 0.14);
+  --vp-nav-logo-height: 30px;
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(120deg, #0898f8 12%, #0848b8 46%, #f83808 74%, #f8a808);
+  --vp-home-hero-image-background-image: radial-gradient(
+    circle,
+    rgba(8, 152, 248, 0.42),
+    rgba(248, 56, 8, 0.24) 58%,
+    transparent 72%
+  );
+  --vp-home-hero-image-filter: blur(42px);
+}
+
+.dark {
+  --vp-c-brand-1: #58c5ff;
+  --vp-c-brand-2: #0898f8;
+  --vp-c-brand-3: #0848b8;
+  --vp-c-brand-soft: rgba(8, 152, 248, 0.18);
+}
+
+.VPNavBarTitle .logo {
+  box-sizing: content-box;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 6px rgba(7, 47, 145, 0.16);
+}
+
+.VPHero .image-src {
+  filter: drop-shadow(0 18px 28px rgba(8, 72, 184, 0.24));
+}
+
+.dark .VPHero .image-src {
+  filter: drop-shadow(0 18px 32px rgba(8, 152, 248, 0.3));
+}
+
+.vp-doc .home-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.vp-doc .home-badges a {
+  display: inline-flex;
+  line-height: 1;
+}

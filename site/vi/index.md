@@ -5,6 +5,9 @@ hero:
   name: '@sdcorejs/nestjs'
   text: 'Các khối xây dựng NestJS an toàn'
   tagline: 'Phân vùng tenant TypeORM theo nguyên tắc từ chối mặc định, danh tính request đáng tin cậy, phân quyền, cô lập cache, HTTP đi, tệp, lịch sử, tác vụ, hàng đợi, validation và i18n — được phát hành qua tám entry point ổn định.'
+  image:
+    src: /images/sdcorejs-logo.png
+    alt: Biểu trưng SDCoreJS
   actions:
     - theme: brand
       text: Bắt đầu
@@ -29,7 +32,7 @@ features:
 
 ## Cài đặt {#install}
 
-<p>
+<p class="home-badges">
   <a href="https://www.npmjs.com/package/@sdcorejs/nestjs"><img src="https://img.shields.io/npm/v/@sdcorejs/nestjs.svg?logo=npm&color=crimson" alt="phiên bản npm" /></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/node/v/@sdcorejs/nestjs.svg?label=node" alt="hỗ trợ Node.js" /></a>
   <a href="https://github.com/sdcorejs/sdcorejs-nestjs/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/@sdcorejs/nestjs.svg" alt="giấy phép MIT" /></a>

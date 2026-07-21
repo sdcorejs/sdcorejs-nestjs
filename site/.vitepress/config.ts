@@ -1,4 +1,5 @@
 import { defineConfig, type DefaultTheme } from 'vitepress';
+import { BRANDING, createBrandHead, createLocaleBrandHead, DOCS_BASE } from './branding';
 import { createNav, createSidebar } from './navigation.mjs';
 
 const search: DefaultTheme.Config['search'] = {
@@ -33,6 +34,8 @@ const search: DefaultTheme.Config['search'] = {
 };
 
 const englishTheme: DefaultTheme.Config = {
+  logo: { src: BRANDING.navLogo, alt: BRANDING.name },
+  siteTitle: BRANDING.navTitle,
   nav: createNav('en'),
   sidebar: createSidebar('en'),
   socialLinks: [{ icon: 'github', link: 'https://github.com/sdcorejs/sdcorejs-nestjs' }],
@@ -98,10 +101,10 @@ export default defineConfig({
   title: '@sdcorejs/nestjs',
   description:
     'Production-oriented NestJS and TypeORM building blocks with fail-closed tenancy, identity, caching, files, jobs, and audit history.',
-  base: '/sdcorejs-nestjs/',
+  base: DOCS_BASE,
   lastUpdated: true,
   cleanUrls: true,
-  head: [['meta', { name: 'theme-color', content: '#e0234e' }]],
+  head: createBrandHead(),
   locales: {
     root: {
       label: 'English',
@@ -112,6 +115,7 @@ export default defineConfig({
       label: 'Tiếng Việt',
       lang: 'vi-VN',
       link: '/vi/',
+      head: createLocaleBrandHead('vi'),
       description:
         'Các khối xây dựng NestJS và TypeORM hướng production với tenancy fail-closed, danh tính tin cậy, cache, tệp, tác vụ và lịch sử audit.',
       themeConfig: vietnameseTheme,

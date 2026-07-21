@@ -5,6 +5,9 @@ hero:
   name: '@sdcorejs/nestjs'
   text: 'Secure NestJS building blocks'
   tagline: 'Fail-closed TypeORM tenancy, trusted request identity, authorization, cache isolation, outbound HTTP, files, history, jobs, queues, validation, and i18n — shipped as eight stable entry points.'
+  image:
+    src: /images/sdcorejs-logo.png
+    alt: SDCoreJS logo
   actions:
     - theme: brand
       text: Get started
@@ -29,7 +32,7 @@ features:
 
 ## Install
 
-<p>
+<p class="home-badges">
   <a href="https://www.npmjs.com/package/@sdcorejs/nestjs"><img src="https://img.shields.io/npm/v/@sdcorejs/nestjs.svg?logo=npm&color=crimson" alt="npm version" /></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/node/v/@sdcorejs/nestjs.svg?label=node" alt="Node.js support" /></a>
   <a href="https://github.com/sdcorejs/sdcorejs-nestjs/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/@sdcorejs/nestjs.svg" alt="MIT license" /></a>
