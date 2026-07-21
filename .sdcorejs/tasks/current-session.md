@@ -1,6 +1,6 @@
 ---
-updated_at: 2026-07-22T03:09:45.1268052+07:00
-status: in_progress
+updated_at: 2026-07-22T03:10:53.4985966+07:00
+status: complete
 track: nestjs
 active_skill: github:yeet + sdcorejs-git
 branch: chore/prepare-release-1.1.1
@@ -18,9 +18,9 @@ Publish the prepared `@sdcorejs/nestjs` 1.1.1 branch as a GitHub pull request.
 - [x] Run full verification and package smoke checks.
 - [x] Commit the release and verify branch readiness.
 - [x] Confirm the GitHub remote and check for an existing pull request.
-- [ ] Push `chore/prepare-release-1.1.1` to `origin`.
-- [ ] Open a draft pull request against the default branch.
-- [ ] Record the pull request URL and final handoff state.
+- [x] Push `chore/prepare-release-1.1.1` to `origin`.
+- [x] Open a draft pull request against the default branch.
+- [x] Record the pull request URL and final handoff state.
 
 ## Current State
 - Implementation commit: `619b948` (`fix(core): adopt @sdcorejs/utils 1.2.0`).
@@ -29,6 +29,7 @@ Publish the prepared `@sdcorejs/nestjs` 1.1.1 branch as a GitHub pull request.
 - Dependency version: `@sdcorejs/utils` 1.2.0.
 - GitHub CLI: authenticated as `sdcorejs`.
 - Pull request preflight: `sdcorejs/sdcorejs-nestjs`, base `main`, no existing PR for this branch.
+- Draft pull request: `https://github.com/sdcorejs/sdcorejs-nestjs/pull/4`.
 - Blocked/skipped: none.
 
 ## Artifacts Touched
@@ -50,4 +51,4 @@ Publish the prepared `@sdcorejs/nestjs` 1.1.1 branch as a GitHub pull request.
 - Full dev audit retains one transitive high advisory in `immutable<=4.3.8`; no production dependency is affected.
 
 ## Resume From Here
-Commit this checkpoint update, verify that no pull request already exists, then push the branch and open a draft pull request.
+Review CI and convert pull request #4 from draft when it is ready for maintainers.
