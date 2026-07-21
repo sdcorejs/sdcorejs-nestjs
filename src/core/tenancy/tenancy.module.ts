@@ -7,12 +7,17 @@ import { registerTenancy } from './tenancy.registry';
 import { TENANCY_STRATEGY } from './tokens';
 
 export interface TenancyModuleOptions {
-  /** Class providing `ITenancyStrategy`. Defaults to `DefaultTenancyStrategy` (no-op). */
+  /**
+   * Class providing `ITenancyStrategy`. The default leaves unscoped entities unchanged and makes
+   * scoped entities fail closed until every required scope value is supplied.
+   */
   strategy?: Type<ITenancyStrategy>;
   /** Inline resolve callback — shorthand for wrapping a `CallbackTenancyStrategy`. Ignored when `strategy` is set. */
   resolve?: TenancyCallbacks['resolve'];
   /** Inline bypass callback — shorthand for wrapping a `CallbackTenancyStrategy`. Ignored when `strategy` is set. */
   bypass?: TenancyCallbacks['bypass'];
+  /** Authorized/auditable bypass grant resolver. Boolean bypass callbacks cannot grant access. */
+  bypassGrant?: TenancyCallbacks['bypassGrant'];
   /** Register the module globally. Default `true`. */
   global?: boolean;
   /** Bind the strategy into the process-wide tenancy registry so every `BaseRepository` uses it. Default `true`. */
@@ -24,10 +29,11 @@ export class TenancyModule {
   static forRoot(options: TenancyModuleOptions = {}): DynamicModule {
     const strategyProvider: Provider = options.strategy
       ? { provide: TENANCY_STRATEGY, useClass: options.strategy }
-      : (options.resolve ?? options.bypass)
+      : (options.resolve ?? options.bypass ?? options.bypassGrant)
         ? {
             provide: TENANCY_STRATEGY,
-            useFactory: () => new CallbackTenancyStrategy({ resolve: options.resolve, bypass: options.bypass }),
+            useFactory: () =>
+              new CallbackTenancyStrategy({ resolve: options.resolve, bypass: options.bypass, bypassGrant: options.bypassGrant }),
           }
         : { provide: TENANCY_STRATEGY, useClass: DefaultTenancyStrategy };
     const providers: Provider[] = [strategyProvider];

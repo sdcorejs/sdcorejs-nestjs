@@ -2,67 +2,74 @@
 layout: home
 
 hero:
-  name: "@sdcorejs/nestjs"
-  text: "The cross-cutting NestJS kernel"
-  tagline: "Base classes, multi-tenancy, audit, permission, request context, cache, HTTP, JWT/Keycloak, Zod validation, queue, i18n — every domain specific injected via DI strategies. Zero hardcoded column names."
+  name: '@sdcorejs/nestjs'
+  text: 'Secure NestJS building blocks'
+  tagline: 'Fail-closed TypeORM tenancy, trusted request identity, authorization, cache isolation, outbound HTTP, files, history, jobs, queues, validation, and i18n — shipped as eight stable entry points.'
+  image:
+    src: /images/sdcorejs-logo.png
+    alt: SDCoreJS logo
   actions:
     - theme: brand
       text: Get started
       link: /guide/getting-started
     - theme: alt
-      text: Feature modules
-      link: /guide/features
+      text: Browse API
+      link: /api/
     - theme: alt
-      text: GitHub
-      link: https://github.com/sdcorejs/sdcorejs-nestjs
+      text: Complete examples
+      link: /examples/
 
 features:
-  - title: One module wires it all
-    details: "SdCoreModule.forRoot() composes context, tenancy, audit, permission, cache and HTTP. Opt-in keys add jwt, i18n, uploadedFile, actionHistory, jobScheduler and queue."
-  - title: Neutral by design
-    details: "No tenantCode/departmentCode baked in. You mark scoped columns with @Scoped() and write strategies; the library never knows your schema."
-  - title: Multi-tenancy that just happens
-    details: "BaseRepository injects a scope filter on every read and auto-fills scoped columns on every write. Scalar means EQUAL, array means IN. detail(id) is scoped too — no cross-tenant id leaks."
-  - title: Permissions via DI strategy
-    details: "IPermissionStrategy.load(ctx) resolves codes once per request; AuthGuard enforces @HasPermission / @HasAnyPermission and syncs user + permissions into the request context."
-  - title: Keycloak / OIDC ready
-    details: "KeycloakJwtStrategy verifies per-token against the issuer's JWKS — multiple realms and tenants work with no shared secret. Symmetric HS* secrets supported too."
-  - title: Drop-in feature modules
-    details: "Uploaded files (S3/local, extraData jsonb, 03:00 cron cleanup), action history, and a distributed cron lock — each with an optional drop-in controller."
-  - title: i18n error envelopes
-    details: "Producers throw i18n codes, not sentences. SdI18nExceptionFilter localizes per request language into a localized error envelope. Built-in en/vi core.* catalogs."
-  - title: Dual ESM + CJS, fully typed
-    details: "8 grouped entry points, per-format type declarations, publint + attw green on every entry. Import only what you use."
+  - title: Fail closed by default
+    details: 'Scoped repositories reject missing tenancy, trusted identity never comes from arbitrary headers, file access defaults to owner-only, and history reads default to deny.'
+  - title: Source-backed documentation
+    details: 'Every public entry point has an API catalog, signatures, defaults, errors, security boundaries, and examples linked to focused guides.'
+  - title: Production-oriented operations
+    details: 'Durable file cleanup, fenced job leases, stable idempotency keys, Redis namespace isolation, PostgreSQL migration guidance, and explicit unsafe boundaries.'
+  - title: NestJS 11 · Node 20+
+    details: 'Dual ESM/CJS output, per-format declarations, PostgreSQL-backed TypeORM features, and CI coverage across Node.js 20 and 22.'
 ---
 
 ## Install
 
-<p>
+<p class="home-badges">
   <a href="https://www.npmjs.com/package/@sdcorejs/nestjs"><img src="https://img.shields.io/npm/v/@sdcorejs/nestjs.svg?logo=npm&color=crimson" alt="npm version" /></a>
-  <a href="https://nodejs.org"><img src="https://img.shields.io/node/v/@sdcorejs/nestjs.svg?label=node" alt="node" /></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/npm/l/@sdcorejs/nestjs.svg" alt="license" /></a>
-  <a href="https://github.com/sdcorejs/sdcorejs-nestjs/actions"><img src="https://img.shields.io/github/actions/workflow/status/sdcorejs/sdcorejs-nestjs/ci.yml?label=CI&logo=github" alt="CI" /></a>
-  <a href="https://github.com/sdcorejs/sdcorejs-nestjs"><img src="https://img.shields.io/badge/coverage-93%25-brightgreen" alt="coverage" /></a>
+  <a href="https://nodejs.org"><img src="https://img.shields.io/node/v/@sdcorejs/nestjs.svg?label=node" alt="Node.js support" /></a>
+  <a href="https://github.com/sdcorejs/sdcorejs-nestjs/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/@sdcorejs/nestjs.svg" alt="MIT license" /></a>
+  <a href="https://github.com/sdcorejs/sdcorejs-nestjs/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/sdcorejs/sdcorejs-nestjs/ci.yml?label=CI&logo=github" alt="CI status" /></a>
 </p>
 
 ```bash
 npm install @sdcorejs/nestjs
 ```
 
-**Only two peer dependencies** — `@nestjs/common ^11` and `@nestjs/core ^11`, which every NestJS app
-already has. Everything else is bundled and installs automatically. Optional feature libs (`ioredis`,
-`zod@^4`, `jwks-rsa@^4` + `jsonwebtoken`, `aws-sdk`) ship as `optionalDependencies`.
-See [Getting started](/guide/getting-started) for the full matrix.
+The only peer dependencies are `@nestjs/common ^11` and `@nestjs/core ^11`. Zod v4 is installed as a
+required runtime because validation is part of the root API; `ioredis`, `jwks-rsa`, `jsonwebtoken`,
+and `@aws-sdk/client-s3` remain optional feature runtimes.
+Start with [installation](/guide/installation), then copy the [complete application example](/examples/complete-app).
 
-## The 8 entry points
+## Choose the right entry point
 
-| Import | What's inside |
-|---|---|
-| `@sdcorejs/nestjs` | `SdCoreModule.forRoot({...})` + ergonomic re-exports |
-| `@sdcorejs/nestjs/core` | ORM base classes, request context, multi-tenancy, audit |
-| `@sdcorejs/nestjs/auth` | JWT / Keycloak strategies + permission guards & decorators |
-| `@sdcorejs/nestjs/services` | context-aware HTTP client + cache (memory / redis) |
-| `@sdcorejs/nestjs/queue` | BullMQ `QueueModule` + `SdWorkerHost` |
-| `@sdcorejs/nestjs/validation` | `ZodValidationGuard` + query presets (Zod v4) |
-| `@sdcorejs/nestjs/i18n` | i18n resolver + exception filter + en/vi `core.*` catalogs |
-| `@sdcorejs/nestjs/features` | `UploadedFile`, `ActionHistory`, `JobScheduler` + drop-in controllers |
+| Import | Use it for |
+| --- | --- |
+| `@sdcorejs/nestjs` | `SdCoreModule`, common context/security primitives, response and validation helpers |
+| `@sdcorejs/nestjs/core` | ORM, context, tenancy, audit |
+| `@sdcorejs/nestjs/auth` | JWT/JWKS, permissions, internal calls |
+| `@sdcorejs/nestjs/services` | Cache and outbound HTTP |
+| `@sdcorejs/nestjs/validation` | Zod v4 guards and query presets |
+| `@sdcorejs/nestjs/queue` | BullMQ registration and worker base class |
+| `@sdcorejs/nestjs/i18n` | Catalogs, language resolution, localized exception envelopes |
+| `@sdcorejs/nestjs/features` | Uploaded files, action history, distributed job scheduler |
+
+These eight paths are the complete supported export map. Deep imports are intentionally unsupported.
+See the [entry-point reference](/reference/entry-points) and [full API catalog](/api/).
+
+## What changed in 1.1.0
+
+Version 1.1.0 hardens shared-database and shared-infrastructure boundaries: trusted principal
+mapping, fail-closed scoped mutations, cache namespaces, uploaded-file ownership and durable
+cleanup, action-history authorization/redaction, and fenced job leases with stable idempotency keys.
+It requires Node.js 20 or newer and an explicit coordinated migration for existing applications.
+
+[Read the release notes](/releases/1.1.0) · [Upgrade from 1.0](/migrations/1.0-to-1.1) ·
+[Security checklist](/reference/security)

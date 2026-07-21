@@ -1,14 +1,14 @@
 {
   "name": "@sdcorejs/nestjs",
-  "version": "1.0.0",
-  "description": "Neutral NestJS framework library: Base classes, multi-tenancy, audit, permission, request context (AsyncLocalStorage), cache, HTTP client, JWT — all domain specifics injected via DI strategies.",
+  "version": "1.1.0",
+  "description": "Production NestJS and TypeORM building blocks for fail-closed tenancy, trusted identity, authorization, cache, HTTP, files, audit history, jobs, validation, and i18n.",
   "license": "MIT",
   "author": "Trần Thuận Nghĩa",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/sdcorejs/sdcorejs-nestjs.git"
   },
-  "homepage": "https://github.com/sdcorejs/sdcorejs-nestjs#readme",
+  "homepage": "https://sdcorejs.github.io/sdcorejs-nestjs/",
   "bugs": "https://github.com/sdcorejs/sdcorejs-nestjs/issues",
   "keywords": [
     "nestjs",
@@ -22,7 +22,7 @@
     "library"
   ],
   "engines": {
-    "node": ">=18.18"
+    "node": ">=20"
   },
   "publishConfig": {
     "access": "public"
@@ -33,6 +33,10 @@
   "files": [
     "dist",
     "README.md",
+    "SECURITY.md",
+    "docs/migration-1.0.md",
+    "docs/migration-1.1-security-hardening.md",
+    "docs/migration-from-core-be.md",
     "LICENSE",
     "CHANGELOG.md"
   ],
@@ -123,6 +127,7 @@
     "build:types": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
     "build:bundle": "tsup",
+    "check:package-di": "node scripts/check-package-di.mjs",
     "check:exports": "publint --strict && attw --pack .",
     "test": "jest",
     "test:coverage": "jest --coverage",
@@ -131,6 +136,14 @@
     "lint:fix": "eslint . --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
+    "docs:build": "npm --prefix site run docs:build",
+    "docs:typecheck": "tsc -p site/tsconfig.json --noEmit",
+    "docs:check-links": "node scripts/check-doc-links.mjs",
+    "docs:check-locales": "node scripts/check-doc-locales.mjs",
+    "docs:check-api": "node scripts/check-doc-api-coverage.mjs",
+    "docs:sync-locale-anchors": "node scripts/sync-doc-locale-anchors.mjs",
+    "docs:check": "npm run docs:typecheck && npm run docs:check-locales && npm run docs:check-links && npm run docs:check-api && npm run docs:build",
+    "examples:typecheck": "tsc -p examples/tsconfig.json --noEmit",
     "changeset": "changeset",
     "changeset:version": "changeset version",
     "release": "npm run build && changeset publish",
@@ -147,23 +160,22 @@
     "@nestjs/schedule": "^6.0.0",
     "@nestjs/typeorm": "^11.0.0",
     "@sdcorejs/utils": "^1.1.0",
-    "axios": "^1.7.0",
+    "axios": "^1.18.1",
     "bullmq": "^5.0.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0",
-    "typeorm": "^0.3.20"
-  },
-  "optionalDependencies": {
-    "aws-sdk": "^2.0.0",
-    "ioredis": "^5.0.0",
-    "jsonwebtoken": "^9.0.0",
-    "jwks-rsa": "^4.0.0",
+    "typeorm": "^0.3.20",
     "zod": "^4.0.0"
   },
+  "optionalDependencies": {
+    "@aws-sdk/client-s3": "^3.1090.0",
+    "ioredis": "^5.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "jwks-rsa": "^4.0.0"
+  },
   "devDependencies": {
-    "@anatine/esbuild-decorators": "^0.2.19",
     "@arethetypeswrong/cli": "^0.18.3",
     "@changesets/cli": "^2.27.0",
     "@nestjs/common": "^11.0.0",
@@ -175,8 +187,10 @@
     "@types/passport-jwt": "^4.0.1",
     "@types/pg": "^8.20.0",
     "@types/supertest": "^6.0.0",
+    "@swc/core": "^1.15.46",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
+    "esbuild": "0.27.2",
     "eslint": "^8.57.0",
     "jest": "^29.7.0",
     "pg": "^8.21.0",
@@ -188,6 +202,12 @@
     "ts-jest": "^29.2.0",
     "tsup": "^8.3.0",
     "typescript": "^5.6.0"
+  },
+  "overrides": {
+    "@babel/core": "7.29.7",
+    "esbuild": "$esbuild",
+    "js-yaml@<4.0.0": "3.15.0",
+    "js-yaml@>=4.0.0 <5.0.0": "4.3.0"
   },
   "type": "commonjs",
   "typesVersions": {

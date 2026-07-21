@@ -1,4 +1,3 @@
-import { esbuildDecorators } from '@anatine/esbuild-decorators';
 import { defineConfig, type Options } from 'tsup';
 
 const entryMap: Record<string, string> = {
@@ -28,21 +27,20 @@ const external = [
   '@nestjs/bullmq',
   'bullmq',
   '@nestjs/typeorm',
-  'aws-sdk',
+  '@aws-sdk/client-s3',
 ];
 
 const baseConfig: Options = {
   entry: entryMap,
-  splitting: false,
+  // Shared chunks preserve Nest provider/token identity when consumers mix package subpaths.
+  // Without splitting, each bundled entry gets its own ContextService class and Symbol tokens.
+  splitting: true,
   sourcemap: true,
   dts: true,
   target: 'es2022',
   treeshake: true,
   external,
   keepNames: true,
-  // esbuild drops `emitDecoratorMetadata`; this plugin restores it so NestJS type-based DI
-  // and TypeORM column-type inference work in the bundled output.
-  esbuildPlugins: [esbuildDecorators({ tsconfig: 'tsconfig.json' })],
 };
 
 export default defineConfig([

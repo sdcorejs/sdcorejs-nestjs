@@ -11,12 +11,12 @@ const { isUuid } = ValidationUtilities;
 /** Coerce a query string to a non-negative integer page number. Default `0`. */
 export const zPageNumber = z.coerce.number().int().min(0, 'core.validation.page-number.min').default(0);
 
-/** Coerce a query string to a page size in `[1, 1000]`. Default `10`. Matches `BaseRepository` caps. */
+/** Coerce a query string to a page size in `[1, 200]`. Default `10`. Matches `BaseRepository` caps. */
 export const zPageSize = z.coerce
   .number()
   .int()
   .min(1, 'core.validation.page-size.min')
-  .max(1000, 'core.validation.page-size.max')
+  .max(200, 'core.validation.page-size.max')
   .default(10);
 
 /** Paging query preset matching `PagingReq` `pageNumber` / `pageSize`. */

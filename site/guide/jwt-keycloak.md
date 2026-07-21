@@ -1,97 +1,184 @@
-# JWT / Keycloak authentication
+# JWT and Keycloak
 
-`AuthGuard` extends `PassportAuthGuard('jwt')`, so you register a passport-jwt strategy via `JwtModule`
-(wired automatically by `SdCoreModule` when the `jwt` key is set).
+`AuthGuard` extends Passport's `jwt` guard. Enable either symmetric verification or JWKS/OIDC
+verification; do not configure both.
 
-## Keycloak / OIDC (asymmetric, JWKS)
-
-Set `jwt.jwks` and `SdCoreModule` wires `KeycloakJwtStrategy`. The signing key is fetched per-token from
-the issuer's JWKS endpoint, so multiple realms / tenants (different `iss`) work with no shared secret.
-Requires `jwks-rsa@^4` + `jsonwebtoken@^9`.
+## Keycloak or OIDC with JWKS
 
 ```ts
+import { SdCoreModule } from '@sdcorejs/nestjs';
+
+const issuer = process.env.KEYCLOAK_ISSUER;
+if (!issuer) throw new Error('KEYCLOAK_ISSUER is required');
+
 SdCoreModule.forRoot({
   jwt: {
     jwks: {
-      // Static, known realms — exact match:
-      allowedIssuers: [process.env.KEYCLOAK_ISSUER!],
-      // jwksUriFromIssuer defaults to `${iss}/protocol/openid-connect/certs` (Keycloak)
+      allowedIssuers: [issuer],
+      algorithms: ['RS256'],
     },
+    issuer,
+    audience: 'orders-api',
   },
 });
 ```
 
-::: warning An issuer policy is REQUIRED
-You must declare which issuers to trust — set at least one of `allowedIssuers`, `allowedIssuerHosts`,
-or `issuerValidator`. The strategy **throws at construction** otherwise. Without a policy the signing
-key would be fetched from any token-supplied `iss` URL (issuer spoofing + SSRF).
-:::
+The default JWKS URL appends `/protocol/openid-connect/certs` to the token issuer. At least one
+issuer policy is mandatory:
 
-### Dynamic multi-realm (realms created at runtime)
+- `allowedIssuers` for exact, known issuer URLs;
+- `allowedIssuerHosts` for dynamic realms under an exact trusted origin; or
+- `issuerValidator` for an application-owned rule.
 
-A single `iss` is **not** enough — every realm is a distinct issuer (`…/realms/<realm>`). Don't try to
-list them all. Instead pin the Keycloak **origin** with `allowedIssuerHosts`: any realm under a trusted
-host is accepted, and the JWKS is only ever fetched from that host (so SSRF stays closed) even as new
-tenants/realms are provisioned.
+Without a policy, construction fails. This prevents a token-controlled issuer from turning JWKS
+lookup into SSRF. `allowedIssuerHosts: ['https://id.example.com']` compares origins exactly; it does
+not trust lookalike hosts or sibling origins.
+
+The strategy defaults to RS256, cached/rate-limited keys, and a bounded cache of 100 issuer clients.
+
+## Symmetric JWT
 
 ```ts
-jwks: {
-  // Accepts https://kc.example.com/realms/<any-tenant> — no per-realm config:
-  allowedIssuerHosts: ['https://kc.example.com'],
-}
+import { SdCoreModule } from '@sdcorejs/nestjs';
+
+const secret = process.env.JWT_SECRET;
+if (!secret) throw new Error('JWT_SECRET is required');
+
+SdCoreModule.forRoot({
+  jwt: {
+    secret,
+    issuer: 'orders-api',
+    audience: 'orders-web',
+    cookieName: 'access_token',
+  },
+});
 ```
 
-For anything more bespoke (regex, a DB lookup of provisioned realms), use the predicate:
+Bearer extraction always runs first. `cookieName` adds a fallback and requires the application's
+cookie parser middleware. The symmetric strategy rejects configuration without a secret.
+
+## Map the verified principal
+
+The base strategies return the verified payload as `req.user`. Configure
+`context.identity.principalResolver` to map it:
 
 ```ts
-jwks: { issuerValidator: (iss) => /^https:\/\/kc\.example\.com\/realms\/[a-z0-9-]+$/.test(iss) }
+import { SdCoreModule } from '@sdcorejs/nestjs';
+import { z } from 'zod';
+
+const KeycloakClaimsSchema = z.object({
+  sub: z.string().min(1),
+  tenant_code: z.string().min(1).max(64),
+  realm_access: z.object({ roles: z.array(z.string().min(1)).optional() }).optional(),
+});
+
+SdCoreModule.forRoot({
+  context: {
+    identity: {
+      principalResolver: (principal: unknown) => {
+        const claims = KeycloakClaimsSchema.parse(principal);
+        return {
+          userId: claims.sub,
+          tenant: claims.tenant_code,
+          roles: claims.realm_access?.roles ?? [],
+        };
+      },
+    },
+  },
+  jwt: {
+    jwks: { allowedIssuers: [issuer] },
+  },
+});
 ```
 
-The three options compose — an `iss` is accepted if it matches `allowedIssuers`, OR its origin is in
-`allowedIssuerHosts`, OR `issuerValidator(iss)` returns `true`.
+The focused snippet reuses the validated `issuer` constant from the first example.
 
-::: tip JWKS client cache
-One `JwksClient` per issuer is created and reused across requests (signing keys are stable). The
-strategy holds a maximum of **100** clients (LRU-eviction by insertion order) so long-running services
-with `allowedIssuerHosts` don't accumulate unbounded memory as new realms are provisioned over time.
-:::
+## Custom strategy with injected services
 
-::: tip Normalizing allowedIssuerHosts
-Values in `allowedIssuerHosts` are normalized to their bare origin at strategy construction —
-`https://kc.example.com/` and `https://kc.example.com` are treated identically.
-:::
-
-To turn the verified token into your app's user, subclass and override `validate()`:
+When verification must query an application service, subclass the strategy and import `JwtModule`
+directly. The example service below is intentionally minimal but complete; replace its lookup with
+your database call.
 
 ```ts
-import { Inject, Injectable } from '@nestjs/common';
-import { KeycloakJwtStrategy, JWT_CONFIG, type JwtConfig, type JwtPayload } from '@sdcorejs/nestjs/auth';
+import {
+  Inject,
+  Injectable,
+  Module,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { SdCoreModule } from '@sdcorejs/nestjs';
+import {
+  JWT_CONFIG,
+  JwtModule,
+  KeycloakJwtStrategy,
+  type JwtConfig,
+  type JwtPayload,
+} from '@sdcorejs/nestjs/auth';
+import { z } from 'zod';
+
+const AppUserSchema = z.object({ id: z.string().min(1) });
 
 @Injectable()
-export class AppJwtStrategy extends KeycloakJwtStrategy {
-  constructor(@Inject(JWT_CONFIG) cfg: JwtConfig, private readonly users: UserService) {
-    super(cfg);
-  }
-  async validate(payload: JwtPayload) {
-    return {
-      id: payload.sub,
-      email: payload.email,
-      roles: (payload.realm_access as { roles?: string[] })?.roles ?? [],
-    };
+class UsersService {
+  async findBySubject(subject: string): Promise<{ id: string } | undefined> {
+    return subject ? { id: subject } : undefined;
   }
 }
 
-// pass it through JwtModule options when you need constructor deps:
-//   JwtModule.forRoot(config, { strategy: AppJwtStrategy, imports: [UserModule] })
+@Module({ providers: [UsersService], exports: [UsersService] })
+class UsersModule {}
+
+@Injectable()
+class AppJwtStrategy extends KeycloakJwtStrategy {
+  constructor(
+    @Inject(JWT_CONFIG) config: JwtConfig,
+    private readonly users: UsersService,
+  ) {
+    super(config);
+  }
+
+  async validate(payload: JwtPayload) {
+    const user = await this.users.findBySubject(payload.sub);
+    if (!user) throw new UnauthorizedException();
+    return user;
+  }
+}
+
+const appIssuer = process.env.KEYCLOAK_ISSUER;
+if (!appIssuer) throw new Error('KEYCLOAK_ISSUER is required');
+
+const jwtConfig: JwtConfig = {
+  jwks: { allowedIssuers: [appIssuer] },
+};
+
+@Module({
+  imports: [
+    SdCoreModule.forRoot({
+      context: {
+        identity: {
+          principalResolver: (principal: unknown) => ({
+            userId: AppUserSchema.parse(principal).id,
+          }),
+        },
+      },
+    }),
+    JwtModule.forRoot(jwtConfig, {
+      strategy: AppJwtStrategy,
+      imports: [UsersModule],
+    }),
+  ],
+})
+export class AppModule {}
 ```
 
-The object returned from `validate()` becomes `req.user` and is mirrored into `ContextService.user` by
-`AuthGuard`.
+Omit the `jwt` key from `SdCoreModule.forRoot()` in this pattern because `JwtModule` is configured
+separately.
 
-## Symmetric secret (HS\*)
+## Production checklist
 
-Omit `jwks` and pass a `secret` — `SdCoreModule` wires the symmetric `JwtStrategy`:
-
-```ts
-SdCoreModule.forRoot({ jwt: { secret: process.env.JWT_SECRET! } });
-```
+- Use HTTPS and validate `issuer` and `audience` where possible.
+- Keep accepted algorithms narrow.
+- Prefer exact issuer URLs when realms are static.
+- Never decode a token and treat the result as verified identity.
+- Ensure the principal resolver returns the tenant from a trusted claim or database lookup.
+- Keep cookie JWTs `HttpOnly`, `Secure`, and protected against CSRF according to your client flow.

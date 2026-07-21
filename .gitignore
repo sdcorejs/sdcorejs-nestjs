@@ -7,6 +7,7 @@ coverage/
 .DS_Store
 .env
 .env.*
+!.env.example
 .idea/
 .vscode/
 .claude/

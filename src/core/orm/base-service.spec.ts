@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { NotFoundException } from '@nestjs/common';
 import { BaseService } from './base-service';
 import type { IBaseRepository } from './base-repository.interface';
 import { Schema, SchemaProp } from './decorators/schema.decorator';
@@ -26,21 +27,15 @@ class RawEntityClass implements RawEntity {
 }
 
 const makeMockRepo = (entities: RawEntity[]): IBaseRepository<RawEntity> => {
-  const finder = {
-    find: jest.fn(async ({ where }: { where: { id: { _value: string[] } } }) => {
-      const ids = where.id._value ?? [];
-      return entities.filter((e) => ids.includes(e.id));
-    }),
-  };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const repo: any = {
     target: RawEntityClass,
-    repository: finder,
     paging: jest.fn(async () => ({ items: entities, total: entities.length })),
     pagingDeleted: jest.fn(async () => ({ items: entities, total: entities.length })),
     all: jest.fn(async () => entities),
     search: jest.fn(async () => entities),
     detail: jest.fn(async (id: string) => entities.find((e) => e.id === id) ?? null),
+    findByIds: jest.fn(async (ids: string[]) => entities.filter((e) => ids.includes(e.id))),
     create: jest.fn(async (e: Partial<RawEntity>) => e as RawEntity),
     import: jest.fn(async (es: Partial<RawEntity>[]) => es as RawEntity[]),
     update: jest.fn(async (e: Partial<RawEntity>) => e as RawEntity),
@@ -57,12 +52,6 @@ class RawService extends BaseService<RawEntity, RawDto> {
     return { id: e.id, name: e.name, deletable: e.active === true, restorable: e.active === false };
   }
 }
-
-// Patch In() helper because mock filters don't actually use TypeORM In — store raw shape.
-jest.mock('typeorm', () => ({
-  ...jest.requireActual('typeorm'),
-  In: (vals: string[]) => ({ _value: vals }),
-}));
 
 describe('BaseService', () => {
   it('paging maps entities to DTOs', async () => {
@@ -89,11 +78,11 @@ describe('BaseService', () => {
     expect(await svc.detail('missing')).toBeNull();
   });
 
-  it('update fetches first then delegates with merged id', async () => {
+  it('update delegates directly to the repository scoped mutation with merged id', async () => {
     const repo = makeMockRepo([{ id: '1', name: 'old' }]);
     const svc = new RawService(repo);
     await svc.update('1', { name: 'new' });
-    expect(repo.detail).toHaveBeenCalledWith('1');
+    expect(repo.detail).not.toHaveBeenCalled();
     expect(repo.update).toHaveBeenCalledWith({ id: '1', name: 'new' }, undefined);
   });
 
@@ -107,6 +96,17 @@ describe('BaseService', () => {
     expect(removed).toHaveLength(1);
     expect(removed[0].id).toBe('1');
     expect(repo.delete).toHaveBeenCalledWith(['1']);
+  });
+
+  it('fails a mixed scoped batch without revealing which requested id was unavailable', async () => {
+    const repo = makeMockRepo([{ id: '1', name: 'a', active: true }]);
+    const svc = new RawService(repo);
+    const result = svc.delete('1,cross-scope-id');
+    await expect(result).rejects.toBeInstanceOf(NotFoundException);
+    await expect(result).rejects.toMatchObject({
+      response: expect.objectContaining({ message: 'Resource not found' }),
+    });
+    expect(repo.delete).not.toHaveBeenCalled();
   });
 
   it('restore filters dtos by restorable=true', async () => {

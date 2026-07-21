@@ -8,12 +8,13 @@ import { JobSchedulerStatus, JobSchedulerType } from '../job-scheduler/types';
  */
 @Entity('job-scheduler')
 @Index(['code'])
+@Index(['status', 'modifiedAt'])
 export class JobScheduler {
   @PrimaryColumn({ type: 'uuid' })
   @Generated('uuid')
   id!: string;
 
-  /** Atomic lock key: `code` (INITIAL) or `code:runKey` (SCHEDULE). Unique → enforces single-winner. */
+  /** Versioned SHA-256 of the canonical type/code/runKey tuple. Unique → enforces single-winner. */
   @Column({ type: 'varchar', length: 320, update: false, unique: true })
   lockKey!: string;
 
@@ -28,6 +29,10 @@ export class JobScheduler {
 
   @Column({ type: 'enum', enum: JobSchedulerStatus })
   status!: JobSchedulerStatus;
+
+  /** Rotated on every acquire/reclaim; stale workers cannot mutate a lease without it. */
+  @Column({ type: 'uuid' })
+  ownerToken!: string;
 
   @Column({ type: 'jsonb', nullable: true })
   data!: Record<string, unknown> | null;

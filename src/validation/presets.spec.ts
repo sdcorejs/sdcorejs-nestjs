@@ -9,7 +9,8 @@ describe('zod query presets', () => {
     });
 
     it('clamps page size at the upper bound', () => {
-      expect(() => zPaging.parse({ pageSize: '5000' })).toThrow();
+      expect(zPaging.parse({ pageSize: '200' }).pageSize).toBe(200);
+      expect(() => zPaging.parse({ pageSize: '201' })).toThrow();
     });
 
     it('rejects negative page number', () => {

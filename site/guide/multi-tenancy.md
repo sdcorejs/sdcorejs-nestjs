@@ -1,59 +1,143 @@
 # Multi-tenancy
 
-Tenancy is enforced by **your** `ITenancyStrategy`, injected before every query reaches the database.
-The library never knows your column names — you mark scoped columns with `@Scoped()` (the
-decorator uses the **property name** as the column) and return scope values from the strategy.
+Tenancy is enforced by `BaseRepository`. The library does not assume a column name: mark each scope
+dimension with `@Scoped()`, then return values keyed by those entity property names.
 
-## 1. Mark scoped columns on the entity
+## Define a scoped entity
 
 ```ts
-import { Entity, Column } from 'typeorm';
-import { BaseEntity, WithAudit, Scoped } from '@sdcorejs/nestjs/core';
+import { Column, Entity } from 'typeorm';
+import {
+  BaseEntity,
+  Scoped,
+  SearchableFields,
+  WithAudit,
+} from '@sdcorejs/nestjs/core';
 
-@Entity()
+@SearchableFields({ exact: ['sku'], contain: ['name'], activeColumn: 'isActive' })
+@Entity('product')
 export class Product extends WithAudit(BaseEntity) {
-  @Column() name!: string;
-  @Column() @Scoped() tenantCode!: string;
-  @Column({ nullable: true }) @Scoped() departmentCode?: string;
+  @Column({ length: 64 })
+  @Scoped()
+  tenantCode!: string;
+
+  @Column({ length: 64, nullable: true })
+  @Scoped({ required: false })
+  departmentCode?: string;
+
+  @Column({ length: 64 })
+  sku!: string;
+
+  @Column()
+  name!: string;
+
+  @Column({ default: true })
+  isActive!: boolean;
 }
 ```
 
-## 2. Supply the scope via DI
+`@Scoped()` is required by default. A missing/null required value, blank string, invalid date, or
+other invalid scope fails before the query. An allowed-values array becomes an `IN` predicate; an
+empty array matches no rows. Use `required: false` only for a deliberate optional dimension.
+
+## Configure scope resolution
+
+Inline callbacks are enough for simple applications:
+
+```ts
+import { SdCoreModule } from '@sdcorejs/nestjs';
+
+SdCoreModule.forRoot({
+  tenancy: {
+    resolve: (context) => ({
+      tenantCode: context.tenant,
+      departmentCode: context.custom?.departmentCode,
+    }),
+  },
+});
+```
+
+For injected dependencies, implement a strategy class:
 
 ```ts
 import { Injectable } from '@nestjs/common';
-import { ContextService } from '@sdcorejs/nestjs/core';
-import type { ITenancyStrategy, RequestContext } from '@sdcorejs/nestjs/core';
+import type {
+  ITenancyStrategy,
+  RequestContext,
+  TenancyBypassGrant,
+} from '@sdcorejs/nestjs/core';
 
 @Injectable()
 export class AppTenancyStrategy implements ITenancyStrategy {
-  getCurrentScope(ctx: RequestContext): Record<string, unknown> {
+  getCurrentScope(context: RequestContext): Record<string, unknown> {
     return {
-      tenantCode: ctx.tenant,                            // scalar → EQUAL filter
-      departmentCode: ctx.custom?.['departmentCodes'],   // array → IN filter
+      tenantCode: context.tenant,
+      departmentCode: context.custom?.departmentCode,
     };
   }
-  shouldBypass(ctx: RequestContext): boolean {
-    return ctx.custom?.['isInternalCall'] === true;      // admin / internal callers see everything
+
+  shouldBypass(): boolean {
+    return false;
+  }
+
+  getBypassGrant(_context: RequestContext): TenancyBypassGrant | undefined {
+    return undefined;
   }
 }
 ```
 
-Or skip the class entirely and pass inline callbacks to `SdCoreModule.forRoot({ tenancy: { resolve, bypass } })`
-(see [Getting started](/guide/getting-started)).
+Register it with `tenancy: { strategy: AppTenancyStrategy }`.
 
-## What the library does for you
+## Enforced operations
 
-When a strategy is registered, `BaseRepository`:
+For a scoped entity, the repository applies the same canonical scope to:
 
-- **Reads** (`paging`, `all`, `search`, `detail`) — injects a scope filter per `@Scoped` column. A
-  **scalar** scope value becomes `EQUAL`; an **array** becomes `IN` (multi-department users); `null` /
-  `undefined` / empty array is skipped.
-- **Writes** (`create`, `import`) — auto-fills the scoped columns from `getCurrentScope()`.
-- **`detail(id)`** is scoped too — fetching a known UUID that belongs to another tenant returns `null`
-  (no cross-tenant id leak).
-- **`shouldBypass(ctx) === true`** skips both filter injection and auto-fill.
+- paging, deleted paging, all, search, detail, and relation joins;
+- create and bulk import (scope is filled from trusted context);
+- update, hard delete, soft delete, and restore; and
+- batch ID lookup and affected-row verification.
 
-::: info no strategy = no overhead
-With no strategy registered, the repository behaves as if tenancy is disabled.
-:::
+Ordinary updates cannot move a row across a scope dimension. Scoped mutations include ID and scope
+in SQL and reject partial batch matches. Entities without `@Scoped()` keep ordinary TypeORM
+behavior.
+
+## Privileged bypass grants
+
+A boolean bypass cannot authorize an unscoped query. A valid grant must be narrow, attributable, and
+audited synchronously:
+
+```ts
+import type { TenancyBypassAuditEvent } from '@sdcorejs/nestjs/core';
+
+function writePrivilegedAuditSynchronously(event: TenancyBypassAuditEvent): void {
+  process.stdout.write(JSON.stringify(event) + '\n');
+}
+
+const tenancy = {
+  resolve: (context: { tenant?: string }) => ({ tenantCode: context.tenant }),
+  bypassGrant: (context: { userId?: string; roles?: string[] }) => {
+    if (!context.userId || !context.roles?.includes('platform-admin')) return undefined;
+
+    return {
+      authorized: true as const,
+      actorId: context.userId,
+      reason: 'approved product export',
+      allowedTargets: ['public.product'],
+      allowedOperations: ['read'] as const,
+      audit: writePrivilegedAuditSynchronously,
+    };
+  },
+};
+```
+
+`public.product` is an example only. Replace it with
+`dataSource.getMetadata(Product).tablePath` in application configuration. The callback must
+complete synchronously and return `undefined`; an async callback is rejected because the repository
+cannot prove it finished before issuing SQL. In production, write to a durable synchronous audit
+sink appropriate to your architecture rather than standard output.
+
+## Unsafe TypeORM access
+
+`unsafeRepository`, `unsafeGetRepository()`, and `unsafeCreateQueryRunner()` deliberately bypass
+tenancy, mutation guards, and affected-row checks. Their names are an operational boundary, not a
+convenience API. Restrict them to reviewed maintenance code with separate authorization and audit.

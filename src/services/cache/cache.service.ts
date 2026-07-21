@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger, type OnModuleDestroy, Optional } from '@nes
 import type { CacheBackend } from './backends/cache-backend';
 import { MemoryCacheBackend } from './backends/memory-cache.backend';
 import { RedisCacheBackend } from './backends/redis-cache.backend';
+import { InvalidRedisCacheKeyPrefixError } from './errors';
 import { CACHE_CONFIG, type CacheBackendKind, type CacheConfig } from './types';
 
 /**
@@ -9,7 +10,7 @@ import { CACHE_CONFIG, type CacheBackendKind, type CacheConfig } from './types';
  * via `CacheConfig.backend`. Inject via DI; do not instantiate directly outside tests.
  *
  *   CacheModule.forRoot({ backend: 'memory', ttl: 60, maxEntries: 1000 })
- *   CacheModule.forRoot({ backend: 'redis', ttl: 300, redis: { host: 'localhost', port: 6379 } })
+ *   CacheModule.forRoot({ backend: 'redis', ttl: 300, redis: { keyPrefix: 'orders:cache:', host: 'localhost', port: 6379 } })
  *
  * Resilience features (ported from be-masterdata's SdCacheService):
  *   - Auto-fallback to memory if the redis backend cannot be constructed (e.g. `ioredis` not
@@ -45,10 +46,13 @@ export class CacheService implements CacheBackend, OnModuleDestroy {
 
     if (c.backend === 'redis') {
       try {
-        this.backend = new RedisCacheBackend(c.redis ?? {}, ttl);
+        this.backend = new RedisCacheBackend(c.redis, ttl);
         this.backendKind = 'redis';
         return;
       } catch (e) {
+        // Invalid namespaces are configuration/security errors, not backend availability errors.
+        // Falling back would hide the broken Redis isolation contract.
+        if (e instanceof InvalidRedisCacheKeyPrefixError) throw e;
         const msg = (e as Error).message;
         if (!fallback) throw e;
         CacheService.logger.warn(`Redis cache backend unavailable, falling back to in-memory cache: ${msg}`);

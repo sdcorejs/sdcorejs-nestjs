@@ -3,9 +3,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { registerHistoryRecorder } from '../../core/orm/history';
 import { ActionHistory } from './action-history.entity';
 import { ActionHistoryService } from './action-history.service';
-import { ACTION_HISTORY_ACTOR_RESOLVER, type ActionHistoryActorResolver } from './types';
+import {
+  ACTION_HISTORY_ACTOR_RESOLVER,
+  ACTION_HISTORY_SECURITY_OPTIONS,
+  type ActionHistoryActorResolver,
+  type ActionHistorySecurityOptions,
+} from './types';
 
-export interface ActionHistoryModuleOptions {
+export interface ActionHistoryModuleOptions extends ActionHistorySecurityOptions {
   /** Resolve the acting user per request. Default reads `ctx.userId`. */
   resolveActor?: ActionHistoryActorResolver;
   /** Register the module globally so `ActionHistoryService` injects anywhere. Default `true`. */
@@ -29,7 +34,20 @@ export interface ActionHistoryModuleOptions {
 @Module({})
 export class ActionHistoryModule {
   static forRoot(options: ActionHistoryModuleOptions = {}): DynamicModule {
-    const providers: Provider[] = [ActionHistoryService];
+    const providers: Provider[] = [
+      ActionHistoryService,
+      {
+        provide: ACTION_HISTORY_SECURITY_OPTIONS,
+        useValue: {
+          authorizeRead: options.authorizeRead,
+          redactFields: options.redactFields,
+          redactSnapshot: options.redactSnapshot,
+          resolveResourceTenant: options.resolveResourceTenant,
+          maxPageSize: options.maxPageSize,
+          retentionDays: options.retentionDays,
+        } satisfies ActionHistorySecurityOptions,
+      },
+    ];
     if (options.resolveActor) {
       providers.push({ provide: ACTION_HISTORY_ACTOR_RESOLVER, useValue: options.resolveActor });
     }

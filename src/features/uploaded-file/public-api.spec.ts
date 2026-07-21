@@ -3,7 +3,17 @@ import * as uploadedFile from './index';
 describe('uploaded-file public API', () => {
   it('does NOT leak internal helpers', () => {
     const api = uploadedFile as Record<string, unknown>;
-    for (const leaked of ['slugify', 'isBlank', 'toMb', 'addDays', 'distinct']) {
+    for (const leaked of [
+      'slugify',
+      'isBlank',
+      'toMb',
+      'addDays',
+      'distinct',
+      'IUploadedFileStorage',
+      'AwsUploadedFileStorage',
+      'LocalUploadedFileStorage',
+      'UPLOADED_FILE_STORAGE_DRIVER',
+    ]) {
       expect(api[leaked]).toBeUndefined();
     }
   });

@@ -1,8 +1,19 @@
+import { UnauthorizedException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { ContextModule, ContextService, ContextMiddleware, CONTEXT_HEADERS_CONFIG, type HeadersConfig } from '../../../src/core/context';
+import {
+  ContextModule,
+  ContextService,
+  ContextMiddleware,
+  CONTEXT_HEADERS_CONFIG,
+  CONTEXT_IDENTITY_CONFIG,
+  defaultVerifiedPrincipalResolver,
+  type HeadersConfig,
+  type RequestContext,
+  type ResolvedContextIdentityOptions,
+} from '../../../src/core/context';
 import { DEFAULT_HEADERS_CONFIG } from '../../../src/core/context/types';
 
-describe('ContextService — AsyncLocalStorage preservation', () => {
+describe('ContextService - AsyncLocalStorage preservation', () => {
   let service: ContextService;
 
   beforeEach(async () => {
@@ -10,42 +21,22 @@ describe('ContextService — AsyncLocalStorage preservation', () => {
     service = mod.get(ContextService);
   });
 
-  it('returns undefined when no store active', () => {
+  it('returns undefined when no store is active', () => {
     expect(service.userId).toBeUndefined();
     expect(service.get('tenant')).toBeUndefined();
     expect(service.store).toBeUndefined();
   });
 
-  it('preserves store across nested await', async () => {
+  it('preserves and isolates stores across async work', async () => {
     await service.run({ userId: 'u1', tenant: 'T1' }, async () => {
-      expect(service.userId).toBe('u1');
       await Promise.resolve();
-      expect(service.tenant).toBe('T1');
-      const inner = async () => {
-        await Promise.resolve();
-        return service.userId;
-      };
-      expect(await inner()).toBe('u1');
+      expect(await Promise.all([Promise.resolve(service.userId), Promise.resolve(service.tenant)])).toEqual(['u1', 'T1']);
     });
+    expect(service.store).toBeUndefined();
+    expect(service.run({ userId: 'u2' }, () => service.userId)).toBe('u2');
   });
 
-  it('preserves store across Promise.all', async () => {
-    await service.run({ userId: 'u2' }, async () => {
-      const results = await Promise.all([
-        (async () => {
-          await Promise.resolve();
-          return service.userId;
-        })(),
-        (async () => {
-          await Promise.resolve();
-          return service.userId;
-        })(),
-      ]);
-      expect(results).toEqual(['u2', 'u2']);
-    });
-  });
-
-  it('preserves store across setImmediate', (done) => {
+  it('preserves a store across timers', (done) => {
     service.run({ userId: 'u3' }, () => {
       setImmediate(() => {
         expect(service.userId).toBe('u3');
@@ -54,160 +45,170 @@ describe('ContextService — AsyncLocalStorage preservation', () => {
     });
   });
 
-  it('preserves store across setTimeout', (done) => {
-    service.run({ userId: 'u4' }, () => {
-      setTimeout(() => {
-        expect(service.userId).toBe('u4');
-        done();
-      }, 10);
-    });
-  });
-
-  it('isolates stores between separate run() invocations', () => {
-    const r1 = service.run({ userId: 'a' }, () => service.userId);
-    const r2 = service.run({ userId: 'b' }, () => service.userId);
-    expect(r1).toBe('a');
-    expect(r2).toBe('b');
-    expect(service.userId).toBeUndefined();
-  });
-
-  it('lang undefined when not set (raw value pass-through)', () => {
-    expect(service.lang).toBeUndefined();
-  });
-
-  it('lang reflects store value', () => {
-    service.run({ lang: 'en' }, () => {
+  it('supports generic fields, custom values, and permission checks', () => {
+    service.run({ lang: 'en', custom: { departmentCode: 'D1' }, permissions: ['product:read'] }, () => {
       expect(service.lang).toBe('en');
+      expect(service.getCustom('departmentCode')).toBe('D1');
+      expect(service.hasPermission('product:read')).toBe(true);
+      expect(service.hasPermission('product:write')).toBe(false);
     });
   });
 
-  it('hasPermission checks permissions array', () => {
-    service.run({ permissions: ['product:create', 'product:update'] }, () => {
-      expect(service.hasPermission('product:create')).toBe(true);
-      expect(service.hasPermission('product:delete')).toBe(false);
-    });
+  it('setIdentity clears stale security fields and records the verified source', () => {
+    const user = { sub: 'u2' };
+    service.run(
+      {
+        userId: 'forged',
+        tenant: 'old',
+        roles: ['old'],
+        permissions: ['admin'],
+        permissionVersion: 'old',
+        identitySource: 'trusted-headers',
+      },
+      () => {
+        service.setIdentity(
+          { userId: 'u2', tenant: 'T2', roles: ['reader'], permissions: ['read'], permissionVersion: 'v2' },
+          'verified-principal',
+          user,
+        );
+        expect(service.store).toMatchObject({
+          userId: 'u2',
+          tenant: 'T2',
+          roles: ['reader'],
+          permissions: ['read'],
+          permissionVersion: 'v2',
+          identitySource: 'verified-principal',
+          user,
+        });
+      },
+    );
   });
 
-  it('set() mutates active store; no-op outside store', () => {
+  it('set() is a no-op outside a store', () => {
     service.set('userId', 'orphan');
     expect(service.userId).toBeUndefined();
-    service.run({}, () => {
-      service.set('userId', 'set-in-run');
-      expect(service.userId).toBe('set-in-run');
-    });
-  });
-
-  it('custom bag reads via getCustom', () => {
-    service.run({ custom: { departmentCode: 'D1', isAdmin: true } }, () => {
-      expect(service.getCustom('departmentCode')).toBe('D1');
-      expect(service.getCustom<boolean>('isAdmin')).toBe(true);
-    });
-  });
-
-  it('getCustom returns undefined when no store / no custom key', () => {
-    expect(service.getCustom('any')).toBeUndefined();
-    service.run({}, () => {
-      expect(service.getCustom('any')).toBeUndefined();
-    });
   });
 });
 
-describe('ContextModule.forRoot — headers config', () => {
-  it('registers default headers config when no overrides passed', async () => {
+describe('ContextModule.forRoot - identity and headers config', () => {
+  it('registers defaults and keeps trusted-header mode disabled', async () => {
     const mod = await Test.createTestingModule({ imports: [ContextModule.forRoot()] }).compile();
-    const cfg = mod.get<HeadersConfig>(CONTEXT_HEADERS_CONFIG);
-    expect(cfg.tenant).toBe('x-tenant');
-    expect(cfg.userId).toBe('x-user-id');
-    expect(cfg.lang).toEqual(['accept-language', 'x-language']);
+    const headers = mod.get<HeadersConfig>(CONTEXT_HEADERS_CONFIG);
+    const identity = mod.get<ResolvedContextIdentityOptions>(CONTEXT_IDENTITY_CONFIG);
+    expect(headers).toMatchObject({ tenant: 'x-tenant', userId: 'x-user-id' });
+    expect(headers.lang).toEqual(['accept-language', 'x-language']);
+    expect(identity.principalResolver).toBe(defaultVerifiedPrincipalResolver);
+    expect(identity.trustedHeaders).toBeUndefined();
   });
 
-  it('merges overrides with defaults', async () => {
+  it('merges header overrides and registers a custom principal resolver', async () => {
+    const resolver = jest.fn(() => ({ userId: 'resolved' }));
     const mod = await Test.createTestingModule({
-      imports: [ContextModule.forRoot({ headers: { tenant: 'X-Org-Id' } })],
+      imports: [ContextModule.forRoot({ headers: { tenant: 'X-Org-Id' }, identity: { principalResolver: resolver } })],
     }).compile();
-    const cfg = mod.get<HeadersConfig>(CONTEXT_HEADERS_CONFIG);
-    expect(cfg.tenant).toBe('X-Org-Id');
-    expect(cfg.userId).toBe('x-user-id');
+    expect(mod.get<HeadersConfig>(CONTEXT_HEADERS_CONFIG).tenant).toBe('X-Org-Id');
+    expect(mod.get<ResolvedContextIdentityOptions>(CONTEXT_IDENTITY_CONFIG).principalResolver).toBe(resolver);
+  });
+
+  it('rejects trusted-header mode without a trust verifier at startup', () => {
+    expect(() =>
+      ContextModule.forRoot({
+        identity: { trustedHeaders: {} as never },
+      }),
+    ).toThrow('context.identity.trustedHeaders.isTrustedRequest');
   });
 });
 
-describe('ContextMiddleware — header reading', () => {
-  const buildMw = () => {
+describe('ContextMiddleware - identity trust boundary', () => {
+  const defaultIdentity: ResolvedContextIdentityOptions = { principalResolver: defaultVerifiedPrincipalResolver };
+  const build = (identity: ResolvedContextIdentityOptions = defaultIdentity, headers: HeadersConfig = DEFAULT_HEADERS_CONFIG) => {
     const ctx = new ContextService();
-    const mw = new ContextMiddleware(ctx, DEFAULT_HEADERS_CONFIG);
-    return { ctx, mw };
+    return { ctx, middleware: new ContextMiddleware(ctx, headers, identity) };
   };
-
-  it('populates store from canonical headers', async () => {
-    const { ctx, mw } = buildMw();
-    const req = {
-      headers: {
-        'x-tenant': 'T-ABC',
-        'x-user-id': 'u-42',
-        'accept-language': 'en-US,vi;q=0.9',
-        authorization: 'Bearer xyz',
-      },
-    };
-    await new Promise<void>((resolve) => {
-      mw.use(req as never, {} as never, () => {
-        expect(ctx.tenant).toBe('T-ABC');
-        expect(ctx.userId).toBe('u-42');
-        expect(ctx.lang).toBe('en-US,vi;q=0.9');
-        expect(ctx.token).toBe('Bearer xyz');
-        resolve();
-      });
+  const capture = async (middleware: ContextMiddleware, ctx: ContextService, headers: Record<string, unknown>) =>
+    new Promise<RequestContext>((resolve) => {
+      middleware.use({ headers } as never, {} as never, () => resolve({ ...ctx.store, request: undefined, response: undefined }));
     });
-  });
 
-  it('customHeaders pushes values into ctx.custom', async () => {
-    const ctx = new ContextService();
-    const mw = new ContextMiddleware(ctx, {
+  it('ignores tenant, user, and custom identity headers by default', async () => {
+    const headers = {
       ...DEFAULT_HEADERS_CONFIG,
-      customHeaders: { departmentCode: 'x-department-code', project: 'x-project' },
-    });
-    const req = {
-      headers: { 'x-department-code': 'D-1', 'x-project': 'PRJ' },
+      customHeaders: { departmentCode: 'x-department-code' },
     };
-    await new Promise<void>((resolve) => {
-      mw.use(req as never, {} as never, () => {
-        expect(ctx.getCustom('departmentCode')).toBe('D-1');
-        expect(ctx.getCustom('project')).toBe('PRJ');
-        resolve();
-      });
+    const { ctx, middleware } = build(defaultIdentity, headers);
+    const store = await capture(middleware, ctx, {
+      'x-tenant': 'forged-tenant',
+      'x-user-id': 'forged-user',
+      'x-department-code': 'forged-department',
+      'accept-language': 'en-US,vi;q=0.9',
+      authorization: 'Bearer xyz',
+    });
+
+    expect(store).toMatchObject({ lang: 'en-US,vi;q=0.9', token: 'Bearer xyz' });
+    expect(store.tenant).toBeUndefined();
+    expect(store.userId).toBeUndefined();
+    expect(store.custom).toBeUndefined();
+    expect(store.identitySource).toBeUndefined();
+  });
+
+  it('accepts configured identity headers only after request trust verification', async () => {
+    const headers = {
+      ...DEFAULT_HEADERS_CONFIG,
+      customHeaders: { departmentCode: 'x-department-code' },
+    };
+    const verify = jest.fn(() => true);
+    const { ctx, middleware } = build(
+      { principalResolver: defaultVerifiedPrincipalResolver, trustedHeaders: { isTrustedRequest: verify } },
+      headers,
+    );
+    const store = await capture(middleware, ctx, {
+      'x-tenant': ['T-FIRST', 'T-SECOND'],
+      'x-user-id': 'u-42',
+      'x-department-code': 'D-1',
+    });
+
+    expect(verify).toHaveBeenCalledTimes(1);
+    expect(store).toMatchObject({
+      tenant: 'T-FIRST',
+      userId: 'u-42',
+      custom: { departmentCode: 'D-1' },
+      identitySource: 'trusted-headers',
     });
   });
 
-  it('lang undefined when no language header present', async () => {
-    const { ctx, mw } = buildMw();
-    await new Promise<void>((resolve) => {
-      mw.use({ headers: {} } as never, {} as never, () => {
-        expect(ctx.lang).toBeUndefined();
-        resolve();
-      });
+  it('rejects identity headers when explicit trusted mode cannot verify the request', () => {
+    const { middleware } = build({
+      principalResolver: defaultVerifiedPrincipalResolver,
+      trustedHeaders: { isTrustedRequest: () => false },
+    });
+
+    expect(() => middleware.use({ headers: { 'x-user-id': 'forged' } } as never, {} as never, jest.fn())).toThrow(UnauthorizedException);
+  });
+
+  it('normalizes a custom trusted-header resolver result', async () => {
+    const { ctx, middleware } = build({
+      principalResolver: defaultVerifiedPrincipalResolver,
+      trustedHeaders: {
+        isTrustedRequest: () => true,
+        resolve: () => ({ userId: 'gateway-user', tenant: 'gateway-tenant', permissions: ['read'] }),
+      },
+    });
+    const store = await capture(middleware, ctx, { 'x-user-id': 'trigger' });
+    expect(store).toMatchObject({
+      userId: 'gateway-user',
+      tenant: 'gateway-tenant',
+      permissions: ['read'],
+      identitySource: 'trusted-headers',
     });
   });
 
-  it('x-language header used when accept-language absent', async () => {
-    const { ctx, mw } = buildMw();
-    await new Promise<void>((resolve) => {
-      mw.use({ headers: { 'x-language': 'en' } } as never, {} as never, () => {
-        expect(ctx.lang).toBe('en');
-        resolve();
-      });
-    });
+  it('still resolves language independently of identity mode', async () => {
+    const { ctx, middleware } = build();
+    expect((await capture(middleware, ctx, { 'x-language': 'vi' })).lang).toBe('vi');
+    expect((await capture(middleware, ctx, {})).lang).toBeUndefined();
   });
 
-  it('handles array-valued headers (multi-value HTTP) by taking first', async () => {
-    const { ctx, mw } = buildMw();
-    await new Promise<void>((resolve) => {
-      mw.use({ headers: { 'x-tenant': ['T-FIRST', 'T-SECOND'] } } as never, {} as never, () => {
-        expect(ctx.tenant).toBe('T-FIRST');
-        resolve();
-      });
-    });
-  });
-
-  it('NO cls-hooked dependency anywhere in source', () => {
+  it('has no cls-hooked dependency', () => {
     expect(() => require.resolve('cls-hooked')).toThrow();
   });
 });

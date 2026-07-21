@@ -1,99 +1,68 @@
-import 'reflect-metadata';
-
-jest.mock('node:fs', () => ({
-  existsSync: jest.fn(() => true),
-  mkdirSync: jest.fn(),
-  writeFileSync: jest.fn(),
-  createReadStream: jest.fn(() => 'STREAM'),
-  unlink: jest.fn((_p: string, cb: (e: null) => void) => cb(null)),
-}));
-jest.mock('axios', () => ({ __esModule: true, default: { get: jest.fn(async () => ({ data: Buffer.from('img') })) } }));
-
-import { writeFileSync, createReadStream, unlink } from 'node:fs';
-import axios from 'axios';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import type { Readable } from 'node:stream';
+import { normalizeUploadedFileConfig } from '../config';
 import { LocalUploadedFileStorage } from './local.service';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function makeTracking(): any {
-  return {
-    getContent: jest.fn(() => ({})),
-    create: jest.fn(async (args: Record<string, unknown>) => ({ id: 'f1', ...args })),
-    markUsed: jest.fn(async () => undefined),
-    useFiles: jest.fn(async () => undefined),
-    delete: jest.fn(async () => undefined),
-  };
+const writeOptions = { contentType: 'text/plain', contentDisposition: 'attachment' };
+
+async function text(stream: Readable): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  return Buffer.concat(chunks).toString('utf8');
 }
-const cfg = { folder: 'core', host: 'http://h/' };
-const make = (t: ReturnType<typeof makeTracking>) => new LocalUploadedFileStorage(cfg as never, t);
 
 describe('LocalUploadedFileStorage', () => {
-  beforeEach(() => jest.clearAllMocks());
+  let root: string;
+  let storage: LocalUploadedFileStorage;
 
-  it('upload writes the file and persists via tracking.create', async () => {
-    const t = makeTracking();
-    const res = await make(t).upload(Buffer.from('x'), 'logo.png', { module: 'masterdata', entity: 'brand' });
-    expect(writeFileSync).toHaveBeenCalled();
-    expect(t.create).toHaveBeenCalledWith(expect.objectContaining({ key: 'core/logo.png', module: 'masterdata' }));
-    expect(res.key).toBe('core/logo.png');
+  beforeEach(async () => {
+    root = await mkdtemp(join(tmpdir(), 'sdcore-local-storage-'));
+    storage = new LocalUploadedFileStorage(normalizeUploadedFileConfig({ localRoot: root, host: 'https://api.test/' }));
   });
 
-  it('upload defaults a missing fileName to TEMP', async () => {
-    const t = makeTracking();
-    await make(t).upload(Buffer.from('x'));
-    expect(t.create).toHaveBeenCalledWith(expect.objectContaining({ fileName: 'TEMP' }));
+  afterEach(async () => rm(root, { recursive: true, force: true }));
+
+  it('writes asynchronously, streams exact content, and refuses overwrite', async () => {
+    const key = 'core/tenant/dGVuYW50/file-id/a.txt';
+    await storage.write(key, Buffer.from('first'), writeOptions);
+    await expect(storage.write(key, Buffer.from('second'), writeOptions)).rejects.toMatchObject({ code: 'EEXIST' });
+    await expect(text(await storage.download(key))).resolves.toBe('first');
   });
 
-  it('upload throws BadRequest when the write fails', async () => {
-    (writeFileSync as jest.Mock).mockImplementationOnce(() => {
-      throw new Error('disk full');
-    });
-    await expect(make(makeTracking()).upload(Buffer.from('x'), 'a.png')).rejects.toMatchObject({ status: 400 });
+  it('supports concurrent writes that create the same previously-missing prefix', async () => {
+    const keys = Array.from({ length: 20 }, (_, index) => `core/tenant/shared-prefix/file-${index}.txt`);
+
+    await Promise.all(keys.map((key, index) => storage.write(key, Buffer.from(String(index)), writeOptions)));
+
+    await expect(Promise.all(keys.map(async (key) => text(await storage.download(key))))).resolves.toEqual(
+      keys.map((_, index) => String(index)),
+    );
   });
 
-  it('uploadTemporary resolves a temp key (async — errors reject, not throw)', async () => {
-    const out = await make(makeTracking()).uploadTemporary(Buffer.from('x'), 'a.png');
-    expect(out.key).toContain('temporary/');
+  it('deletes only the exact requested object', async () => {
+    const first = 'core/tenant/dGVuYW50/first/a.txt';
+    const second = 'core/tenant/dGVuYW50/second/a.txt';
+    await storage.write(first, Buffer.from('first'), writeOptions);
+    await storage.write(second, Buffer.from('second'), writeOptions);
+    await storage.delete([first]);
+    await expect(storage.download(first)).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(text(await storage.download(second))).resolves.toBe('second');
   });
 
-  it('uploadTemporary rejects (does not synchronously throw) when the write fails', async () => {
-    (writeFileSync as jest.Mock).mockImplementationOnce(() => {
-      throw new Error('disk full');
-    });
-    // The call itself must not throw synchronously — it must return a rejecting promise.
-    const p = make(makeTracking()).uploadTemporary(Buffer.from('x'), 'a.png');
-    await expect(p).rejects.toMatchObject({ status: 400 });
-  });
+  it.each(['../outside', 'core/../../outside', '/absolute', 'C:\\absolute', 'core/%2e%2e/outside'])(
+    'applies containment to write, read, and delete for %s',
+    async (key) => {
+      await expect(storage.write(key, Buffer.from('x'), writeOptions)).rejects.toThrow('storage key');
+      await expect(storage.download(key)).rejects.toThrow('storage key');
+      await expect(storage.delete([key])).rejects.toThrow('storage key');
+    },
+  );
 
-  it('download prefixes a bare key and streams it', () => {
-    const out = make(makeTracking()).download('a.png');
-    expect(createReadStream).toHaveBeenCalledWith(expect.stringContaining('/core/a.png'));
-    expect(out).toBe('STREAM');
-  });
-
-  it('cloneFromUrl fetches the URL then uploads', async () => {
-    const t = makeTracking();
-    await make(t).cloneFromUrl('http://x/pic.png');
-    expect(axios.get).toHaveBeenCalledWith('http://x/pic.png', expect.objectContaining({ responseType: 'arraybuffer' }));
-    expect(t.create).toHaveBeenCalled();
-  });
-
-  it('useFiles normalizes keys then delegates to tracking', async () => {
-    const t = makeTracking();
-    await make(t).useFiles(['http://h/file-storage/core/a.png'], 'brand', 'b1');
-    expect(t.useFiles).toHaveBeenCalledWith(['core/a.png'], 'brand', 'b1');
-  });
-
-  it('changeFiles unlinks removed files and soft-deletes the rows', async () => {
-    const t = makeTracking();
-    await make(t).changeFiles(['core/old.png'], ['core/new.png']);
-    expect(t.useFiles).toHaveBeenCalledWith(['core/new.png'], undefined, undefined);
-    expect(unlink).toHaveBeenCalled();
-    expect(t.delete).toHaveBeenCalledWith(['core/old.png']);
-  });
-
-  it('markUsed delegates to tracking.markUsed', async () => {
-    const t = makeTracking();
-    await make(t).markUsed(['f1'], { entity: 'brand', entityId: 'b1' });
-    expect(t.markUsed).toHaveBeenCalledWith(['f1'], { entity: 'brand', entityId: 'b1' });
+  it('builds a public URL from the object key without exposing the filesystem root', () => {
+    const url = storage.publicUrl('core/tenant/t/id/a.txt');
+    expect(url).toBe('https://api.test/file-storage/core/tenant/t/id/a.txt');
+    expect(url).not.toContain(root);
   });
 });

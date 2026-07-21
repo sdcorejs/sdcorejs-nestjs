@@ -1,5 +1,6 @@
 import type { CacheBackend } from './backends/cache-backend';
 import { CacheService } from './cache.service';
+import { InvalidRedisCacheKeyPrefixError } from './errors';
 
 // `ioredis` is an OPTIONAL peer of this lib, but it is now present in node_modules transitively
 // (bullmq depends on it). The construction/fallback tests below assert the "ioredis not installed"
@@ -83,14 +84,25 @@ describe('CacheService (memory backend)', () => {
 describe('CacheService — construction + fallback', () => {
   it("auto-falls back to memory when 'ioredis' is missing", () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const svc = new CacheService({ backend: 'redis' });
+    const svc = new CacheService({ backend: 'redis', redis: { keyPrefix: 'test-cache:' } });
     expect(svc.backendKind).toBe('memory');
     warn.mockRestore();
   });
 
   it('fallbackToMemory=false rethrows when redis backend cannot construct', () => {
-    expect(() => new CacheService({ backend: 'redis', fallbackToMemory: false })).toThrow(/ioredis/);
+    expect(() => new CacheService({ backend: 'redis', fallbackToMemory: false, redis: { keyPrefix: 'test-cache:' } })).toThrow(/ioredis/);
   });
+
+  it.each([undefined, '', '   ', 'shared:*', 'shared:?', 'shared:[ab]', 'shared:\\'])(
+    'rejects a missing, blank, or pattern-capable Redis keyPrefix (%p) instead of falling back',
+    (keyPrefix) => {
+      const config = {
+        backend: 'redis',
+        redis: keyPrefix === undefined ? {} : { keyPrefix },
+      } as never;
+      expect(() => new CacheService(config)).toThrow(InvalidRedisCacheKeyPrefixError);
+    },
+  );
 
   it('memory backend is the default kind', () => {
     expect(new CacheService().backendKind).toBe('memory');

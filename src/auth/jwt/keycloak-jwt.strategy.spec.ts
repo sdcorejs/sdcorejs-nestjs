@@ -27,6 +27,13 @@ const providerOf = (cfg: JwtConfig) => {
   return captured.fn;
 };
 
+const extractorOf = (cfg: JwtConfig) => {
+  const strat = new KeycloakJwtStrategy(cfg) as unknown as {
+    _jwtFromRequest: (request: unknown) => string | null;
+  };
+  return strat._jwtFromRequest;
+};
+
 describe('KeycloakJwtStrategy', () => {
   beforeEach(() => {
     getSigningKey.mockReset();
@@ -47,6 +54,12 @@ describe('KeycloakJwtStrategy', () => {
       );
       done();
     });
+  });
+
+  it('uses the same bearer-first, cookie-fallback extraction for JWKS verification', () => {
+    const extract = extractorOf({ jwks: { allowedIssuerHosts: ['https://kc'] }, cookieName: ' access_token ' });
+    expect(extract({ headers: { authorization: 'Bearer from-header' }, cookies: { access_token: 'from-cookie' } })).toBe('from-header');
+    expect(extract({ headers: {}, cookies: { access_token: 'from-cookie' } })).toBe('from-cookie');
   });
 
   it('rejects a token missing iss/kid', (done) => {

@@ -1,4 +1,5 @@
 import type { CacheBackend } from './cache-backend';
+import { InvalidRedisCacheKeyPrefixError } from '../errors';
 import type { RedisCacheOptions } from '../types';
 
 /**
@@ -17,8 +18,8 @@ interface RedisLikeClient {
 
 type RedisCtor = new (opts: Record<string, unknown>) => RedisLikeClient;
 
-const DEFAULT_PREFIX = 'sdcore:cache:';
 const SCAN_BATCH = 100;
+const REDIS_GLOB_METACHARACTERS = ['*', '?', '[', ']', '\\'] as const;
 
 /**
  * Redis-backed cache. Values are JSON-serialised. TTL maps to Redis `EX` seconds.
@@ -35,8 +36,16 @@ export class RedisCacheBackend implements CacheBackend {
     opts: RedisCacheOptions,
     private readonly defaultTtlSec: number,
   ) {
+    if (
+      !opts ||
+      typeof opts.keyPrefix !== 'string' ||
+      opts.keyPrefix.trim().length === 0 ||
+      REDIS_GLOB_METACHARACTERS.some((character) => opts.keyPrefix.includes(character))
+    ) {
+      throw new InvalidRedisCacheKeyPrefixError();
+    }
     const { keyPrefix, ...redisOpts } = opts;
-    this.prefix = keyPrefix ?? DEFAULT_PREFIX;
+    this.prefix = keyPrefix;
     this.client = this.createClient(redisOpts as Record<string, unknown>);
   }
 

@@ -6,6 +6,8 @@ import { apiError } from '../types/api-response.types';
 /** Safe-character regex for field paths. Used as SQL injection guard before interpolation. */
 const SAFE_FIELD = /^[a-zA-Z0-9_.]+$/;
 
+const quoteIdentifier = (value: string): string => `"${value.replace(/"/g, '""')}"`;
+
 /**
  * Drop empty / null / undefined filter entries. Recurse into AND/OR; if an AND/OR's inner
  * set becomes empty after cleanup, drop the whole AND/OR entry too. Preserve `from=0`/`to=0`
@@ -90,15 +92,18 @@ export function resolveColumnName(field: string, alias: string, metadata: Entity
     if (parts.length > 1) {
       const jsonPath = parts.slice(1);
       const path = jsonPath.map((p, i) => (i === jsonPath.length - 1 ? `->> '${p}'` : `-> '${p}'`)).join(' ');
-      return `${alias}."${rootProp}" ${path}`;
+      return `${alias}.${quoteIdentifier(col.databaseName || rootProp)} ${path}`;
     }
   }
+
+  if (col && parts.length === 1) return `${alias}.${quoteIdentifier(col.databaseName || rootProp)}`;
 
   const rel = metadata.findRelationWithPropertyPath(rootProp);
   if (rel && parts.length > 1) {
     const relationAlias = rootProp;
     const childField = parts.slice(1).join('.');
-    return `"${relationAlias}"."${childField}"`;
+    const childColumn = rel.inverseEntityMetadata?.findColumnWithPropertyPath?.(childField);
+    return `${quoteIdentifier(relationAlias)}.${quoteIdentifier(childColumn?.databaseName || childField)}`;
   }
 
   return `${alias}."${field}"`;
@@ -123,7 +128,7 @@ export function resolveSortColumn(field: string, alias: string, metadata: Entity
     if (!col) {
       throw new BadRequestException(apiError('core.repository.column-not-found', 'Column not found in entity', { field }));
     }
-    return `${alias}.${field}`;
+    return col.databaseName ? `${alias}.${quoteIdentifier(col.databaseName)}` : `${alias}.${field}`;
   }
 
   const rootRelation = parts[0];
@@ -159,7 +164,7 @@ export function resolveSortColumn(field: string, alias: string, metadata: Entity
     );
   }
 
-  return `${aliasName}.${columnName}`;
+  return finalCol.databaseName ? `${aliasName}.${quoteIdentifier(finalCol.databaseName)}` : `${aliasName}.${columnName}`;
 }
 
 /**
@@ -257,9 +262,14 @@ export function applyFilterToQuery<T>(
       });
       return;
     case 'IN':
+      if (Array.isArray(data) && data.length === 0) {
+        qb.andWhere('1 = 0');
+        return;
+      }
       qb.andWhere(`${col} IN (:...${param})`, { [param]: data });
       return;
     case 'NOT_IN':
+      if (Array.isArray(data) && data.length === 0) return;
       qb.andWhere(`${col} NOT IN (:...${param})`, { [param]: data });
       return;
     default:

@@ -10,12 +10,15 @@ import { Column, CreateDateColumn, DeleteDateColumn, Entity, Generated, Index, P
  * `UploadedFile<MyExtra>` in your own code; the lib's repository/service default to a loose record.
  */
 @Entity('uploaded_file')
+@Index('IDX_uploaded_file_tenant_owner_lookup', ['tenantCode', 'departmentCode', 'userId', 'id'])
+@Index('IDX_uploaded_file_upload_pending', ['uploadPendingAt'])
+@Index('IDX_uploaded_file_deletion_pending', ['deletionPendingAt'])
 export class UploadedFile<TExtraData = Record<string, unknown>> {
   @PrimaryColumn({ type: 'uuid' })
   @Generated('uuid')
   id!: string;
 
-  @Column({ type: 'varchar', length: 64, nullable: true })
+  @Column({ type: 'varchar', length: 64 })
   tenantCode!: string;
 
   @Column({ type: 'varchar', length: 64, nullable: true })
@@ -36,11 +39,19 @@ export class UploadedFile<TExtraData = Record<string, unknown>> {
   @Column({ type: 'varchar', length: 1024, unique: true, update: false })
   cdn!: string;
 
-  @Column({ type: 'uuid', nullable: true, update: false })
+  @Column({ type: 'uuid', update: false })
   userId!: string;
 
   @Column({ type: 'boolean', default: false, nullable: true })
   isUsed!: boolean;
+
+  /** Durable upload-activation lease. Maintenance retains this tombstone until the writer settles. */
+  @Column({ type: 'timestamptz', nullable: true })
+  uploadPendingAt!: Date | null;
+
+  /** Durable storage-deletion outbox marker. Active reads exclude rows once this is set. */
+  @Column({ type: 'timestamptz', nullable: true })
+  deletionPendingAt!: Date | null;
 
   /** Owning module (e.g. `masterdata`). */
   @Column({ type: 'varchar', length: 64, nullable: true })

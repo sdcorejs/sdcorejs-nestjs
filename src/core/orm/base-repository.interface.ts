@@ -1,4 +1,4 @@
-import type { DeepPartial, EntityTarget, ObjectLiteral, QueryRunner, Repository } from 'typeorm';
+import type { DeepPartial, EntityTarget, ObjectLiteral, QueryRunner } from 'typeorm';
 import type { Filter, PagingReq, PagingRes } from '@sdcorejs/utils/models';
 import type { BaseRepositoryArgs } from './types/repository-args.types';
 
@@ -7,16 +7,15 @@ import type { BaseRepositoryArgs } from './types/repository-args.types';
  * in services that accept any concrete repository subclass.
  */
 export interface IBaseRepository<T extends ObjectLiteral> {
-  readonly queryRunner: QueryRunner;
-  readonly repository: Repository<T>;
   readonly target: EntityTarget<T>;
-  getRepository(qr?: QueryRunner): Repository<T>;
 
   paging(req: PagingReq<T>, args?: BaseRepositoryArgs<T>): Promise<PagingRes<T>>;
   pagingDeleted(req: PagingReq<T>, args?: BaseRepositoryArgs<T>): Promise<PagingRes<T>>;
   all(filters?: Filter<T>[], args?: BaseRepositoryArgs<T>): Promise<T[]>;
   search(keyword: string, filters?: Filter<T>[]): Promise<T[]>;
   detail(id: string, args?: BaseRepositoryArgs<T>): Promise<T | null>;
+  /** Find the authorized subset of unique ids using the repository's active tenancy scope. */
+  findByIds(ids: string[], args?: BaseRepositoryArgs<T>): Promise<T[]>;
 
   create(entity: DeepPartial<T>, qr?: QueryRunner): Promise<T>;
   update(entity: DeepPartial<T>, qr?: QueryRunner): Promise<T>;

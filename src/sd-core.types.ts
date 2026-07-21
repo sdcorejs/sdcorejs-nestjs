@@ -12,6 +12,14 @@ import type { ActionHistoryModuleOptions } from './features/action-history/actio
 import type { JobSchedulerModuleOptions } from './features/job-scheduler/job-scheduler.module';
 import type { QueueModuleConfig } from './queue/types';
 
+/** Built-in `InternalGuard` secret source. Prefer an environment-backed or custom rotating provider. */
+export type InternalSecretConfig =
+  | { envVar?: string }
+  | {
+      /** @deprecated Static in-source secrets are unsafe outside isolated tests; use `envVar` or a DI provider. */
+      key: string;
+    };
+
 export interface SdCoreModuleOptions {
   context?: ContextModuleOptions;
   tenancy?: TenancyModuleOptions;
@@ -27,9 +35,11 @@ export interface SdCoreModuleOptions {
    * `core.*` messages merged with your `catalogs`).
    */
   i18n?: I18nModuleOptions;
-  /** Wire the built-in internal-secret provider for `InternalGuard`. `{ envVar }` reads that env
-   *  (default `INTERNAL_SECRET_KEY`); `{ key }` uses a static value. Override via `providers` for a custom source. */
-  internalSecret?: { envVar?: string } | { key: string };
+  /**
+   * Wire the built-in internal-secret provider for `InternalGuard`. `{ envVar }` reads that env
+   * (default `INTERNAL_SECRET_KEY`). Prefer a custom rotating provider for production.
+   */
+  internalSecret?: InternalSecretConfig;
   /** Opt-in: persists uploaded files (S3/local driver). */
   uploadedFile?: UploadedFileConfig;
   /** Opt-in: action-history recording. */

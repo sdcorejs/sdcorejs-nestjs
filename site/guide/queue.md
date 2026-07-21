@@ -1,120 +1,130 @@
-# Background jobs (BullMQ)
+# BullMQ queue
 
-`@sdcorejs/nestjs/queue` is a thin wrapper over `@nestjs/bullmq` that wires one shared Redis connection
-and production-ready job defaults for the whole app. You import every queue primitive from this one
-entry — `QueueModule`, `SdWorkerHost`, plus the re-exported `Processor`, `InjectQueue`, `OnWorkerEvent`
-and the `Job` / `Queue` types — instead of reaching into `@nestjs/bullmq` + `bullmq` directly.
+The queue layer wraps `@nestjs/bullmq` with one Redis connection, consistent defaults, public
+decorator/type re-exports, and a worker base class that preserves retry behavior.
 
-> `bullmq` + `@nestjs/bullmq` ship as bundled dependencies — nothing extra to install. BullMQ keeps all
-> job state in Redis, so point `connection` at a Redis your workers can also reach (a dedicated `db` or
-> `prefix` keeps it off your cache keys).
-
-## 1. Open the connection (once)
-
-`SdCoreModule` wires the connection for you when the `queue` key is present:
+## Open the connection once
 
 ```ts
-SdCoreModule.forRoot({
-  // ...
-  queue: { connection: { host: 'localhost', port: 6379, db: 1 } },
-});
-```
+import { Module } from '@nestjs/common';
+import { QueueModule } from '@sdcorejs/nestjs/queue';
 
-Equivalent standalone form if you don't use `SdCoreModule`:
-
-```ts
 @Module({
-  imports: [QueueModule.forRoot({ connection: { host: 'localhost', port: 6379, db: 1 } })],
+  imports: [
+    QueueModule.forRoot({
+      connection: {
+        host: process.env.REDIS_HOST ?? 'localhost',
+        port: Number(process.env.REDIS_PORT ?? 6379),
+        db: 1,
+      },
+      prefix: 'orders:prod:queue',
+    }),
+  ],
 })
 export class AppModule {}
 ```
 
-`forRoot` is `global: true`, so feature modules only need `registerQueue`. Shipped job defaults
-(`DEFAULT_JOB_OPTIONS`): `attempts: 3`, exponential `backoff` (1s → 2s → 4s), `removeOnComplete: 1000`,
-`removeOnFail: 5000`. Override per-app via `defaultJobOptions`, or per-call on `add()`.
+You can instead set `queue: { connection, prefix, defaultJobOptions }` in
+`SdCoreModule.forRoot()`. Use one root approach, not both. Keep queues in a separate Redis database
+or prefix from cache data.
 
-## 2. Register queues per module
-
-Declare the queues a module produces to / consumes from. Re-import in every module that touches the
-queue (BullMQ de-dupes by name):
+## Register and produce
 
 ```ts
-import { QueueModule } from '@sdcorejs/nestjs/queue';
+import { Injectable, Module } from '@nestjs/common';
+import {
+  InjectQueue,
+  QueueModule,
+  type Queue,
+} from '@sdcorejs/nestjs/queue';
+
+interface EmailJob {
+  userId: string;
+  template: 'welcome' | 'receipt';
+}
+
+@Injectable()
+class EmailProducer {
+  constructor(@InjectQueue('emails') private readonly queue: Queue<EmailJob>) {}
+
+  enqueue(payload: EmailJob) {
+    return this.queue.add('send', payload, {
+      jobId: `email-${payload.template}-${payload.userId}`,
+    });
+  }
+}
 
 @Module({
-  imports: [QueueModule.registerQueue('emails', 'reports')],
-  providers: [EmailsProcessor], // the worker, see step 4
+  imports: [QueueModule.registerQueue('emails')],
+  providers: [EmailProducer],
+  exports: [EmailProducer],
 })
-export class EmailsModule {}
+export class EmailQueueModule {}
 ```
 
-## 3. Produce jobs
+`jobId` is an application deduplication choice. Select an identity matching your business
+semantics; omitting it allows repeated jobs. BullMQ rejects custom IDs containing `:`, so use a safe
+delimiter or a stable hash.
 
-Inject the queue and `add(name, data, opts?)`:
+## Consume and retry
 
 ```ts
 import { Injectable } from '@nestjs/common';
-import { InjectQueue, type Queue } from '@sdcorejs/nestjs/queue';
+import {
+  OnWorkerEvent,
+  Processor,
+  SdWorkerHost,
+  type Job,
+} from '@sdcorejs/nestjs/queue';
 
 @Injectable()
-export class EmailsService {
-  constructor(@InjectQueue('emails') private readonly emails: Queue) {}
-
-  async welcome(userId: string) {
-    await this.emails.add('welcome', { userId }, { delay: 5000 }); // run 5s later
-  }
+class Mailer {
+  async send(_userId: string, _template: string): Promise<void> {}
 }
-```
-
-## 4. Consume jobs — `SdWorkerHost`
-
-Subclass `SdWorkerHost`, decorate with `@Processor('<queue>')`, implement `handle()`. The base class
-adds structured start/success/failure logging and enforces the **retry contract**:
-
-```ts
-import { Processor, SdWorkerHost, type Job } from '@sdcorejs/nestjs/queue';
 
 @Processor('emails', { concurrency: 5 })
-export class EmailsProcessor extends SdWorkerHost<{ userId: string }> {
+class EmailWorker extends SdWorkerHost<EmailJob, void> {
   constructor(private readonly mailer: Mailer) {
     super();
   }
 
-  async handle(job: Job<{ userId: string }>) {
-    await this.mailer.sendWelcome(job.data.userId); // throw on failure → BullMQ retries with backoff
-  }
-}
-```
-
-::: warning Always throw on failure
-Don't override `process()` and don't swallow errors. `SdWorkerHost.process()` re-throws whatever
-`handle()` throws so BullMQ records the failed attempt and applies the queue's `attempts` + `backoff`.
-If you catch and return normally, BullMQ thinks the job succeeded and will **not** retry.
-:::
-
-A worker is a long-lived consumer. Run multiple instances/processes on the same queue name and they
-load-balance automatically; cap per-worker parallelism with `@Processor('q', { concurrency: N })`.
-
-## Worker events (optional)
-
-```ts
-import { Processor, SdWorkerHost, OnWorkerEvent, type Job } from '@sdcorejs/nestjs/queue';
-
-@Processor('emails')
-export class EmailsProcessor extends SdWorkerHost<{ userId: string }> {
-  async handle(job: Job<{ userId: string }>) {
-    /* ... */
+  async handle(job: Job<EmailJob>): Promise<void> {
+    await this.mailer.send(job.data.userId, job.data.template);
   }
 
   @OnWorkerEvent('failed')
-  onFailed(job: Job, err: Error) {
-    this.logger.error(`final failure ${job.id}: ${err.message}`);
+  onFailed(job: Job<EmailJob> | undefined, error: Error): void {
+    this.logger.warn('email attempt failed: ' + (job?.id ?? 'unknown') + ': ' + error.message);
   }
 }
 ```
 
-::: tip Queue vs. JobScheduler
-Use the **queue** for fan-out work items (emails, reports, webhooks) — many jobs, retried, load-balanced
-across workers. Use [`JobScheduler.runExclusive`](/guide/features#job-scheduler-distributed-cron-lock)
-when N nodes fire the **same** scheduled task and you need exactly one to run it.
-:::
+Register `EmailWorker` and `Mailer` as providers in a module that imports
+`QueueModule.registerQueue('emails')`. Throw from `handle()` to fail an attempt.
+`SdWorkerHost.process()` rethrows so BullMQ applies retries; swallowing an error marks success.
+
+## Defaults
+
+`DEFAULT_JOB_OPTIONS` supplies 3 attempts, exponential backoff starting at 1 second, the latest
+1,000 completed jobs, and the latest 5,000 failed jobs. Override at the root or per `queue.add()`.
+Keep retention bounded to prevent unbounded Redis growth.
+
+## Queue versus job scheduler
+
+| Need | Use |
+| --- | --- |
+| durable payload, retries, delay, worker pool | BullMQ queue |
+| one winner for the same cron tick across API instances | job scheduler |
+| both | scheduler callback enqueues one idempotently identified BullMQ job |
+
+Neither primitive makes arbitrary external effects exactly-once. Use business-level idempotency at
+the effect boundary.
+
+## Operations
+
+- Monitor waiting, active, delayed, failed, and stalled jobs.
+- Configure Redis persistence/availability for the required durability.
+- Make handlers idempotent because retries can repeat work.
+- Set concurrency according to downstream limits, not only CPU.
+- Alert on exhausted retries and growing lag.
+- Use separate workers/processes when long jobs should not share API resources.

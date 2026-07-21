@@ -1,69 +1,123 @@
-# Internal (service-to-service) calls
+# Internal service calls
 
-`InternalGuard` gates internal-only endpoints with a shared secret in the `X-Internal-Secret` header,
-compared in constant time. Two DI hooks make it production-ready.
+`InternalGuard` protects selected routes with `X-Internal-Secret`. It compares the supplied value
+in constant time and can accept multiple active keys during rotation.
 
-## 1. Provide the secret — `IInternalSecretProvider`
+## Built-in environment provider
 
 ```ts
-import { Injectable } from '@nestjs/common';
-import type { IInternalSecretProvider } from '@sdcorejs/nestjs/auth';
+import { Controller, Post, UseGuards } from '@nestjs/common';
+import { SdCoreModule } from '@sdcorejs/nestjs';
+import { InternalGuard } from '@sdcorejs/nestjs/auth';
 
-@Injectable()
-export class AppInternalSecretProvider implements IInternalSecretProvider {
-  getKey(): string {
-    return process.env.INTERNAL_SECRET!;
-  }
-  // Optional — zero-downtime rotation: return BOTH the outgoing and incoming secret during
-  // the transition window. When present, the guard accepts a match against ANY key.
-  getKeys(): string[] {
-    return [process.env.INTERNAL_SECRET!, process.env.INTERNAL_SECRET_NEXT!].filter(Boolean);
+SdCoreModule.forRoot({
+  internalSecret: { envVar: 'INTERNAL_SECRET_KEY' },
+});
+
+@Controller('internal/reindex')
+export class ReindexController {
+  @Post()
+  @UseGuards(InternalGuard)
+  run() {
+    return { accepted: true };
   }
 }
 ```
 
-The built-in `EnvInternalSecretProvider` covers the common case — wire it with
-`SdCoreModule.forRoot({ internalSecret: { envVar: 'INTERNAL_SECRET_KEY' } })`.
+If the environment variable is absent, no present header can match. If no provider is registered at
+all, using `InternalGuard` returns a configuration error at request time.
 
-## 2. Carry trusted context — `IInternalContextEnricher` (optional)
+## Rotating provider
 
-Internal calls arrive with no authenticated user. The enricher runs **only after the secret check
-passes**, so context derived from inbound headers is trusted on verified internal traffic and never on
-public traffic.
+```ts
+import { Injectable } from '@nestjs/common';
+import { SdCoreModule } from '@sdcorejs/nestjs';
+import {
+  INTERNAL_SECRET_PROVIDER,
+  type IInternalSecretProvider,
+} from '@sdcorejs/nestjs/auth';
+
+@Injectable()
+class RotatingInternalSecretProvider implements IInternalSecretProvider {
+  getKey(): string {
+    return process.env.INTERNAL_SECRET_CURRENT ?? '';
+  }
+
+  getKeys(): string[] {
+    return [
+      process.env.INTERNAL_SECRET_CURRENT,
+      process.env.INTERNAL_SECRET_NEXT,
+    ].filter((value): value is string => Boolean(value));
+  }
+}
+
+SdCoreModule.forRoot({
+  providers: [{
+    provide: INTERNAL_SECRET_PROVIDER,
+    useClass: RotatingInternalSecretProvider,
+  }],
+});
+```
+
+When `getKeys()` exists, the guard checks those values and ignores `getKey()`. Keep the overlap
+window short.
+
+## Enrich trusted context after authentication
 
 ```ts
 import { Injectable } from '@nestjs/common';
 import type { IncomingMessage } from 'node:http';
+import { SdCoreModule } from '@sdcorejs/nestjs';
 import { ContextService } from '@sdcorejs/nestjs/core';
-import type { IInternalContextEnricher } from '@sdcorejs/nestjs/auth';
+import {
+  INTERNAL_CONTEXT_ENRICHER,
+  type IInternalContextEnricher,
+} from '@sdcorejs/nestjs/auth';
 
 @Injectable()
-export class AppInternalEnricher implements IInternalContextEnricher {
-  constructor(private readonly ctx: ContextService) {}
-  enrich(req: IncomingMessage): void {
-    const h = req.headers;
-    this.ctx.set('tenant', h['x-tenant'] as string);
-    this.ctx.set('userId', h['x-user-id'] as string);
-    this.ctx.set('custom', { isInternalCall: true, caller: h['x-caller'] });
+class InternalContextEnricher implements IInternalContextEnricher {
+  constructor(private readonly context: ContextService) {}
+
+  enrich(request: IncomingMessage): void {
+    const tenant = request.headers['x-tenant'];
+    if (typeof tenant === 'string') this.context.set('tenant', tenant);
+    this.context.set('custom', { internalCaller: 'inventory-service' });
+  }
+}
+
+SdCoreModule.forRoot({
+  providers: [{
+    provide: INTERNAL_CONTEXT_ENRICHER,
+    useClass: InternalContextEnricher,
+  }],
+});
+```
+
+The enricher runs only after the secret matches. It does not replace tenancy or resource
+authorization: validate every enriched value and keep downstream policies active.
+
+## Outbound call
+
+```ts
+import { Injectable } from '@nestjs/common';
+import { HttpService } from '@sdcorejs/nestjs/services';
+
+@Injectable()
+class InventoryClient {
+  constructor(private readonly http: HttpService) {}
+
+  reindex(productIds: string[], internalSecret: string) {
+    return this.http.post(
+      '/internal/reindex',
+      { productIds },
+      { headers: { 'x-internal-secret': internalSecret } },
+    );
   }
 }
 ```
 
-## Apply per route
+Configure the destination origin in `http.trustedOrigins`; otherwise the client strips
+`x-internal-secret`. The client never generates this secret for you.
 
-```ts
-import { Controller, Post, UseGuards } from '@nestjs/common';
-import { InternalGuard } from '@sdcorejs/nestjs/auth';
-
-@Controller('internal/sync')
-@UseGuards(InternalGuard)
-export class SyncController { /* ... */ }
-```
-
-With no secret provider registered, the guard throws `500` at request time (not at boot), keeping the DI
-graph bootable.
-
-::: tip
-The enricher sets `custom.isInternalCall`, which your `ITenancyStrategy.shouldBypass()` can read to skip
-tenant filtering on internal calls.
-:::
+Internal shared secrets complement, not replace, TLS, network policy, rate limits, and service
+identity. Prefer workload identity/mTLS where available.

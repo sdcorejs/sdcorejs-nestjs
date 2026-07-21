@@ -18,7 +18,19 @@ export interface JwtModuleOptions {
 @Module({})
 export class JwtModule {
   static forRoot(config: JwtConfig, options?: JwtModuleOptions): DynamicModule {
-    const Strat = options?.strategy ?? (config.jwks ? KeycloakJwtStrategy : JwtStrategy);
+    const hasSecret = typeof config.secret === 'string' && config.secret.trim().length > 0;
+    const hasJwks = config.jwks !== undefined;
+    if (config.secret !== undefined && !hasSecret) {
+      throw new Error('JwtConfig.secret must be a non-empty string when supplied');
+    }
+    if (hasSecret && hasJwks) {
+      throw new Error('JwtConfig.secret and JwtConfig.jwks are mutually exclusive verification modes');
+    }
+    if (!options?.strategy && !hasSecret && !hasJwks) {
+      throw new Error('JwtModule.forRoot requires either JwtConfig.secret or JwtConfig.jwks for its default strategy');
+    }
+
+    const Strat = options?.strategy ?? (hasJwks ? KeycloakJwtStrategy : JwtStrategy);
     return {
       module: JwtModule,
       global: true,

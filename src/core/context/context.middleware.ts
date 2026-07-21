@@ -1,14 +1,16 @@
-import { Inject, Injectable, type NestMiddleware } from '@nestjs/common';
+import { Inject, Injectable, UnauthorizedException, type NestMiddleware } from '@nestjs/common';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { ContextService } from './context.service';
-import type { HeadersConfig, RequestContext } from './types';
-import { CONTEXT_HEADERS_CONFIG } from './tokens';
+import { normalizeContextIdentity } from './identity.resolver';
+import type { HeadersConfig, RequestContext, ResolvedContextIdentityOptions } from './types';
+import { CONTEXT_HEADERS_CONFIG, CONTEXT_IDENTITY_CONFIG } from './tokens';
 
 @Injectable()
 export class ContextMiddleware implements NestMiddleware {
   constructor(
     private readonly context: ContextService,
     @Inject(CONTEXT_HEADERS_CONFIG) private readonly headers: HeadersConfig,
+    @Inject(CONTEXT_IDENTITY_CONFIG) private readonly identity: ResolvedContextIdentityOptions,
   ) {}
 
   use(req: IncomingMessage, res: ServerResponse, next: () => void): void {
@@ -24,21 +26,45 @@ export class ContextMiddleware implements NestMiddleware {
       return Array.isArray(raw) ? raw[0] : raw;
     };
 
-    const custom: Record<string, unknown> = {};
-    for (const [ctxKey, headerName] of Object.entries(this.headers.customHeaders ?? {})) {
-      const value = read(headerName);
-      if (value !== undefined) custom[ctxKey] = value;
-    }
-
-    return {
-      tenant: read(this.headers.tenant),
-      userId: read(this.headers.userId),
+    const store: RequestContext = {
       lang: this.detectLang(req),
       token: this.extractToken(req),
       request: req,
       response: res,
-      custom: Object.keys(custom).length > 0 ? custom : undefined,
     };
+
+    const trustedHeaders = this.identity.trustedHeaders;
+    if (!trustedHeaders || !this.hasIdentityHeaders(req)) return store;
+    if (trustedHeaders.isTrustedRequest(req) !== true) {
+      throw new UnauthorizedException('Identity headers are accepted only from a verified trusted gateway');
+    }
+
+    const resolved = normalizeContextIdentity(
+      trustedHeaders.resolve?.(req) ?? {
+        tenant: read(this.headers.tenant),
+        userId: read(this.headers.userId),
+        custom: this.readCustomHeaders(req),
+      },
+    );
+    Object.assign(store, resolved, { identitySource: 'trusted-headers' as const });
+    return store;
+  }
+
+  private hasIdentityHeaders(req: IncomingMessage): boolean {
+    const names = [this.headers.tenant, this.headers.userId, ...Object.values(this.headers.customHeaders ?? {})].filter(
+      (name): name is string => !!name,
+    );
+    return names.some((name) => req.headers[name.toLowerCase()] !== undefined);
+  }
+
+  private readCustomHeaders(req: IncomingMessage): Record<string, unknown> | undefined {
+    const custom: Record<string, unknown> = {};
+    for (const [ctxKey, headerName] of Object.entries(this.headers.customHeaders ?? {})) {
+      const raw = req.headers[headerName.toLowerCase()];
+      const value = Array.isArray(raw) ? raw[0] : raw;
+      if (value !== undefined) custom[ctxKey] = value;
+    }
+    return Object.keys(custom).length > 0 ? custom : undefined;
   }
 
   private detectLang(req: IncomingMessage): string | undefined {

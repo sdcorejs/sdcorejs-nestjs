@@ -16,5 +16,18 @@ describe('CallbackTenancyStrategy', () => {
     const s = new CallbackTenancyStrategy({});
     expect(s.getCurrentScope(rc)).toEqual({});
     expect(s.shouldBypass(rc)).toBe(false);
+    expect(s.getBypassGrant(rc)).toBeUndefined();
+  });
+  it('delegates an explicit bypass grant', () => {
+    const grant = {
+      authorized: true as const,
+      actorId: 'a1',
+      reason: 'support',
+      allowedTargets: ['product'],
+      allowedOperations: ['read'] as const,
+      audit: jest.fn(),
+    };
+    const s = new CallbackTenancyStrategy({ bypassGrant: () => grant });
+    expect(s.getBypassGrant(rc)).toBe(grant);
   });
 });

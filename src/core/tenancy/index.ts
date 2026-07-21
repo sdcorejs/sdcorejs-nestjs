@@ -1,4 +1,5 @@
 export * from './strategy.interface';
+export * from './errors';
 export * from './tokens';
 export * from './default-tenancy.strategy';
 export * from './callback-tenancy.strategy';
