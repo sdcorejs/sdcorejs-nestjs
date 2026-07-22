@@ -9,6 +9,7 @@ export const CORE_CATALOG_EN: MessageCatalog = {
   // validation
   'core.validation.failed': 'Validation failed',
   'core.validation.uuid': 'Invalid UUID',
+  'core.validation.uuid-v4': 'Invalid UUID v4',
   'core.validation.page-number.min': 'Page number must be 0 or greater',
   'core.validation.page-size.min': 'Page size must be at least 1',
   'core.validation.page-size.max': 'Page size must not exceed 200',
@@ -24,6 +25,7 @@ export const CORE_CATALOG_EN: MessageCatalog = {
   'core.permission.internal-secret-mismatch': 'Invalid internal secret',
   'core.permission.internal-secret-provider-missing': 'Internal secret provider is not configured',
   // repository
+  'core.repository.invalid-filter': 'Invalid filter',
   'core.repository.invalid-uuid': 'Invalid UUID: {id}',
   'core.repository.invalid-field-name': 'Invalid field name: {field}',
   'core.repository.invalid-sort-field': 'Invalid sort field: {field}',
@@ -50,6 +52,7 @@ export const CORE_CATALOG_EN: MessageCatalog = {
 /** Built-in Vietnamese messages for every `core.*` code. */
 export const CORE_CATALOG_VI: MessageCatalog = {
   // validation
+  'core.validation.uuid-v4': 'UUID v4 không hợp lệ',
   'core.validation.failed': 'Dữ liệu không hợp lệ',
   'core.validation.uuid': 'UUID không hợp lệ',
   'core.validation.page-number.min': 'Số trang phải lớn hơn hoặc bằng 0',
@@ -67,6 +70,7 @@ export const CORE_CATALOG_VI: MessageCatalog = {
   'core.permission.internal-secret-mismatch': 'Internal secret không hợp lệ',
   'core.permission.internal-secret-provider-missing': 'Chưa cấu hình internal secret provider',
   // repository
+  'core.repository.invalid-filter': 'Bộ lọc không hợp lệ',
   'core.repository.invalid-uuid': 'UUID không hợp lệ: {id}',
   'core.repository.invalid-field-name': 'Tên trường không hợp lệ: {field}',
   'core.repository.invalid-sort-field': 'Trường sắp xếp không hợp lệ: {field}',

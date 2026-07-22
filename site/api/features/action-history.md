@@ -27,6 +27,7 @@ directly or registered as the history recorder used by `BaseRepository({ logHist
 | `MissingActionHistoryTenantError` | class | Manual write has no trusted tenant |
 | `MissingActionHistoryResourceTenantError` | class | Persisted scope cannot map safely to one tenant |
 | `ActionHistorySnapshotLimitError` | class | Snapshot exceeds defensive limits |
+| `ActionHistoryUnsafeSnapshotError` | class | Snapshot contains accessors or prototype-sensitive properties |
 
 ## Entity and module setup
 
@@ -130,7 +131,9 @@ case-insensitive and recognizes compound key names. Cycles are redacted; `Date` 
 
 Fixed defensive ceilings are 32 levels, 10,000 nodes and 1 MiB of counted UTF-8 snapshot/path text.
 Exceeding a ceiling throws `ActionHistorySnapshotLimitError` before persistence. Do not use a custom
-transform to reintroduce secrets; mandatory redaction always runs afterward.
+transform to reintroduce secrets; mandatory redaction always runs afterward. Enumerable accessors,
+symbol keys and prototype-sensitive keys such as `__proto__`, `prototype` or `constructor` throw
+`ActionHistoryUnsafeSnapshotError` before a getter can run or the snapshot can be persisted.
 
 ## Optional controller
 

@@ -1,20 +1,49 @@
 import { BadRequestException } from '@nestjs/common';
 import { Brackets, type EntityMetadata, type WhereExpressionBuilder } from 'typeorm';
-import type { Filter, FilterAndOr, Order } from '@sdcorejs/utils/models';
+import { FilterValidationError, UnsafePropertyPathError } from '@sdcorejs/utils/errors';
+import { FilterUtilities } from '@sdcorejs/utils/fns';
+import type { Filter, FilterAndOr, FilterHasData, FilterTimestampUnit, Order } from '@sdcorejs/utils/models';
 import { apiError } from '../types/api-response.types';
 
 /** Safe-character regex for field paths. Used as SQL injection guard before interpolation. */
 const SAFE_FIELD = /^[a-zA-Z0-9_.]+$/;
+const TEMPORAL_COLUMN_TYPES = new Set([
+  'date',
+  'datetime',
+  'datetime2',
+  'smalldatetime',
+  'time',
+  'time with time zone',
+  'time without time zone',
+  'timestamp',
+  'timestamp with local time zone',
+  'timestamp with time zone',
+  'timestamp without time zone',
+  'timestamptz',
+]);
 
 const quoteIdentifier = (value: string): string => `"${value.replace(/"/g, '""')}"`;
 
+const invalidFilter = (): BadRequestException => new BadRequestException(apiError('core.repository.invalid-filter', 'Invalid filter'));
+
+const validateFilter = <T>(filter: unknown): Filter<T> => {
+  try {
+    return FilterUtilities.validateFilter<T>(filter);
+  } catch (error) {
+    if (error instanceof FilterValidationError || error instanceof UnsafePropertyPathError) throw invalidFilter();
+    throw error;
+  }
+};
+
 /**
- * Drop empty / null / undefined filter entries. Recurse into AND/OR; if an AND/OR's inner
- * set becomes empty after cleanup, drop the whole AND/OR entry too. Preserve `from=0`/`to=0`
- * in BETWEEN by checking `!== undefined && !== null` (avoid truthy-check bug from `be-masterdata`).
+ * Validate and safely clone the runtime filter graph, then drop nullish scalar entries. Recurse
+ * into AND/OR and drop groups whose inner set becomes empty. Empty membership arrays are kept:
+ * `IN []` must become an always-false SQL predicate while `NOT_IN []` is a no-op.
  */
 export function prepareFilter<T>(filters: Filter<T>[] | undefined): Filter<T>[] {
-  if (!Array.isArray(filters)) return [];
+  if (filters === undefined || filters === null) return [];
+  if (!Array.isArray(filters)) throw invalidFilter();
+  filters = (validateFilter<T>({ operator: 'AND', data: filters }) as FilterAndOr<T>).data;
   const out: Filter<T>[] = [];
 
   for (const f of filters) {
@@ -40,7 +69,7 @@ export function prepareFilter<T>(filters: Filter<T>[] | undefined): Filter<T>[] 
     const data = (leaf as any).data;
 
     if (op === 'IN' || op === 'NOT_IN') {
-      if (Array.isArray(data) && data.length > 0) out.push(leaf);
+      if ((leaf as FilterHasData<T>).dataType === 'field' || Array.isArray(data)) out.push(leaf);
       continue;
     }
     if (op === 'BETWEEN') {
@@ -167,6 +196,95 @@ export function resolveSortColumn(field: string, alias: string, metadata: Entity
   return finalCol.databaseName ? `${aliasName}.${quoteIdentifier(finalCol.databaseName)}` : `${aliasName}.${columnName}`;
 }
 
+const findFilterColumn = (field: string, metadata: EntityMetadata): { type?: unknown; isArray?: boolean } | undefined => {
+  const parts = field.split('.');
+  const direct = metadata.findColumnWithPropertyName(parts[0]);
+  if (direct) return direct;
+  if (parts.length < 2) return undefined;
+  const relation = metadata.findRelationWithPropertyPath(parts[0]);
+  return relation?.inverseEntityMetadata?.findColumnWithPropertyPath?.(parts.slice(1).join('.'));
+};
+
+const isTemporalFilterColumn = (field: string, metadata: EntityMetadata): boolean => {
+  const type = findFilterColumn(field, metadata)?.type;
+  return type === Date || (typeof type === 'string' && TEMPORAL_COLUMN_TYPES.has(type.toLowerCase()));
+};
+
+const normalizeTimestampValue = (value: unknown, unit: FilterTimestampUnit, temporalColumn: boolean): Date | number => {
+  const epoch = FilterUtilities.toEpoch(value, { timestampUnit: unit });
+  if (epoch === null) throw invalidFilter();
+  if (temporalColumn) return new Date(epoch);
+  return unit === 'seconds' ? epoch / 1000 : epoch;
+};
+
+const normalizeTimestampOperand = (
+  value: unknown,
+  unit: FilterTimestampUnit | undefined,
+  field: string,
+  metadata: EntityMetadata,
+): unknown => {
+  if (!unit) return value;
+  const temporalColumn = isTemporalFilterColumn(field, metadata);
+  return Array.isArray(value)
+    ? value.map((item) => normalizeTimestampValue(item, unit, temporalColumn))
+    : normalizeTimestampValue(value, unit, temporalColumn);
+};
+
+const applyColumnOperand = (qb: WhereExpressionBuilder, operator: string, column: string, operandColumn: string): void => {
+  const source = `LOWER(UNACCENT(${column}::text))`;
+  const operand = `LOWER(UNACCENT(${operandColumn}::text))`;
+  switch (operator) {
+    case 'EQUAL':
+      qb.andWhere(`(COALESCE(${column} = ${operandColumn}, FALSE) OR (${column} IS NULL AND ${operandColumn} IS NULL))`);
+      return;
+    case 'NOT_EQUAL':
+      qb.andWhere(`NOT (COALESCE(${column} = ${operandColumn}, FALSE) OR (${column} IS NULL AND ${operandColumn} IS NULL))`);
+      return;
+    case 'LESS_THAN':
+      qb.andWhere(`${column} < ${operandColumn}`);
+      return;
+    case 'LESS_OR_EQUAL':
+      qb.andWhere(`${column} <= ${operandColumn}`);
+      return;
+    case 'GREATER_THAN':
+      qb.andWhere(`${column} > ${operandColumn}`);
+      return;
+    case 'GREATER_OR_EQUAL':
+      qb.andWhere(`${column} >= ${operandColumn}`);
+      return;
+    case 'CONTAIN':
+      qb.andWhere(`${source} LIKE '%' || ${operand} || '%'`);
+      return;
+    case 'NOT_CONTAIN':
+      qb.andWhere(`${source} NOT LIKE '%' || ${operand} || '%'`);
+      return;
+    case 'START_WITH':
+      qb.andWhere(`${source} LIKE ${operand} || '%'`);
+      return;
+    case 'NOT_START_WITH':
+      qb.andWhere(`${source} NOT LIKE ${operand} || '%'`);
+      return;
+    case 'END_WITH':
+      qb.andWhere(`${source} LIKE '%' || ${operand}`);
+      return;
+    case 'NOT_END_WITH':
+      qb.andWhere(`${source} NOT LIKE '%' || ${operand}`);
+      return;
+    case 'IN':
+      qb.andWhere(
+        `(COALESCE(${column} = ANY(${operandColumn}), FALSE) OR (${column} IS NULL AND array_position(${operandColumn}, NULL) IS NOT NULL))`,
+      );
+      return;
+    case 'NOT_IN':
+      qb.andWhere(
+        `${operandColumn} IS NOT NULL AND NOT (COALESCE(${column} = ANY(${operandColumn}), FALSE) OR (${column} IS NULL AND array_position(${operandColumn}, NULL) IS NOT NULL))`,
+      );
+      return;
+    default:
+      throw invalidFilter();
+  }
+};
+
 /**
  * Apply a single filter (leaf or AND/OR group) to a `WhereExpressionBuilder`. Recurses for
  * groups, builds parameterized SQL for every leaf operator. Unique parameter names per call
@@ -178,7 +296,9 @@ export function applyFilterToQuery<T>(
   idx: number,
   alias: string,
   metadata: EntityMetadata,
+  now: Date = new Date(),
 ): void {
+  filter = validateFilter<T>(filter);
   const op = filter.operator;
 
   if (op === 'AND' || op === 'OR') {
@@ -188,7 +308,7 @@ export function applyFilterToQuery<T>(
       new Brackets((sqb) => {
         sub.forEach((s, j) => {
           const nestedIdx = idx * 1000 + j;
-          const wrap = new Brackets((iqb) => applyFilterToQuery(iqb, s, nestedIdx, alias, metadata));
+          const wrap = new Brackets((iqb) => applyFilterToQuery(iqb, s, nestedIdx, alias, metadata, now));
           if (op === 'OR') sqb.orWhere(wrap);
           else sqb.andWhere(wrap);
         });
@@ -212,9 +332,22 @@ export function applyFilterToQuery<T>(
   }
 
   if (!('data' in leaf)) return;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data = (leaf as any).data;
+  const hasData = leaf as FilterHasData<T>;
+  let data: unknown = hasData.data;
   if (data === undefined || data === null) return;
+
+  if (hasData.dataType === 'field') {
+    if ((op === 'IN' || op === 'NOT_IN') && findFilterColumn(hasData.data as string, metadata)?.isArray !== true) {
+      throw invalidFilter();
+    }
+    applyColumnOperand(qb, op, col, resolveColumnName(hasData.data as string, alias, metadata));
+    return;
+  }
+
+  if (hasData.dataType === 'date-today' || hasData.dataType === 'date-relative') {
+    data = FilterUtilities.resolveData(hasData, Object.create(null), { now });
+  }
+  data = normalizeTimestampOperand(data, hasData.timestampUnit, hasData.field as string, metadata);
 
   const param = `p_${idx}_${Math.random().toString(36).slice(2, 8)}`;
 
@@ -255,12 +388,19 @@ export function applyFilterToQuery<T>(
     case 'NOT_END_WITH':
       qb.andWhere(`LOWER(UNACCENT(${col}::text)) NOT LIKE LOWER(UNACCENT(:${param}))`, { [param]: `%${data}` });
       return;
-    case 'BETWEEN':
+    case 'BETWEEN': {
+      const between = leaf as Exclude<Filter<T>, FilterAndOr<T>> & {
+        data: { from: unknown; to: unknown };
+        timestampUnit?: FilterTimestampUnit;
+      };
+      const from = normalizeTimestampOperand(between.data.from, between.timestampUnit, between.field as string, metadata);
+      const to = normalizeTimestampOperand(between.data.to, between.timestampUnit, between.field as string, metadata);
       qb.andWhere(`${col} >= :${param}_from AND ${col} <= :${param}_to`, {
-        [`${param}_from`]: data.from,
-        [`${param}_to`]: data.to,
+        [`${param}_from`]: from,
+        [`${param}_to`]: to,
       });
       return;
+    }
     case 'IN':
       if (Array.isArray(data) && data.length === 0) {
         qb.andWhere('1 = 0');
@@ -273,6 +413,6 @@ export function applyFilterToQuery<T>(
       qb.andWhere(`${col} NOT IN (:...${param})`, { [param]: data });
       return;
     default:
-      qb.andWhere(`${col} = :${param}`, { [param]: data });
+      throw invalidFilter();
   }
 }

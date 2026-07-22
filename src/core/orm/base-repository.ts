@@ -367,9 +367,10 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
     }
 
     if (filters?.length) {
+      const filterReferenceTime = new Date();
       query.andWhere(
         new Brackets((qb) => {
-          filters.forEach((f, i) => applyFilterToQuery(qb, f, i, alias, meta));
+          filters.forEach((f, i) => applyFilterToQuery(qb, f, i, alias, meta, filterReferenceTime));
         }),
       );
     }
@@ -418,7 +419,8 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
       const query = repo.createQueryBuilder('e').where('e.id = :id', { id: term });
       const scopeFilters = this.addonFilter([]); // [] of user filters → just the injected tenancy scope
       if (scopeFilters.length) {
-        query.andWhere(new Brackets((qb) => scopeFilters.forEach((f, i) => applyFilterToQuery(qb, f, i, 'e', meta))));
+        const filterReferenceTime = new Date();
+        query.andWhere(new Brackets((qb) => scopeFilters.forEach((f, i) => applyFilterToQuery(qb, f, i, 'e', meta, filterReferenceTime))));
       }
       return query.take(1).getMany();
     }
@@ -430,9 +432,10 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
     const query = repo.createQueryBuilder('e');
 
     if (finalFilters.length) {
+      const filterReferenceTime = new Date();
       query.andWhere(
         new Brackets((qb) => {
-          finalFilters.forEach((f, i) => applyFilterToQuery(qb, f, i, 'e', meta));
+          finalFilters.forEach((f, i) => applyFilterToQuery(qb, f, i, 'e', meta, filterReferenceTime));
         }),
       );
     }

@@ -1,6 +1,6 @@
 {
   "name": "@sdcorejs/nestjs",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Production NestJS and TypeORM building blocks for fail-closed tenancy, trusted identity, authorization, cache, HTTP, files, audit history, jobs, validation, and i18n.",
   "license": "MIT",
   "author": "Trần Thuận Nghĩa",
@@ -22,7 +22,7 @@
     "library"
   ],
   "engines": {
-    "node": ">=20"
+    "node": "^20.0.0 || ^22.0.0 || ^24.0.0"
   },
   "publishConfig": {
     "access": "public"
@@ -159,14 +159,14 @@
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/schedule": "^6.0.0",
     "@nestjs/typeorm": "^11.0.0",
-    "@sdcorejs/utils": "^1.1.0",
+    "@sdcorejs/utils": "^1.2.0",
     "axios": "^1.18.1",
     "bullmq": "^5.0.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0",
-    "typeorm": "^0.3.20",
+    "typeorm": "^0.3.31",
     "zod": "^4.0.0"
   },
   "optionalDependencies": {
@@ -206,6 +206,7 @@
   "overrides": {
     "@babel/core": "7.29.7",
     "esbuild": "$esbuild",
+    "immutable": "4.3.9",
     "js-yaml@<4.0.0": "3.15.0",
     "js-yaml@>=4.0.0 <5.0.0": "4.3.0"
   },

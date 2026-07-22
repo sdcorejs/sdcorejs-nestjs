@@ -76,6 +76,50 @@ describe('BaseRepository.paging filters', () => {
     expect(await filter({ field: 'code', operator: 'NOT_IN', data: ['P-100', 'L-300'] })).toHaveLength(2);
   });
 
+  it('treats empty IN as no matches and empty NOT_IN as all matches', async () => {
+    expect(await filter({ field: 'code', operator: 'IN', data: [] })).toHaveLength(0);
+    expect(await filter({ field: 'code', operator: 'NOT_IN', data: [] })).toHaveLength(4);
+  });
+
+  it('supports field-to-field comparisons from the utils 1.2 contract', async () => {
+    expect(await filter({ field: 'price', operator: 'GREATER_THAN', dataType: 'field', data: 'price' })).toHaveLength(0);
+    expect(await filter({ field: 'price', operator: 'EQUAL', dataType: 'field', data: 'price' })).toHaveLength(4);
+  });
+
+  it('uses null-safe equality for field-to-field comparisons', async () => {
+    await ds.getRepository(TestProduct).update({ code: 'P-100' }, { name: null as unknown as string });
+    expect(await filter({ field: 'name', operator: 'EQUAL', dataType: 'field', data: 'name' })).toHaveLength(4);
+    expect(await filter({ field: 'name', operator: 'NOT_EQUAL', dataType: 'field', data: 'name' })).toHaveLength(0);
+  });
+
+  it('rejects field membership against a scalar RHS column before executing SQL', async () => {
+    await expect(filter({ field: 'code', operator: 'IN', dataType: 'field', data: 'name' })).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('supports today, relative-date and explicit timestamp operands', async () => {
+    expect(await filter({ field: 'createdAt', operator: 'GREATER_OR_EQUAL', dataType: 'date-today', data: 'TODAY' })).toHaveLength(4);
+    expect(
+      await filter({
+        field: 'createdAt',
+        operator: 'GREATER_OR_EQUAL',
+        dataType: 'date-relative',
+        data: { amount: 1, direction: 'previous', unit: 'day' },
+      }),
+    ).toHaveLength(4);
+    expect(
+      await filter({
+        field: 'createdAt',
+        operator: 'LESS_THAN',
+        timestampUnit: 'seconds',
+        data: Math.floor((Date.now() + 86_400_000) / 1000),
+      }),
+    ).toHaveLength(4);
+  });
+
+  it('rejects malformed filters as a bad request before executing SQL', async () => {
+    await expect(filter({ field: 'code', operator: 'EXPLOIT', data: 'P-100' } as never)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   it('NULL / NOT_NULL for nullable column', async () => {
     await ds.getRepository(TestProduct).update({ code: 'P-100' }, { name: null as unknown as string });
     expect(await filter({ field: 'name', operator: 'NULL' })).toHaveLength(1);

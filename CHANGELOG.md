@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1
+
+### Patch Changes
+
+- 619b948: Adopt `@sdcorejs/utils` 1.2 filter validation and operand semantics, preserve empty membership filters, harden action-history snapshots, and add the `zUuidV4` validation preset.
+- Require TypeORM 0.3.31 or newer to include the upstream migration-generator security fix.
+
 ## 1.1.0
 
 ### Minor Changes

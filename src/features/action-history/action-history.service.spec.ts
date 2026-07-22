@@ -5,6 +5,7 @@ import type { HistoryEntry } from '../../core/orm/history';
 import {
   ActionHistoryService,
   ActionHistorySnapshotLimitError,
+  ActionHistoryUnsafeSnapshotError,
   MissingActionHistoryResourceTenantError,
   MissingActionHistoryTenantError,
 } from './action-history.service';
@@ -150,6 +151,46 @@ describe('ActionHistoryService', () => {
         service.create({ table: 'account', tableId: RESOURCE_ID, type: ActionHistoryType.UPDATE, toData: snapshot() }),
       ).rejects.toBeInstanceOf(ActionHistorySnapshotLimitError);
       expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it.each(['__proto__', 'prototype', 'constructor'])('rejects the prototype-sensitive snapshot key %s', async (key) => {
+      const repo = makeRepoMock();
+      const service = new ActionHistoryService(repo, ctx('T1', 'u1'), undefined, allow);
+      const snapshot = Object.create(null) as Record<string, unknown>;
+      Object.defineProperty(snapshot, key, { enumerable: true, configurable: true, value: { polluted: true } });
+
+      await expect(
+        service.create({ table: 'account', tableId: RESOURCE_ID, type: ActionHistoryType.UPDATE, toData: snapshot }),
+      ).rejects.toBeInstanceOf(ActionHistoryUnsafeSnapshotError);
+      expect(repo.save).not.toHaveBeenCalled();
+      expect(({} as { polluted?: boolean }).polluted).toBeUndefined();
+    });
+
+    it('rejects enumerable accessors without invoking them', async () => {
+      const repo = makeRepoMock();
+      const service = new ActionHistoryService(repo, ctx('T1', 'u1'), undefined, allow);
+      const getter = jest.fn(() => 'secret');
+      const snapshot = {} as Record<string, unknown>;
+      Object.defineProperty(snapshot, 'value', { enumerable: true, get: getter });
+
+      await expect(
+        service.create({ table: 'account', tableId: RESOURCE_ID, type: ActionHistoryType.UPDATE, toData: snapshot }),
+      ).rejects.toBeInstanceOf(ActionHistoryUnsafeSnapshotError);
+      expect(getter).not.toHaveBeenCalled();
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('copies own data properties into null-prototype snapshot objects', async () => {
+      const repo = makeRepoMock();
+      const inherited = { ignored: 'value' };
+      const snapshot = Object.assign(Object.create(inherited) as Record<string, unknown>, { own: { safe: true } });
+      const service = new ActionHistoryService(repo, ctx('T1', 'u1'), undefined, allow);
+
+      await service.create({ table: 'account', tableId: RESOURCE_ID, type: ActionHistoryType.UPDATE, toData: snapshot });
+      const saved = repo.create.mock.calls[0][0].toData as Record<string, unknown>;
+      expect(Object.getPrototypeOf(saved)).toBeNull();
+      expect(Object.keys(saved)).toEqual(['own']);
+      expect(Object.getPrototypeOf(saved.own as object)).toBeNull();
     });
   });
 
