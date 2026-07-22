@@ -1,6 +1,6 @@
 ---
-updated_at: 2026-07-22T09:13:41.2642308+07:00
-status: in_progress
+updated_at: 2026-07-22T09:17:14.7633912+07:00
+status: complete
 track: nestjs
 active_skill: github:gh-fix-ci + sdcorejs-ship + sdcorejs-git
 branch: chore/prepare-release-1.1.1
@@ -30,7 +30,7 @@ Fix all remaining Node 22 CI failures on pull request #4.
 - [x] Obtain approval for the dependency-security update.
 - [x] Update the TypeORM constraint and lock the fixed TypeORM/Immutable versions.
 - [x] Run regression and audit checks on Node 22.
-- [ ] Commit, push, and recheck CI.
+- [x] Commit, push, and recheck CI.
 
 ## Current State
 - Implementation commit: `619b948` (`fix(core): adopt @sdcorejs/utils 1.2.0`).
@@ -48,6 +48,8 @@ Fix all remaining Node 22 CI failures on pull request #4.
 - CI follow-up: documentation now passes; the next Node 22 step fails `npm audit` on `typeorm@0.3.30` and `immutable@4.3.8`.
 - Dependency fix: require `typeorm@^0.3.31` and override the `pg-mem` development tree to `immutable@4.3.9`.
 - Lockfile confirms TypeORM 0.3.31 and Immutable 4.3.9 with only expected TypeORM patch transitives.
+- Dependency fix commit: `cc06463` (`fix(deps): resolve audit advisories`).
+- GitHub Actions run `29885303002` passed on Node 20 and Node 22, including Node 22 docs and audits.
 - Blocked/skipped: none; the user explicitly requested checking and fixing the remaining failure.
 
 ## Artifacts Touched
@@ -79,4 +81,4 @@ Fix all remaining Node 22 CI failures on pull request #4.
 - Build, package DI, exports, CJS/ESM smoke, docs check and `npm pack` for 1.1.1 passed.
 
 ## Resume From Here
-Run branch hygiene, commit the scoped dependency/checkpoint changes, push to PR #4, and monitor the new CI run.
+PR #4 is ready for review; convert it from draft when maintainers are ready. Tagging and publishing remain out of scope.
