@@ -17,6 +17,7 @@ Entrypoint validation tích hợp Zod 4 với Nest guard và error envelope ổn
 | `zPageSize` | schema | Số nguyên đã coerce trong khoảng `1..200`, mặc định `10` |
 | `zPaging` | schema | Preset `{ pageNumber, pageSize }` |
 | `zUuid` | function | Schema chuỗi UUID với message code có thể cấu hình |
+| `zUuidV4` | function | Schema chuỗi UUID v4 đúng RFC với message code có thể cấu hình |
 | `zBool` | schema | Coerce chuỗi `true`, `1`, `yes` thành true; chuỗi khác thành false |
 
 Validation runtime dùng dependency bắt buộc `zod` phiên bản 4.

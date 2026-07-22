@@ -17,6 +17,7 @@ The validation entrypoint integrates Zod 4 with Nest guards and the library's st
 | `zPageSize` | schema | Coerced integer `1..200`, default `10` |
 | `zPaging` | schema | `{ pageNumber, pageSize }` preset |
 | `zUuid` | function | UUID string schema with configurable message code |
+| `zUuidV4` | function | RFC-variant UUID v4 string schema with configurable message code |
 | `zBool` | schema | Coerces `true`, `1`, `yes` strings to true; other strings to false |
 
 Runtime validation uses the required `zod` version 4 dependency.

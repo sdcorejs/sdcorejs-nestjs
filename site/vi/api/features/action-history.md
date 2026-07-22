@@ -27,6 +27,7 @@ hoặc đăng ký làm history recorder được `BaseRepository({ logHistory: t
 | `MissingActionHistoryTenantError` | class | Lần ghi thủ công không có tenant tin cậy |
 | `MissingActionHistoryResourceTenantError` | class | Scope đã persist không thể ánh xạ an toàn về một tenant |
 | `ActionHistorySnapshotLimitError` | class | Snapshot vượt giới hạn phòng vệ |
+| `ActionHistoryUnsafeSnapshotError` | class | Snapshot chứa accessor hoặc thuộc tính nhạy cảm với prototype |
 
 ## Thiết lập entity và module {#entity-and-module-setup}
 
@@ -130,7 +131,9 @@ hoa thường và nhận biết tên key ghép. Chu kỳ bị che; `Date` trở 
 
 Giới hạn phòng vệ cố định là 32 level, 10,000 node và 1 MiB văn bản UTF-8 snapshot/path được đếm.
 Vượt giới hạn sẽ ném `ActionHistorySnapshotLimitError` trước khi persist. Không dùng biến đổi tùy
-chỉnh để đưa secret trở lại; bước che bắt buộc luôn chạy sau đó.
+chỉnh để đưa secret trở lại; bước che bắt buộc luôn chạy sau đó. Accessor enumerable, symbol key và
+key nhạy cảm với prototype như `__proto__`, `prototype` hoặc `constructor` sẽ ném
+`ActionHistoryUnsafeSnapshotError` trước khi getter có thể chạy hoặc snapshot được persist.
 
 ## Controller tùy chọn {#optional-controller}
 
