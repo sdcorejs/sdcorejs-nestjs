@@ -241,12 +241,32 @@ Local storage roots are canonicalized and every key is containment-checked. Do n
 paths in `key`, and do not expose the local root or raw filesystem errors.
 
 The drop-in multipart controller accepts one buffered file with bounded parts/fields and an absolute
-25 MiB ceiling; the service applies the lower configured limit, MIME allowlist, extension agreement,
-and practical magic-byte validation. For files larger than the ceiling, implement a separately
-reviewed streaming/direct-upload workflow with equivalent authorization and validation.
+25 MiB ceiling. The service default is 10 MiB and applies the lowest of that configured limit and an
+optional per-call `maxFileSizeBytes`. A per-call `allowedMimeTypes` is intersected with the configured
+allowlist, so callers cannot widen either control. Extension agreement and practical magic-byte
+validation still apply. For files larger than the ceiling, implement a separately reviewed
+streaming/direct-upload workflow with equivalent authorization and validation.
+
+DOCX, XLSX, and PPTX now undergo bounded structural ZIP inspection: no more than 2,048 entries,
+100 MiB total declared uncompressed data, 50 MiB per entry, and a 100:1 per-entry compression ratio.
+Encrypted, ZIP64/multi-disk, unsafe or duplicate paths, malformed directory offsets, and packages
+without `[Content_Types].xml` or the required main document part are rejected. This validation is not
+malware scanning; deployments that need threat detection must add a separately reviewed
+scanning/quarantine workflow.
 
 Raw storage drivers and `IUploadedFileStorage` are no longer public. Use the authorized
-`UploadedFileService`; its upload signature accepts an optional final `{ contentType }` argument.
+`UploadedFileService`; its upload signature accepts an optional final
+`{ contentType, allowedMimeTypes, maxFileSizeBytes }` argument.
+
+`markUsed(ids, meta, manager?)` now accepts an optional caller-owned TypeORM `EntityManager`. Supply it
+when the domain write and file claim must commit or roll back together; the service does not open a
+nested transaction in that case. Omitting it retains one library-owned all-or-nothing transaction.
+
+Exact attached-file reads across uploader identity are opt-in. Configure `attachedReadPolicy` and call
+`downloadAttached(id, { module, entity, entityId })`. Omission or any result other than `true` denies
+the read. Approved lookups remain tenant-bound and require an active used row with exact ownership
+metadata; UUIDv7 domain `entityId` values are accepted. Policy denial, ownership mismatch, and storage
+failure are deliberately indistinguishable 404 responses.
 
 ## Cache scopes
 

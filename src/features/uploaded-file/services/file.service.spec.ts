@@ -1,13 +1,15 @@
 import 'reflect-metadata';
 import { Readable } from 'node:stream';
-import type { Repository } from 'typeorm';
+import type { EntityManager, Repository } from 'typeorm';
 import { ContextService } from '../../../core/context/context.service';
 import { normalizeUploadedFileConfig } from '../config';
 import type { UploadedFileStorageDriver } from '../storage-driver';
+import type { UploadedFileAttachedReadPolicy } from '../types';
 import { UploadedFile } from '../uploaded-file.entity';
 import { UploadedFileService } from './uploaded-file.service';
 
 const USER_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const OTHER_USER_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
 function makeStorage(): jest.Mocked<UploadedFileStorageDriver> {
   return {
@@ -79,6 +81,78 @@ describe('UploadedFileService', () => {
     await expect(run(() => service.upload(png, 'a.txt', undefined, undefined, { contentType: 'text/plain' }))).rejects.toMatchObject({
       status: 400,
     });
+    expect(storage.write).not.toHaveBeenCalled();
+  });
+
+  it('intersects per-call MIME types with the configured allowlist', async () => {
+    const { service, storage, run } = setup(
+      undefined,
+      undefined,
+      normalizeUploadedFileConfig({ allowedMimeTypes: ['text/plain', 'image/png'] }),
+    );
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+    await expect(
+      run(() =>
+        service.upload(png, 'a.png', undefined, undefined, {
+          contentType: 'image/png',
+          allowedMimeTypes: ['text/plain'],
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(
+      run(() =>
+        service.upload(Buffer.from('plain'), 'a.txt', undefined, undefined, {
+          contentType: 'text/plain',
+          allowedMimeTypes: ['application/pdf'],
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(storage.write).not.toHaveBeenCalled();
+  });
+
+  it('clamps per-call upload size without allowing a caller to widen the service limit', async () => {
+    const narrow = setup(undefined, undefined, normalizeUploadedFileConfig({ maxFileSizeBytes: 10, allowedMimeTypes: ['text/plain'] }));
+    await expect(
+      narrow.run(() =>
+        narrow.service.upload(Buffer.alloc(5, 0x61), 'a.txt', undefined, undefined, {
+          contentType: 'text/plain',
+          maxFileSizeBytes: 4,
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+
+    const globallyBounded = setup(
+      undefined,
+      undefined,
+      normalizeUploadedFileConfig({ maxFileSizeBytes: 4, allowedMimeTypes: ['text/plain'] }),
+    );
+    await expect(
+      globallyBounded.run(() =>
+        globallyBounded.service.upload(Buffer.alloc(5, 0x61), 'a.txt', undefined, undefined, {
+          contentType: 'text/plain',
+          maxFileSizeBytes: 100,
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(narrow.storage.write).not.toHaveBeenCalled();
+    expect(globallyBounded.storage.write).not.toHaveBeenCalled();
+  });
+
+  it('applies the same per-call narrowing to temporary uploads', async () => {
+    const { service, storage, run } = setup(
+      undefined,
+      undefined,
+      normalizeUploadedFileConfig({ maxFileSizeBytes: 10, allowedMimeTypes: ['text/plain'], cleanupAfterDays: 1 }),
+    );
+    await expect(
+      run(() =>
+        service.uploadTemporary(Buffer.alloc(5, 0x61), 'a.txt', {
+          contentType: 'text/plain',
+          maxFileSizeBytes: 4,
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 400 });
     expect(storage.write).not.toHaveBeenCalled();
   });
 
@@ -170,6 +244,102 @@ describe('UploadedFileService', () => {
     const update = repository.update.mock.calls.at(-1)?.[1] as Record<string, unknown>;
     expect(update).toMatchObject({ isUsed: true, entity: 'brand' });
     expect(update).not.toHaveProperty('tenantCode');
+  });
+
+  it('uses a caller EntityManager without opening a nested transaction', async () => {
+    const id = '00000000-0000-4000-8000-000000000001';
+    const transactionRepository = makeRepository({ find: jest.fn(async () => [{ id }]) });
+    const manager = { getRepository: jest.fn(() => transactionRepository) } as unknown as EntityManager;
+    const { service, repository, run } = setup();
+
+    await run(() => service.markUsed([id], { module: 'cms', entity: 'asset', entityId: id }, manager));
+
+    expect(manager.getRepository).toHaveBeenCalledWith(UploadedFile);
+    expect(transactionRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: expect.anything(), tenantCode: 'tenant-a', userId: USER_ID }),
+      expect.objectContaining({ isUsed: true, module: 'cms', entity: 'asset', entityId: id }),
+    );
+    expect(repository.manager.transaction).not.toHaveBeenCalled();
+  });
+
+  it('keeps the legacy markUsed call all-or-nothing in one library-owned transaction', async () => {
+    const id = '00000000-0000-4000-8000-000000000001';
+    const repository = makeRepository({ find: jest.fn(async () => [{ id }]) });
+    const { service, run } = setup(repository);
+
+    await run(() => service.markUsed([id], { entity: 'asset' }));
+
+    expect(repository.manager.transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('denies attached reads by default before querying or opening storage', async () => {
+    const id = '00000000-0000-4000-8000-000000000001';
+    const { service, repository, storage, run } = setup();
+
+    await expect(run(() => service.downloadAttached(id, { module: 'cms', entity: 'asset', entityId: id }))).rejects.toMatchObject({
+      status: 404,
+    });
+    expect(repository.findOne).not.toHaveBeenCalled();
+    expect(storage.download).not.toHaveBeenCalled();
+  });
+
+  it('reads an exact used attachment across uploader identity only after explicit policy approval', async () => {
+    const id = '00000000-0000-4000-8000-000000000001';
+    const row = { id, key: 'asset-key', fileName: 'asset.txt', userId: USER_ID };
+    const repository = makeRepository({ findOne: jest.fn(async () => row) });
+    const policy: jest.MockedFunction<UploadedFileAttachedReadPolicy> = jest.fn(async () => true);
+    const config = normalizeUploadedFileConfig({ allowedMimeTypes: ['text/plain'], attachedReadPolicy: policy });
+    const { service, context, storage } = setup(repository, undefined, config);
+
+    await expect(
+      context.run({ tenant: 'tenant-a', userId: OTHER_USER_ID }, () =>
+        service.downloadAttached(id, { module: 'cms', entity: 'asset', entityId: id }),
+      ),
+    ).resolves.toMatchObject({ fileName: 'asset.txt', stream: expect.any(Readable) });
+    expect(policy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        resourceId: id,
+        scope: expect.objectContaining({ tenantCode: 'tenant-a', userId: OTHER_USER_ID }),
+        attachment: { module: 'cms', entity: 'asset', entityId: id },
+      }),
+    );
+    const where = repository.findOne.mock.calls[0][0].where as Record<string, unknown>;
+    expect(where).toEqual(
+      expect.objectContaining({
+        id,
+        tenantCode: 'tenant-a',
+        isUsed: true,
+        module: 'cms',
+        entity: 'asset',
+        entityId: id,
+      }),
+    );
+    expect(where).not.toHaveProperty('userId');
+    expect(storage.download).toHaveBeenCalledWith('asset-key');
+  });
+
+  it('uses the same not-found response for attached metadata misses and storage failures', async () => {
+    const id = '00000000-0000-4000-8000-000000000001';
+    const policy: UploadedFileAttachedReadPolicy = async () => true;
+    const missing = setup(
+      makeRepository({ findOne: jest.fn(async () => null) }),
+      undefined,
+      normalizeUploadedFileConfig({ allowedMimeTypes: ['text/plain'], attachedReadPolicy: policy }),
+    );
+    await expect(
+      missing.run(() => missing.service.downloadAttached(id, { module: 'cms', entity: 'asset', entityId: id })),
+    ).rejects.toMatchObject({ status: 404 });
+
+    const storage = makeStorage();
+    storage.download.mockRejectedValueOnce(new Error('private storage detail'));
+    const failing = setup(
+      makeRepository({ findOne: jest.fn(async () => ({ id, key: 'missing-key', fileName: 'asset.txt' })) }),
+      storage,
+      normalizeUploadedFileConfig({ allowedMimeTypes: ['text/plain'], attachedReadPolicy: policy }),
+    );
+    await expect(
+      failing.run(() => failing.service.downloadAttached(id, { module: 'cms', entity: 'asset', entityId: id })),
+    ).rejects.toMatchObject({ status: 404 });
   });
 
   it('validates every batch item and cap before policy or SQL execution', async () => {
@@ -287,6 +457,9 @@ describe('UploadedFileService', () => {
   it('returns attachment content headers for known types', () => {
     const { service } = setup();
     expect(service.getContent('invoice.pdf')).toMatchObject({ ContentType: 'application/pdf' });
+    expect(service.getContent('proposal.pptx')).toMatchObject({
+      ContentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    });
     expect(service.getContent('unknown.bin')).toEqual({});
   });
 });

@@ -158,6 +158,43 @@ describe('UploadedFileService tenant/owner integration (pg-mem)', () => {
     await expect(as('tenant-b', B1, () => sharedService.findById(owned.id))).rejects.toMatchObject({ status: 404 });
   });
 
+  it('allows an explicitly authorized attached read across uploaders without weakening tenant or metadata scope', async () => {
+    const assetId = 'cccccccc-cccc-7ccc-8ccc-cccccccccccc';
+    const uploaded = await as('tenant-a', A1, () =>
+      service.upload(Buffer.from('shared asset'), 'asset.txt', { module: 'cms', entity: 'asset', entityId: assetId }, undefined, {
+        contentType: 'text/plain',
+      }),
+    );
+    await as('tenant-a', A1, () => service.markUsed([uploaded.id], { module: 'cms', entity: 'asset', entityId: assetId }));
+    const attachedService = new UploadedFileService(
+      dataSource.getRepository(UploadedFile),
+      storage,
+      normalizeUploadedFileConfig({
+        allowedMimeTypes: ['text/plain'],
+        attachedReadPolicy: ({ attachment }) => attachment.module === 'cms' && attachment.entity === 'asset',
+      }),
+      context,
+    );
+
+    await expect(
+      as('tenant-a', A2, async () =>
+        streamText((await attachedService.downloadAttached(uploaded.id, { module: 'cms', entity: 'asset', entityId: assetId })).stream),
+      ),
+    ).resolves.toBe('shared asset');
+    await expect(
+      as('tenant-b', B1, () => attachedService.downloadAttached(uploaded.id, { module: 'cms', entity: 'asset', entityId: assetId })),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      as('tenant-a', A2, () =>
+        attachedService.downloadAttached(uploaded.id, {
+          module: 'cms',
+          entity: 'asset',
+          entityId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
   it('deletes only the exact authorized object for duplicate original names', async () => {
     const first = await as('tenant-a', A1, () =>
       service.upload(Buffer.from('first'), 'same.txt', undefined, undefined, { contentType: 'text/plain' }),

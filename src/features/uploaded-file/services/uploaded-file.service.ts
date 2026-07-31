@@ -1,7 +1,17 @@
 import { BadRequestException, Inject, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Readable } from 'node:stream';
-import { In, IsNull, LessThan, Not, type DeepPartial, type FindOptionsWhere, type QueryDeepPartialEntity, type Repository } from 'typeorm';
+import {
+  In,
+  IsNull,
+  LessThan,
+  Not,
+  type DeepPartial,
+  type EntityManager,
+  type FindOptionsWhere,
+  type QueryDeepPartialEntity,
+  type Repository,
+} from 'typeorm';
 import { ContextService } from '../../../core/context/context.service';
 import type { RequestContext } from '../../../core/context/types';
 import { apiError } from '../../../core/orm/types/api-response.types';
@@ -13,6 +23,7 @@ import {
   UPLOADED_FILE_BATCH_LIMIT,
   UPLOADED_FILE_REFERENCE_MAX_LENGTH,
   type UploadedFileAccessDecision,
+  type UploadedFileAttachment,
   type UploadedFileMeta,
   type UploadedFileOperation,
   type UploadedFileScope,
@@ -29,6 +40,7 @@ interface AuthorizedAccess {
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ENTITY_ID_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // A newly-created row stays hidden while its object is written. Maintenance retries ignore the
 // row until this deadline, preventing a cleanup worker from racing a healthy in-flight upload.
@@ -95,8 +107,11 @@ export class UploadedFileService {
       json: 'application/json',
       pdf: 'application/pdf',
       png: 'image/png',
+      pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
       txt: 'text/plain',
       webp: 'image/webp',
+      xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       zip: 'application/zip',
     };
     const ContentType = ext ? types[ext] : undefined;
@@ -234,9 +249,57 @@ export class UploadedFileService {
       throw this.badRequest('core.file.invalid-meta', 'Invalid uploaded file metadata');
     }
     const entityId = rawEntityId?.trim();
-    if (entityId && !UUID_PATTERN.test(entityId)) throw this.badRequest('core.file.invalid-meta', 'Invalid uploaded file metadata');
+    if (entityId && !ENTITY_ID_UUID_PATTERN.test(entityId)) {
+      throw this.badRequest('core.file.invalid-meta', 'Invalid uploaded file metadata');
+    }
     if (entityId) result.entityId = entityId;
     return result;
+  }
+
+  private normalizeAttachment(attachment: UploadedFileAttachment): UploadedFileAttachment {
+    if (!attachment || typeof attachment !== 'object') throw this.notFound();
+    const module = typeof attachment.module === 'string' ? attachment.module.trim() : '';
+    const entity = typeof attachment.entity === 'string' ? attachment.entity.trim() : '';
+    const entityId = typeof attachment.entityId === 'string' ? attachment.entityId.trim() : '';
+    if (
+      !module ||
+      !entity ||
+      module.length > 64 ||
+      entity.length > 64 ||
+      hasControlCharacter(module) ||
+      hasControlCharacter(entity) ||
+      !ENTITY_ID_UUID_PATTERN.test(entityId)
+    ) {
+      throw this.notFound();
+    }
+    return { module, entity, entityId };
+  }
+
+  private uploadValidationLimits(options?: UploadedFileUploadOptions): {
+    allowedMimeTypes: readonly string[];
+    maxFileSizeBytes: number;
+  } {
+    let allowedMimeTypes = this.config.allowedMimeTypes;
+    if (options?.allowedMimeTypes !== undefined) {
+      if (!Array.isArray(options.allowedMimeTypes)) throw new Error('Invalid per-call MIME allowlist');
+      const requested = new Set(
+        options.allowedMimeTypes
+          .filter((mime): mime is string => typeof mime === 'string')
+          .map((mime) => mime.trim().toLowerCase())
+          .filter(Boolean),
+      );
+      allowedMimeTypes = this.config.allowedMimeTypes.filter((mime) => requested.has(mime));
+      if (!allowedMimeTypes.length) throw new Error('Per-call MIME allowlist does not intersect module configuration');
+    }
+
+    let maxFileSizeBytes = this.config.maxFileSizeBytes;
+    if (options?.maxFileSizeBytes !== undefined) {
+      if (typeof options.maxFileSizeBytes !== 'number' || !Number.isFinite(options.maxFileSizeBytes) || options.maxFileSizeBytes <= 0) {
+        throw new Error('Invalid per-call upload size');
+      }
+      maxFileSizeBytes = Math.min(this.config.maxFileSizeBytes, Math.floor(options.maxFileSizeBytes));
+    }
+    return { allowedMimeTypes, maxFileSizeBytes };
   }
 
   private privateDownloadUrl(id: string): string {
@@ -434,13 +497,14 @@ export class UploadedFileService {
     const access = await this.authorize('create');
     let validated: ReturnType<typeof validateUploadBuffer>;
     try {
+      const limits = this.uploadValidationLimits(options);
       validated = validateUploadBuffer(
         buffer,
         fileName,
         options?.contentType,
-        this.config.allowedMimeTypes,
+        limits.allowedMimeTypes,
         this.config.validateMagicBytes,
-        this.config.maxFileSizeBytes,
+        limits.maxFileSizeBytes,
       );
     } catch {
       throw this.badRequest('core.file.invalid-upload', 'Uploaded file failed validation');
@@ -511,13 +575,14 @@ export class UploadedFileService {
     }
     let validated: ReturnType<typeof validateUploadBuffer>;
     try {
+      const limits = this.uploadValidationLimits(options);
       validated = validateUploadBuffer(
         buffer,
         fileName,
         options?.contentType,
-        this.config.allowedMimeTypes,
+        limits.allowedMimeTypes,
         this.config.validateMagicBytes,
-        this.config.maxFileSizeBytes,
+        limits.maxFileSizeBytes,
       );
     } catch {
       throw this.badRequest('core.file.invalid-upload', 'Uploaded file failed validation');
@@ -627,6 +692,54 @@ export class UploadedFileService {
   }
 
   /**
+   * Open one exact, already-used domain attachment after an explicit consumer policy approves it.
+   *
+   * The request tenant comes only from trusted context. The lookup deliberately ignores uploader
+   * identity but requires exact active-row ownership metadata, so generic owner-based downloads are
+   * not widened. Missing policy, policy denial, metadata mismatch, and storage failure are
+   * indistinguishable.
+   */
+  async downloadAttached(id: string, attachment: UploadedFileAttachment): Promise<{ stream: Readable; fileName: string }> {
+    const resourceId = this.resourceId(id);
+    const context = this.currentContext();
+    const scope = this.resolveScope(context);
+    const normalizedAttachment = this.normalizeAttachment(attachment);
+    let approved = false;
+    try {
+      approved =
+        (await this.config.attachedReadPolicy?.({
+          context,
+          scope,
+          resourceId,
+          attachment: normalizedAttachment,
+        })) === true;
+    } catch {
+      approved = false;
+    }
+    if (!approved) throw this.notFound();
+
+    const row = await this.repository.findOne({
+      where: {
+        id: resourceId,
+        tenantCode: scope.tenantCode,
+        isUsed: true,
+        module: normalizedAttachment.module,
+        entity: normalizedAttachment.entity,
+        entityId: normalizedAttachment.entityId,
+        deletedAt: IsNull(),
+        uploadPendingAt: IsNull(),
+        deletionPendingAt: IsNull(),
+      },
+    });
+    if (!row) throw this.notFound();
+    try {
+      return { stream: await this.storage.download(row.key), fileName: row.fileName };
+    } catch {
+      throw this.notFound();
+    }
+  }
+
+  /**
    * Look up one active, non-pending file under the current `read` policy and tenant/owner scope.
    * Malformed, unauthorized, cross-scope, deleted, and unknown IDs are indistinguishable to callers.
    */
@@ -648,19 +761,18 @@ export class UploadedFileService {
     if (result.affected !== 1) throw this.notFound();
   }
 
-  private async mutateIds(ids: readonly string[], meta?: UploadedFileMeta): Promise<void> {
-    const unique = this.batchIds(ids);
-    if (!unique.length) return;
-    const access = await this.authorize('mark-used', unique);
-    const safeMeta = this.normalizeMeta(meta);
-    await this.repository.manager.transaction(async (manager) => {
-      const repository = manager.getRepository(UploadedFile);
-      const criteria = this.where(access, { id: In(unique) });
-      const rows = await repository.find({ where: criteria, select: { id: true } });
-      if (rows.length !== unique.length) throw this.notFound();
-      const result = await repository.update(criteria, { isUsed: true, ...safeMeta });
-      if (result.affected !== unique.length) throw this.notFound();
-    });
+  private async mutateIdsWithManager(
+    manager: EntityManager,
+    access: AuthorizedAccess,
+    ids: readonly string[],
+    meta: UploadedFileMeta,
+  ): Promise<void> {
+    const repository = manager.getRepository(UploadedFile);
+    const criteria = this.where(access, { id: In(ids) });
+    const rows = await repository.find({ where: criteria, select: { id: true } });
+    if (rows.length !== ids.length) throw this.notFound();
+    const result = await repository.update(criteria, { isUsed: true, ...meta });
+    if (result.affected !== ids.length) throw this.notFound();
   }
 
   /**
@@ -669,8 +781,18 @@ export class UploadedFileService {
    * verification and mutation run with all-or-nothing transaction semantics. An empty batch is a
    * no-op, while malformed or over-limit batches fail without enumerating individual resources.
    */
-  async markUsed(ids: string[], meta?: UploadedFileMeta): Promise<void> {
-    await this.mutateIds(ids, meta);
+  async markUsed(ids: string[], meta?: UploadedFileMeta, manager?: EntityManager): Promise<void> {
+    const unique = this.batchIds(ids);
+    if (!unique.length) return;
+    const access = await this.authorize('mark-used', unique);
+    const safeMeta = this.normalizeMeta(meta);
+    if (manager) {
+      await this.mutateIdsWithManager(manager, access, unique, safeMeta);
+      return;
+    }
+    await this.repository.manager.transaction((transactionManager) =>
+      this.mutateIdsWithManager(transactionManager, access, unique, safeMeta),
+    );
   }
 
   private async rowsForReferences(

@@ -3,7 +3,49 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SafeLocalPathResolver } from './local-path';
 import { isPublicNetworkAddress, secureFetchRemote } from './remote-fetcher';
-import { buildStorageKey, normalizeStoragePrefix, validateUploadBuffer } from './upload-security';
+import { buildStorageKey, DEFAULT_ALLOWED_MIME_TYPES, normalizeStoragePrefix, validateUploadBuffer } from './upload-security';
+
+function buildStoredOoxml(mainPart: string): Buffer {
+  const entries = [
+    { name: '[Content_Types].xml', data: Buffer.from('<Types/>') },
+    { name: mainPart, data: Buffer.from('<root/>') },
+  ];
+  const localParts: Buffer[] = [];
+  const centralParts: Buffer[] = [];
+  let localOffset = 0;
+
+  for (const entry of entries) {
+    const name = Buffer.from(entry.name);
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt32LE(entry.data.byteLength, 18);
+    local.writeUInt32LE(entry.data.byteLength, 22);
+    local.writeUInt16LE(name.byteLength, 26);
+    localParts.push(local, name, entry.data);
+
+    const central = Buffer.alloc(46);
+    central.writeUInt32LE(0x02014b50, 0);
+    central.writeUInt16LE(20, 4);
+    central.writeUInt16LE(20, 6);
+    central.writeUInt32LE(entry.data.byteLength, 20);
+    central.writeUInt32LE(entry.data.byteLength, 24);
+    central.writeUInt16LE(name.byteLength, 28);
+    central.writeUInt32LE(localOffset, 42);
+    centralParts.push(central, name);
+    localOffset += local.byteLength + name.byteLength + entry.data.byteLength;
+  }
+
+  const local = Buffer.concat(localParts);
+  const central = Buffer.concat(centralParts);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(entries.length, 8);
+  end.writeUInt16LE(entries.length, 10);
+  end.writeUInt32LE(central.byteLength, 12);
+  end.writeUInt32LE(local.byteLength, 16);
+  return Buffer.concat([local, central, end]);
+}
 
 describe('uploaded-file security primitives', () => {
   describe('storage keys', () => {
@@ -39,6 +81,13 @@ describe('uploaded-file security primitives', () => {
         validateUploadBuffer(Buffer.from('<html>safe-looking text</html>'), 'page.html', 'text/plain', ['text/plain'], true),
       ).toThrow('extension');
       expect(() => validateUploadBuffer(Buffer.from('plain'), 'extensionless', 'text/plain', ['text/plain'], true)).toThrow('extension');
+    });
+
+    it('accepts structurally valid OOXML and rejects a generic ZIP with an Office MIME', () => {
+      const mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      expect(DEFAULT_ALLOWED_MIME_TYPES).toContain(mime);
+      expect(validateUploadBuffer(buildStoredOoxml('word/document.xml'), 'document.docx', mime, [mime], true).contentType).toBe(mime);
+      expect(() => validateUploadBuffer(buildStoredOoxml('custom/not-word.xml'), 'document.docx', mime, [mime], true)).toThrow('signature');
     });
   });
 

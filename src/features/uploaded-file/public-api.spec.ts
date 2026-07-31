@@ -24,5 +24,6 @@ describe('uploaded-file public API', () => {
     expect(api.UploadedFileModule).toBeDefined();
     expect(api.UploadedFileService).toBeDefined();
     expect(api.UploadedFileController).toBeDefined();
+    expect((api.UploadedFileService as { prototype: Record<string, unknown> }).prototype.downloadAttached).toBeDefined();
   });
 });

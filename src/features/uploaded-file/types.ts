@@ -39,6 +39,24 @@ export type UploadedFileAuthorizationPolicy = (
   request: UploadedFileAuthorizationRequest,
 ) => UploadedFileAccessDecision | Promise<UploadedFileAccessDecision>;
 
+/** Exact domain ownership metadata required for a policy-approved attached-file read. */
+export interface UploadedFileAttachment {
+  module: string;
+  entity: string;
+  entityId: string;
+}
+
+/** Trusted context supplied to the optional attached-file authorization policy. */
+export interface UploadedFileAttachedReadRequest {
+  context: Readonly<RequestContext>;
+  scope: Readonly<UploadedFileScope>;
+  resourceId: string;
+  attachment: Readonly<UploadedFileAttachment>;
+}
+
+/** Deny-by-default policy for exact attached-file reads across uploader identity. */
+export type UploadedFileAttachedReadPolicy = (request: UploadedFileAttachedReadRequest) => boolean | Promise<boolean>;
+
 /** Runtime configuration for the uploaded-file module. Secure defaults are applied by the module. */
 export interface UploadedFileConfig {
   /** Auto-detects S3 from a complete explicit credential pair; set `'s3'` to use the AWS default credential chain. */
@@ -75,6 +93,8 @@ export interface UploadedFileConfig {
   resolveScope?: (context: Readonly<RequestContext>) => Partial<UploadedFileScope>;
   /** Defaults to owner-only. A policy may grant same-scope tenant access but never cross-tenant access. */
   authorizationPolicy?: UploadedFileAuthorizationPolicy;
+  /** Optional fail-closed policy for exact used-file attachment reads. Omission denies the operation. */
+  attachedReadPolicy?: UploadedFileAttachedReadPolicy;
   /**
    * Days after which never-attached files (`isUsed = false`) are purged by a daily 03:00 cron.
    * Omit (or `<= 0`) to disable age-based purging. Durable pending deletions are still retried.
@@ -104,6 +124,10 @@ export interface UploadedFileMeta {
 export interface UploadedFileUploadOptions {
   /** Untrusted client-declared MIME; validated against allowlist, extension, and signature. */
   contentType?: string;
+  /** Optional caller narrowing; intersected with the module allowlist and never widens it. */
+  allowedMimeTypes?: readonly string[];
+  /** Optional caller narrowing; clamped to the configured service limit and never widens it. */
+  maxFileSizeBytes?: number;
 }
 
 /** Maximum number of IDs or storage references accepted by one public batch operation. */

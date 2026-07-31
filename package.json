@@ -205,6 +205,7 @@
   },
   "overrides": {
     "@babel/core": "7.29.7",
+    "brace-expansion": "5.0.9",
     "esbuild": "$esbuild",
     "immutable": "4.3.9",
     "js-yaml@<4.0.0": "3.15.0",

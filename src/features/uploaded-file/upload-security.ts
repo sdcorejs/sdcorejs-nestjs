@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { TextDecoder } from 'node:util';
+import { OOXML_MIME_MAIN_PART, validateOoxmlContainer } from './ooxml-security';
 import { slugify } from './utils';
 
 export const DEFAULT_MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -7,6 +8,9 @@ export const DEFAULT_MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 export const DEFAULT_ALLOWED_MIME_TYPES = [
   'application/json',
   'application/pdf',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/zip',
   'image/gif',
   'image/jpeg',
@@ -18,14 +22,17 @@ export const DEFAULT_ALLOWED_MIME_TYPES = [
 
 const EXTENSION_MIME: Readonly<Record<string, string>> = {
   csv: 'text/csv',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   gif: 'image/gif',
   jpeg: 'image/jpeg',
   jpg: 'image/jpeg',
   json: 'application/json',
   pdf: 'application/pdf',
   png: 'image/png',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   txt: 'text/plain',
   webp: 'image/webp',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   zip: 'application/zip',
 };
 
@@ -109,6 +116,9 @@ function isValidUtf8Text(buffer: Buffer): boolean {
 }
 
 function validatePracticalSignature(buffer: Buffer, mime: string): boolean {
+  if (mime in OOXML_MIME_MAIN_PART) {
+    return validateOoxmlContainer(buffer, mime as keyof typeof OOXML_MIME_MAIN_PART);
+  }
   const strong = detectStrongMime(buffer);
   if (strong) return strong === mime;
   if (mime === 'application/json') {
@@ -143,13 +153,16 @@ export function validateUploadBuffer(
   if (!extensionMime) throw new UploadedFileSecurityError('Upload extension is not supported');
   const declared = declaredContentType?.split(';', 1)[0]?.trim().toLowerCase();
   const detected = detectStrongMime(buffer);
-  const contentType = declared || detected || extensionMime;
+  const extensionIsOoxml = extensionMime in OOXML_MIME_MAIN_PART;
+  const contentType = declared || (detected === 'application/zip' && extensionIsOoxml ? extensionMime : detected) || extensionMime;
   if (!contentType) throw new UploadedFileSecurityError('Unable to determine upload MIME type');
 
   const allowed = new Set(allowedMimeTypes.map((mime) => mime.toLowerCase()));
   if (!allowed.has(contentType)) throw new UploadedFileSecurityError('Upload MIME type is not allowed');
   if (extensionMime && extensionMime !== contentType) throw new UploadedFileSecurityError('Upload extension and MIME type do not match');
-  if (detected && detected !== contentType) throw new UploadedFileSecurityError('Upload signature and MIME type do not match');
+  if (detected && detected !== contentType && !(detected === 'application/zip' && contentType in OOXML_MIME_MAIN_PART)) {
+    throw new UploadedFileSecurityError('Upload signature and MIME type do not match');
+  }
   if (validateSignature && !validatePracticalSignature(buffer, contentType)) {
     throw new UploadedFileSecurityError('Upload signature validation failed');
   }
