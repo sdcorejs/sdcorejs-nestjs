@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.2
+
+### Patch Changes
+
+- fdcb22b: Validate DOCX, XLSX and PPTX containers with bounded ZIP inspection, allow consumers to narrow upload limits per call, participate in caller-owned file-claim transactions, and authorize exact attached-file reads through a deny-by-default policy.
+
 ## 1.1.1
 
 ### Patch Changes
