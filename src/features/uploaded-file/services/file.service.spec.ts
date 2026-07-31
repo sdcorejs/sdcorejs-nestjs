@@ -112,11 +112,7 @@ describe('UploadedFileService', () => {
   });
 
   it('clamps per-call upload size without allowing a caller to widen the service limit', async () => {
-    const narrow = setup(
-      undefined,
-      undefined,
-      normalizeUploadedFileConfig({ maxFileSizeBytes: 10, allowedMimeTypes: ['text/plain'] }),
-    );
+    const narrow = setup(undefined, undefined, normalizeUploadedFileConfig({ maxFileSizeBytes: 10, allowedMimeTypes: ['text/plain'] }));
     await expect(
       narrow.run(() =>
         narrow.service.upload(Buffer.alloc(5, 0x61), 'a.txt', undefined, undefined, {

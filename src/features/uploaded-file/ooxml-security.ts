@@ -150,11 +150,7 @@ export function validateOoxmlContainer(buffer: Buffer, mime: OoxmlMime): boolean
       ) {
         return false;
       }
-      totalUncompressedBytes = addWithinLimit(
-        totalUncompressedBytes,
-        uncompressedSize,
-        OOXML_MAX_TOTAL_UNCOMPRESSED_BYTES,
-      );
+      totalUncompressedBytes = addWithinLimit(totalUncompressedBytes, uncompressedSize, OOXML_MAX_TOTAL_UNCOMPRESSED_BYTES);
 
       if (localHeaderOffset + 30 > centralDirectoryOffset || readUInt32(buffer, localHeaderOffset) !== LOCAL_FILE_HEADER_SIGNATURE) {
         return false;
@@ -166,10 +162,7 @@ export function validateOoxmlContainer(buffer: Buffer, mime: OoxmlMime): boolean
       const localNameLength = readUInt16(buffer, localHeaderOffset + 26);
       const localExtraLength = readUInt16(buffer, localHeaderOffset + 28);
       if (localFlags !== flags || localMethod !== method || localNameLength !== nameLength) return false;
-      if (
-        (flags & DATA_DESCRIPTOR_FLAG) === 0 &&
-        (localCompressedSize !== compressedSize || localUncompressedSize !== uncompressedSize)
-      ) {
+      if ((flags & DATA_DESCRIPTOR_FLAG) === 0 && (localCompressedSize !== compressedSize || localUncompressedSize !== uncompressedSize)) {
         return false;
       }
 
@@ -181,11 +174,7 @@ export function validateOoxmlContainer(buffer: Buffer, mime: OoxmlMime): boolean
       centralOffset = nextCentralOffset;
     }
 
-    return (
-      centralOffset === centralDirectoryEnd &&
-      names.has('[Content_Types].xml') &&
-      names.has(OOXML_MIME_MAIN_PART[mime])
-    );
+    return centralOffset === centralDirectoryEnd && names.has('[Content_Types].xml') && names.has(OOXML_MIME_MAIN_PART[mime]);
   } catch {
     return false;
   }

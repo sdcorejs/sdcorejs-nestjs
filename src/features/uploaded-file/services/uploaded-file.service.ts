@@ -294,11 +294,7 @@ export class UploadedFileService {
 
     let maxFileSizeBytes = this.config.maxFileSizeBytes;
     if (options?.maxFileSizeBytes !== undefined) {
-      if (
-        typeof options.maxFileSizeBytes !== 'number' ||
-        !Number.isFinite(options.maxFileSizeBytes) ||
-        options.maxFileSizeBytes <= 0
-      ) {
+      if (typeof options.maxFileSizeBytes !== 'number' || !Number.isFinite(options.maxFileSizeBytes) || options.maxFileSizeBytes <= 0) {
         throw new Error('Invalid per-call upload size');
       }
       maxFileSizeBytes = Math.min(this.config.maxFileSizeBytes, Math.floor(options.maxFileSizeBytes));

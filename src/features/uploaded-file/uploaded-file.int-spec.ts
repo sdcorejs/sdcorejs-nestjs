@@ -161,13 +161,9 @@ describe('UploadedFileService tenant/owner integration (pg-mem)', () => {
   it('allows an explicitly authorized attached read across uploaders without weakening tenant or metadata scope', async () => {
     const assetId = 'cccccccc-cccc-7ccc-8ccc-cccccccccccc';
     const uploaded = await as('tenant-a', A1, () =>
-      service.upload(
-        Buffer.from('shared asset'),
-        'asset.txt',
-        { module: 'cms', entity: 'asset', entityId: assetId },
-        undefined,
-        { contentType: 'text/plain' },
-      ),
+      service.upload(Buffer.from('shared asset'), 'asset.txt', { module: 'cms', entity: 'asset', entityId: assetId }, undefined, {
+        contentType: 'text/plain',
+      }),
     );
     await as('tenant-a', A1, () => service.markUsed([uploaded.id], { module: 'cms', entity: 'asset', entityId: assetId }));
     const attachedService = new UploadedFileService(
@@ -186,9 +182,7 @@ describe('UploadedFileService tenant/owner integration (pg-mem)', () => {
       ),
     ).resolves.toBe('shared asset');
     await expect(
-      as('tenant-b', B1, () =>
-        attachedService.downloadAttached(uploaded.id, { module: 'cms', entity: 'asset', entityId: assetId }),
-      ),
+      as('tenant-b', B1, () => attachedService.downloadAttached(uploaded.id, { module: 'cms', entity: 'asset', entityId: assetId })),
     ).rejects.toMatchObject({ status: 404 });
     await expect(
       as('tenant-a', A2, () =>

@@ -55,9 +55,7 @@ export interface UploadedFileAttachedReadRequest {
 }
 
 /** Deny-by-default policy for exact attached-file reads across uploader identity. */
-export type UploadedFileAttachedReadPolicy = (
-  request: UploadedFileAttachedReadRequest,
-) => boolean | Promise<boolean>;
+export type UploadedFileAttachedReadPolicy = (request: UploadedFileAttachedReadRequest) => boolean | Promise<boolean>;
 
 /** Runtime configuration for the uploaded-file module. Secure defaults are applied by the module. */
 export interface UploadedFileConfig {

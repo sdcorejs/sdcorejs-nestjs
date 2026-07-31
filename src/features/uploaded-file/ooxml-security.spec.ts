@@ -108,7 +108,10 @@ function buildStoredZip(entries: readonly ZipEntryFixture[], options: ZipFixture
 }
 
 function validEntries(mime: OoxmlMime): ZipEntryFixture[] {
-  return [{ name: '[Content_Types].xml', data: Buffer.from('<Types/>') }, { name: OOXML_MIME_MAIN_PART[mime], data: Buffer.from('<root/>') }];
+  return [
+    { name: '[Content_Types].xml', data: Buffer.from('<Types/>') },
+    { name: OOXML_MIME_MAIN_PART[mime], data: Buffer.from('<root/>') },
+  ];
 }
 
 describe('OOXML container validation', () => {
