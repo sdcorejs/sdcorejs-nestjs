@@ -1,6 +1,6 @@
 {
   "name": "@sdcorejs/nestjs",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Production NestJS and TypeORM building blocks for fail-closed tenancy, trusted identity, authorization, cache, HTTP, files, audit history, jobs, validation, and i18n.",
   "license": "MIT",
   "author": "Trần Thuận Nghĩa",
