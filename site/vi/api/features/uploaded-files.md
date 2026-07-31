@@ -20,8 +20,11 @@ tiết lộ thông tin định danh cho resource không hợp lệ, bị thiếu
 | `UploadedFileScope`                  | interface    | Tenant, department tùy chọn và owner ID                      |
 | `UploadedFileAuthorizationRequest`   | interface    | Đầu vào policy với context tin cậy và resource có giới hạn   |
 | `UploadedFileAuthorizationPolicy`    | type         | Callback decision sync/async có giới hạn                     |
+| `UploadedFileAttachment`             | interface    | Ownership attachment chính xác theo module/entity/entityId   |
+| `UploadedFileAttachedReadRequest`    | interface    | Scope tin cậy và attachment cho thao tác đọc                 |
+| `UploadedFileAttachedReadPolicy`     | type         | Callback đọc attachment mặc định từ chối                     |
 | `UploadedFileMeta`                   | interface    | Nguồn gốc module/entity/entityId/type tùy chọn                |
-| `UploadedFileUploadOptions`          | interface    | `contentType` khai báo tùy chọn                              |
+| `UploadedFileUploadOptions`          | interface    | MIME khai báo và giới hạn validation theo lời gọi            |
 | `UploadedFileResult`                 | interface    | Hình dạng kết quả persist gọn cho adapter ứng dụng           |
 | `UploadedFileRemoteCloneConfig`      | type         | Điều khiển bật/timeout/kích thước/redirect/host              |
 | `UPLOADED_FILE_BATCH_LIMIT`          | value        | `100` ID/reference mỗi batch công khai                       |
@@ -54,6 +57,10 @@ UploadedFileModule.forRoot({
     if (operation === 'read' && context.roles?.includes('tenant-file-reader')) return 'tenant';
     return 'owner';
   },
+  attachedReadPolicy: ({ context, attachment }) =>
+    attachment.module === 'cms' &&
+    attachment.entity === 'asset' &&
+    context.permissions?.includes('cms.asset.view'),
 });
 ```
 
@@ -75,11 +82,12 @@ giá trị `key`/`cdn` unique.
 | `publicFiles`           | `false`; bắt buộc opt-in rõ ràng                                                                                                 |
 | `downloadPath`          | `'uploaded-file'`                                                                                                                |
 | `maxFileSizeBytes`      | Mặc định 10 MiB; giới hạn theo trần tuyệt đối 25 MiB                                                                             |
-| `allowedMimeTypes`      | JSON, PDF, ZIP, GIF, JPEG, PNG, WebP, CSV và plain text                                                                          |
+| `allowedMimeTypes`      | JSON, PDF, ZIP, DOCX, XLSX, PPTX, GIF, JPEG, PNG, WebP, CSV và plain text                                                        |
 | `validateMagicBytes`    | `true`                                                                                                                          |
 | `remoteClone`           | Tắt; mặc định 5s, tối đa bằng service size, 3 redirect (tối đa tuyệt đối 5)                                                      |
 | `resolveScope`          | Fallback về `ctx.tenant`, `ctx.userId`, rồi các trường `ctx.custom` tương ứng                                                    |
 | `authorizationPolicy`   | Chỉ owner khi vắng mặt                                                                                                          |
+| `attachedReadPolicy`    | Từ chối đọc attachment khi vắng mặt; chỉ giá trị `true` chính xác mới cho phép                                                   |
 | `cleanupAfterDays`      | Age purge tắt khi bỏ qua/không dương; bắt buộc là số hữu hạn dương cho upload tạm thời                                           |
 
 `allowedHosts` từ xa là allowlist hostname chính xác tùy chọn. Khi bật clone, mọi URL và redirect
@@ -109,9 +117,10 @@ ID và reference được giới hạn trước khi callback chạy.
 | `uploadTemporary`                   | `(buffer, fileName?, options?) => Promise<{ key, cdn }>`                                    |
 | `cloneFromUrl<T>`                   | `(url, fileName?, meta?, extraData?) => Promise<UploadedFile<T>>`                           |
 | `download`                          | `(id) => Promise<{ stream, fileName }>`                                                     |
+| `downloadAttached`                  | `(id, attachment) => Promise<{ stream, fileName }>`; đọc attachment chính xác đã được duyệt |
 | `findById<T>`                       | `(id) => Promise<UploadedFile<T>>`                                                          |
 | `setExtraData<T>`                   | `(id, extraData: Partial<T>) => Promise<void>`                                              |
-| `markUsed`                          | `(ids, meta?) => Promise<void>`                                                             |
+| `markUsed`                          | `(ids, meta?, manager?) => Promise<void>`; transaction của caller là tùy chọn               |
 | `useFiles`                          | `(references, entity?, entityId?) => Promise<void>`                                         |
 | `delete`                            | `(references) => Promise<void>`; xóa object bền vững                                       |
 | `changeFiles`                       | `(olds, news, entity?, entityId?) => Promise<void>`                                         |
@@ -144,6 +153,19 @@ không tự cấp quyền độc lập cho resource đích đó.
 Đường upload validation buffer không rỗng có giới hạn, tên đã làm sạch, allowlist MIME, sự phù hợp
 extension/content và signature/UTF-8 thực tế khi bật. Storage key chứa UUID server và namespace
 tenant đã encode; filename của caller không phải boundary unique.
+Mỗi lời gọi upload có thể thu hẹp `allowedMimeTypes` và `maxFileSizeBytes`; các giá trị này được lấy
+giao hoặc chặn theo cấu hình module và không thể mở rộng cấu hình.
+
+DOCX, XLSX và PPTX còn được kiểm tra cấu trúc ZIP có giới hạn: tối đa 2.048 entry, tổng dữ liệu
+uncompressed khai báo 100 MiB, 50 MiB mỗi entry và tỷ lệ nén 100:1 mỗi entry. Package mã hóa,
+ZIP64/multi-disk, path không an toàn hoặc trùng, offset directory sai, thiếu `[Content_Types].xml`
+hoặc main part tương ứng đều bị từ chối. Validation này không phải quét malware.
+
+Khi consumer truyền `EntityManager`, `markUsed` xác minh và cập nhật qua manager đó mà không mở
+transaction lồng; nếu bỏ qua, thư viện mở đúng một transaction riêng. `downloadAttached` trước tiên
+yêu cầu `attachedReadPolicy` trả về chính xác `true`, sau đó vẫn áp dụng tenant tin cậy và metadata
+attachment active, đã dùng, khớp chính xác. Domain `entityId` UUIDv7 được hỗ trợ. Uploader ban đầu
+chủ ý không nằm trong lookup attachment chính xác này.
 
 ## Vòng đời pending bền vững {#durable-pending-lifecycle}
 

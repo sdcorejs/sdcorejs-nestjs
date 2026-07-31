@@ -20,8 +20,11 @@ non-enumerating failures for invalid, missing, denied and cross-scope resources.
 | `UploadedFileScope`                  | interface    | Tenant, optional department and owner IDs                    |
 | `UploadedFileAuthorizationRequest`   | interface    | Policy input with trusted context and bounded resources      |
 | `UploadedFileAuthorizationPolicy`    | type         | Async/sync bounded decision callback                         |
+| `UploadedFileAttachment`             | interface    | Exact module/entity/entityId attachment ownership            |
+| `UploadedFileAttachedReadRequest`    | interface    | Trusted scope and attachment input for attached reads        |
+| `UploadedFileAttachedReadPolicy`     | type         | Deny-by-default exact attachment read callback               |
 | `UploadedFileMeta`                   | interface    | Optional module/entity/entityId/type provenance              |
-| `UploadedFileUploadOptions`          | interface    | Optional declared `contentType`                              |
+| `UploadedFileUploadOptions`          | interface    | Optional declared MIME and per-call validation narrowing     |
 | `UploadedFileResult`                 | interface    | Compact persisted result shape for application adapters      |
 | `UploadedFileRemoteCloneConfig`      | type         | Enabled/timeout/size/redirect/host controls                  |
 | `UPLOADED_FILE_BATCH_LIMIT`          | value        | `100` IDs/references per public batch                        |
@@ -54,6 +57,10 @@ UploadedFileModule.forRoot({
     if (operation === 'read' && context.roles?.includes('tenant-file-reader')) return 'tenant';
     return 'owner';
   },
+  attachedReadPolicy: ({ context, attachment }) =>
+    attachment.module === 'cms' &&
+    attachment.entity === 'asset' &&
+    context.permissions?.includes('cms.asset.view'),
 });
 ```
 
@@ -75,11 +82,12 @@ soft-delete columns and has unique `key`/`cdn` values.
 | `publicFiles`           | `false`; explicit opt-in is required                                                                                          |
 | `downloadPath`          | `'uploaded-file'`                                                                                                             |
 | `maxFileSizeBytes`      | 10 MiB default; clamped to the absolute 25 MiB ceiling                                                                        |
-| `allowedMimeTypes`      | JSON, PDF, ZIP, GIF, JPEG, PNG, WebP, CSV and plain text                                                                      |
+| `allowedMimeTypes`      | JSON, PDF, ZIP, DOCX, XLSX, PPTX, GIF, JPEG, PNG, WebP, CSV and plain text                                                    |
 | `validateMagicBytes`    | `true`                                                                                                                        |
 | `remoteClone`           | Disabled; defaults 5s, at most service size, 3 redirects (absolute max 5)                                                     |
 | `resolveScope`          | Falls back to `ctx.tenant`, `ctx.userId`, then matching `ctx.custom` fields                                                   |
 | `authorizationPolicy`   | Owner-only when absent                                                                                                        |
+| `attachedReadPolicy`    | Attached reads denied when absent; only exact `true` approves                                                                 |
 | `cleanupAfterDays`      | Age purge disabled when omitted/non-positive; required positive finite value for temporary uploads                            |
 
 Remote `allowedHosts` is an optional exact hostname allowlist. When cloning is enabled, every URL
@@ -110,9 +118,10 @@ references are bounded before the callback runs.
 | `uploadTemporary`                   | `(buffer, fileName?, options?) => Promise<{ key, cdn }>`                                   |
 | `cloneFromUrl<T>`                   | `(url, fileName?, meta?, extraData?) => Promise<UploadedFile<T>>`                          |
 | `download`                          | `(id) => Promise<{ stream, fileName }>`                                                    |
+| `downloadAttached`                  | `(id, attachment) => Promise<{ stream, fileName }>`; exact policy-approved attachment read |
 | `findById<T>`                       | `(id) => Promise<UploadedFile<T>>`                                                         |
 | `setExtraData<T>`                   | `(id, extraData: Partial<T>) => Promise<void>`                                             |
-| `markUsed`                          | `(ids, meta?) => Promise<void>`                                                            |
+| `markUsed`                          | `(ids, meta?, manager?) => Promise<void>`; optional caller-owned transaction               |
 | `useFiles`                          | `(references, entity?, entityId?) => Promise<void>`                                        |
 | `delete`                            | `(references) => Promise<void>`; durable object deletion                                   |
 | `changeFiles`                       | `(olds, news, entity?, entityId?) => Promise<void>`                                        |
@@ -145,6 +154,20 @@ and authorize the target domain resource in its own tenant/permission model. Bui
 The upload path validates non-empty bounded buffers, sanitized names, MIME allowlist,
 extension/content agreement and practical signatures/UTF-8 when enabled. Storage keys contain a
 server UUID and encoded tenant namespace; the caller's filename is not the uniqueness boundary.
+An upload call may narrow `allowedMimeTypes` and `maxFileSizeBytes`; those values are intersected
+with or clamped to module configuration and cannot widen it.
+
+DOCX, XLSX and PPTX additionally receive bounded structural ZIP inspection: at most 2,048 entries,
+100 MiB total declared uncompressed data, 50 MiB per entry and a 100:1 per-entry compression ratio.
+Encrypted, ZIP64/multi-disk, unsafe or duplicate paths, malformed directory offsets and packages
+missing `[Content_Types].xml` or their expected main part are rejected. This validation is not
+malware scanning.
+
+When a consumer supplies an `EntityManager`, `markUsed` verifies and updates through it without
+opening a nested transaction; otherwise it opens one library-owned transaction. `downloadAttached`
+first requires `attachedReadPolicy` to return exactly `true`, then enforces trusted tenant scope and
+exact active, used attachment metadata. UUIDv7 domain `entityId` values are supported. The original
+uploader is intentionally not part of this exact attachment lookup.
 
 ## Durable pending lifecycle
 

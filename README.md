@@ -752,6 +752,11 @@ SdCoreModule.forRoot({
     allowedMimeTypes: ['image/png', 'application/pdf'],
     resolveScope: (ctx) => ({ tenantCode: ctx.tenant, userId: ctx.userId }),
     authorizationPolicy: ({ context }) => (context.roles?.includes('file-admin') ? 'tenant' : 'owner'),
+    // Omission denies cross-uploader attachment reads.
+    attachedReadPolicy: ({ context, attachment }) =>
+      attachment.module === 'cms' &&
+      attachment.entity === 'asset' &&
+      context.permissions?.includes('cms.asset.view'),
     // Disabled by default. If enabled, every DNS answer and redirect is SSRF-checked.
     remoteClone: { enabled: true, allowedHosts: ['assets.example.com'], maxBytes: 8 * 1024 * 1024 },
     cleanupAfterDays: 7,
@@ -777,12 +782,41 @@ query. Missing and unauthorized resources both return 404.
 const file = await uploads.upload(buffer, 'invoice.pdf', { module: 'crm', entity: 'order', entityId });
 const { stream, fileName } = await uploads.download(file.id);
 await uploads.setExtraData<{ ocr: string }>(file.id, { ocr: 'parsed text' });
+
+// A consumer can only narrow the module-level limits for one call.
+const document = await uploads.upload(buffer, 'proposal.pptx', undefined, undefined, {
+  contentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  allowedMimeTypes: ['application/vnd.openxmlformats-officedocument.presentationml.presentation'],
+  maxFileSizeBytes: 8 * 1024 * 1024,
+});
+
+// Pass a caller-owned manager to claim files in the same transaction as the domain row.
+await dataSource.transaction(async (manager) => {
+  await saveDomainRow(manager);
+  await uploads.markUsed([document.id], { module: 'cms', entity: 'asset', entityId }, manager);
+});
+
+// Requires attachedReadPolicy approval and exact active attachment metadata.
+const attached = await uploads.downloadAttached(document.id, {
+  module: 'cms',
+  entity: 'asset',
+  entityId,
+});
 ```
 
 - **`UploadedFile<TExtraData>`** — generic entity with an `extraData` jsonb bag; type it per call.
-- **Service** — `upload<T>(buffer, fileName?, meta?, extraData?, { contentType? })` returns the
+- **Service** — `upload<T>(buffer, fileName?, meta?, extraData?, { contentType?, allowedMimeTypes?,
+  maxFileSizeBytes? })` returns the
   authorized row; `download(id)` returns `{ stream, fileName }`; `findById<T>(id)` and every mutation
-  enforce the same policy. `cloneFromUrl` is disabled unless explicitly configured.
+  enforce the same policy. Per-call MIME and byte limits are intersected/clamped with module
+  configuration and therefore cannot widen it. `cloneFromUrl` is disabled unless explicitly configured.
+- **Transactional attachment ownership** — `markUsed(ids, meta, manager?)` uses the supplied TypeORM
+  `EntityManager` without opening a nested transaction. When omitted, the service preserves the
+  existing all-or-nothing behavior by opening exactly one transaction. `downloadAttached(id,
+  attachment)` is denied when `attachedReadPolicy` is absent or does not return `true`; after approval,
+  the lookup remains tenant-bound and requires an active, used row with exact `module`, `entity`, and
+  UUID (including UUIDv7) `entityId` metadata. It intentionally does not require the current user to
+  be the original uploader. Policy denial, metadata mismatch, and storage failure all return 404.
 - **Drop-in `UploadedFileController`** — `POST /uploaded-file` (multipart field `file`; optional
   `module` / `entity` / `entityId` / `type` query params) and `GET /uploaded-file/:id/download`.
   Guarded by `AuthGuard`; needs `@nestjs/platform-express`. Mount it under your prefix:
@@ -811,8 +845,15 @@ await uploads.setExtraData<{ ocr: string }>(file.id, { ocr: 'parsed text' });
   1024 characters. Unknown or extensionless names are rejected. Downloads derive `Content-Type`, use
   safe attachment disposition, and set `X-Content-Type-Options: nosniff`.
 - **Limits** — the drop-in controller accepts one buffered file with bounded fields/parts and a 25 MiB
-  absolute ceiling; the lower service limit, MIME allowlist, extension agreement, and practical
-  magic-byte checks still apply. Use a separately reviewed streaming workflow for larger files.
+  absolute ceiling. The library service defaults to 10 MiB; module configuration and per-call options
+  can only lower the effective limit relative to the 25 MiB ceiling. The MIME allowlist, extension
+  agreement, and practical magic-byte checks still apply. DOCX, XLSX, and PPTX receive bounded ZIP
+  structural inspection: at most 2,048 entries, 100 MiB total declared uncompressed data, 50 MiB per
+  entry, and a 100:1 per-entry compression ratio. Encrypted, ZIP64/multi-disk, unsafe or duplicate
+  paths, malformed directory offsets, and containers missing `[Content_Types].xml` or the expected
+  main document part are rejected. This inspection is not malware scanning; use a separately reviewed
+  scanning/quarantine pipeline where threat detection is required, and a separately reviewed streaming
+  workflow for files larger than the ceiling.
 
 ### Action history
 
