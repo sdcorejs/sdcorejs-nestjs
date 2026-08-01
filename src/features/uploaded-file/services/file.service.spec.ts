@@ -10,6 +10,8 @@ import { UploadedFileService } from './uploaded-file.service';
 
 const USER_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const OTHER_USER_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const UUID_V7_USER_ID = '019fbf46-87df-7ce7-9a86-4e8b444baf1f';
+const UUID_V7_RESOURCE_ID = '019fbf46-87df-7ce7-9a86-4e8b444baf20';
 
 function makeStorage(): jest.Mocked<UploadedFileStorageDriver> {
   return {
@@ -211,18 +213,61 @@ describe('UploadedFileService', () => {
 
   it('rejects malformed IDs and scope values before executing storage or repository operations', async () => {
     const { service, repository, storage, context } = setup();
+    const invalidVariantActorId = '019fbf46-87df-7ce7-7a86-4e8b444baf1f';
+    const invalidVariantResourceId = '019fbf46-87df-7ce7-ca86-4e8b444baf20';
 
     await expect(context.run({ tenant: 'tenant-a', userId: USER_ID }, () => service.findById(undefined as never))).rejects.toMatchObject({
       status: 404,
     });
     await expect(
+      context.run({ tenant: 'tenant-a', userId: USER_ID }, () => service.findById('00000000-0000-0000-8000-000000000001')),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      context.run({ tenant: 'tenant-a', userId: USER_ID }, () => service.findById(invalidVariantResourceId)),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      context.run({ tenant: 'tenant-a', userId: USER_ID }, () => service.markUsed([invalidVariantResourceId])),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
       context.run({ tenant: 'tenant-a', userId: 'not-a-uuid' }, () =>
+        service.upload(Buffer.from('hello'), 'a.txt', undefined, undefined, { contentType: 'text/plain' }),
+      ),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      context.run({ tenant: 'tenant-a', userId: invalidVariantActorId }, () =>
         service.upload(Buffer.from('hello'), 'a.txt', undefined, undefined, { contentType: 'text/plain' }),
       ),
     ).rejects.toMatchObject({ status: 404 });
 
     expect(repository.findOne).not.toHaveBeenCalled();
+    expect(repository.find).not.toHaveBeenCalled();
+    expect(repository.manager.transaction).not.toHaveBeenCalled();
     expect(storage.write).not.toHaveBeenCalled();
+  });
+
+  it('accepts UUIDv7 scope and resource identifiers', async () => {
+    const row = { id: UUID_V7_RESOURCE_ID } as UploadedFile;
+    const repository = makeRepository({
+      findOne: jest.fn(async () => row),
+      find: jest.fn(async () => [row]),
+    });
+    const { service, context } = setup(repository);
+    const runAsUuidV7Actor = <T>(callback: () => Promise<T>): Promise<T> =>
+      context.run({ tenant: 'tenant-a', userId: UUID_V7_USER_ID, identitySource: 'verified-principal' }, callback);
+
+    await expect(
+      runAsUuidV7Actor(() => service.upload(Buffer.from('hello'), 'a.txt', undefined, undefined, { contentType: 'text/plain' })),
+    ).resolves.toMatchObject({ userId: UUID_V7_USER_ID });
+    await expect(runAsUuidV7Actor(() => service.findById(UUID_V7_RESOURCE_ID))).resolves.toBe(row);
+    await expect(runAsUuidV7Actor(() => service.markUsed([UUID_V7_RESOURCE_ID]))).resolves.toBeUndefined();
+
+    expect(repository.findOne).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        id: UUID_V7_RESOURCE_ID,
+        tenantCode: 'tenant-a',
+        userId: UUID_V7_USER_ID,
+      }),
+    });
   });
 
   it('checks affected rows for scoped mutations', async () => {

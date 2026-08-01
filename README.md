@@ -774,7 +774,8 @@ Storage keys are immutable, generated server-side, and tenant-namespaced:
 `<folder>/tenant/<base64url-tenant>/<uuid>/<sanitized-original-name>`. The original filename is metadata only;
 same-name and concurrent uploads cannot overwrite one another. The default access policy is
 owner-only, and every lookup/mutation includes tenant plus owner/policy predicates in the database
-query. Missing and unauthorized resources both return 404.
+query. Actor IDs, file resource IDs, and attachment `entityId` metadata accept RFC-variant UUID
+versions 1-8, including UUIDv7. Missing and unauthorized resources both return 404.
 
 `UploadedFileService` is globally provided — inject it anywhere:
 
