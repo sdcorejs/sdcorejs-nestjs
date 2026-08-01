@@ -39,8 +39,7 @@ interface AuthorizedAccess {
   scope: UploadedFileScope;
 }
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const ENTITY_ID_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // A newly-created row stays hidden while its object is written. Maintenance retries ignore the
 // row until this deadline, preventing a cleanup worker from racing a healthy in-flight upload.
@@ -249,7 +248,7 @@ export class UploadedFileService {
       throw this.badRequest('core.file.invalid-meta', 'Invalid uploaded file metadata');
     }
     const entityId = rawEntityId?.trim();
-    if (entityId && !ENTITY_ID_UUID_PATTERN.test(entityId)) {
+    if (entityId && !UUID_PATTERN.test(entityId)) {
       throw this.badRequest('core.file.invalid-meta', 'Invalid uploaded file metadata');
     }
     if (entityId) result.entityId = entityId;
@@ -268,7 +267,7 @@ export class UploadedFileService {
       entity.length > 64 ||
       hasControlCharacter(module) ||
       hasControlCharacter(entity) ||
-      !ENTITY_ID_UUID_PATTERN.test(entityId)
+      !UUID_PATTERN.test(entityId)
     ) {
       throw this.notFound();
     }

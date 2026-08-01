@@ -16,6 +16,8 @@ import { UploadedFile } from './uploaded-file.entity';
 const A1 = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1';
 const A2 = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2';
 const B1 = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1';
+const UUID_V7_ACTOR = '019fbf46-87df-7ce7-9a86-4e8b444baf1f';
+const UUID_V7_ENTITY = '019fbf46-87df-7ce7-9a86-4e8b444baf20';
 
 class MemoryStorage implements UploadedFileStorageDriver {
   readonly objects = new Map<string, Buffer>();
@@ -98,6 +100,28 @@ describe('UploadedFileService tenant/owner integration (pg-mem)', () => {
     expect(first.key).toContain('/tenant/');
     await expect(as('tenant-a', A1, async () => streamText((await service.download(first.id)).stream))).resolves.toBe('first');
     await expect(as('tenant-a', A1, async () => streamText((await service.download(second.id)).stream))).resolves.toBe('second');
+  });
+
+  it('supports a UUIDv7 actor through upload and attachment ownership', async () => {
+    const uploaded = await as('tenant-a', UUID_V7_ACTOR, () =>
+      service.upload(Buffer.from('uuid-v7'), 'uuid-v7.txt', { module: 'cms', entity: 'asset', entityId: UUID_V7_ENTITY }, undefined, {
+        contentType: 'text/plain',
+      }),
+    );
+
+    await expect(as('tenant-a', UUID_V7_ACTOR, () => service.findById(uploaded.id))).resolves.toMatchObject({
+      id: uploaded.id,
+      userId: UUID_V7_ACTOR,
+    });
+    await expect(
+      as('tenant-a', UUID_V7_ACTOR, () => service.markUsed([uploaded.id], { module: 'cms', entity: 'asset', entityId: UUID_V7_ENTITY })),
+    ).resolves.toBeUndefined();
+
+    await expect(dataSource.getRepository(UploadedFile).findOneByOrFail({ id: uploaded.id })).resolves.toMatchObject({
+      userId: UUID_V7_ACTOR,
+      isUsed: true,
+      entityId: UUID_V7_ENTITY,
+    });
   });
 
   it('uses distinct tenant namespaces and denies cross-tenant UUID knowledge', async () => {
