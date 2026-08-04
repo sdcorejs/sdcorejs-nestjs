@@ -48,6 +48,10 @@ export interface ValidatedUpload {
   originalName: string;
 }
 
+export interface ValidatedUploadMetadata extends ValidatedUpload {
+  size: number;
+}
+
 export interface GeneratedStorageKey {
   id: string;
   key: string;
@@ -82,12 +86,22 @@ export function normalizeStoragePrefix(input?: string): string {
 
 /** Generates a server-owned UUID key; the original name is never the uniqueness primitive. */
 export function buildStorageKey(prefix: string, tenantId: string, fileName?: string, namespace = 'tenant'): GeneratedStorageKey {
+  return buildStorageKeyForId(prefix, tenantId, randomUUID(), fileName, namespace);
+}
+
+/** Builds another server-owned namespace for an already allocated file UUID. */
+export function buildStorageKeyForId(
+  prefix: string,
+  tenantId: string,
+  id: string,
+  fileName?: string,
+  namespace = 'tenant',
+): GeneratedStorageKey {
   const normalizedPrefix = normalizeStoragePrefix(prefix);
   const originalName = sanitizeOriginalFileName(fileName);
   const safeName = slugify(originalName).slice(0, 240) || 'file';
   const safeTenant = Buffer.from(tenantId, 'utf8').toString('base64url');
   if (!safeTenant) throw new UploadedFileSecurityError('Missing tenant storage namespace');
-  const id = randomUUID();
   return { id, key: `${normalizedPrefix}/${namespace}/${safeTenant}/${id}/${safeName}`, originalName };
 }
 
@@ -134,6 +148,35 @@ function validatePracticalSignature(buffer: Buffer, mime: string): boolean {
   return false;
 }
 
+/**
+ * Validates the metadata available to a control-plane initiate request.
+ *
+ * This deliberately does not claim that the object bytes match the declared MIME. Complete-upload
+ * validates exact storage size and provider-recorded headers; malware/content inspection remains a
+ * separate application workflow when required.
+ */
+export function validateUploadMetadata(
+  fileName: string,
+  declaredContentType: string,
+  size: number,
+  allowedMimeTypes: readonly string[],
+  maxBytes = DEFAULT_MAX_UPLOAD_BYTES,
+): ValidatedUploadMetadata {
+  if (!Number.isSafeInteger(size) || size <= 0 || size > maxBytes) {
+    throw new UploadedFileSecurityError('Upload exceeds the configured size limit');
+  }
+  const originalName = sanitizeOriginalFileName(fileName);
+  const extension = originalName.toLowerCase().split('.').pop() ?? '';
+  const extensionMime = EXTENSION_MIME[extension];
+  if (!extensionMime) throw new UploadedFileSecurityError('Upload extension is not supported');
+  const contentType = declaredContentType?.split(';', 1)[0]?.trim().toLowerCase();
+  if (!contentType) throw new UploadedFileSecurityError('Unable to determine upload MIME type');
+  const allowed = new Set(allowedMimeTypes.map((mime) => mime.toLowerCase()));
+  if (!allowed.has(contentType)) throw new UploadedFileSecurityError('Upload MIME type is not allowed');
+  if (extensionMime !== contentType) throw new UploadedFileSecurityError('Upload extension and MIME type do not match');
+  return { originalName, contentType, size };
+}
+
 /** Enforces size, allowlist, extension/MIME agreement, and practical magic-byte validation. */
 export function validateUploadBuffer(
   buffer: Buffer,
@@ -170,8 +213,8 @@ export function validateUploadBuffer(
   return { contentType, originalName };
 }
 
-export function contentDisposition(fileName: string): string {
+export function contentDisposition(fileName: string, disposition: 'inline' | 'attachment' = 'attachment'): string {
   const originalName = sanitizeOriginalFileName(fileName);
   const fallback = originalName.replace(/[^\x20-\x7e]|["\\]/g, '_');
-  return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(originalName)}`;
+  return `${disposition}; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(originalName)}`;
 }

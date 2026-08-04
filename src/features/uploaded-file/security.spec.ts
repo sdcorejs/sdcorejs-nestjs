@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { SafeLocalPathResolver } from './local-path';
 import { isPublicNetworkAddress, secureFetchRemote } from './remote-fetcher';
 import { buildStorageKey, DEFAULT_ALLOWED_MIME_TYPES, normalizeStoragePrefix, validateUploadBuffer } from './upload-security';
+import * as uploadSecurity from './upload-security';
 
 function buildStoredOoxml(mainPart: string): Buffer {
   const entries = [
@@ -66,6 +67,30 @@ describe('uploaded-file security primitives', () => {
   });
 
   describe('upload validation', () => {
+    it('validates direct-upload metadata without claiming to inspect bytes', () => {
+      const validateUploadMetadata = (
+        uploadSecurity as unknown as {
+          validateUploadMetadata(
+            fileName: string,
+            contentType: string,
+            size: number,
+            allowedMimeTypes: readonly string[],
+            maxBytes: number,
+          ): { originalName: string; contentType: string; size: number };
+        }
+      ).validateUploadMetadata;
+
+      expect(validateUploadMetadata('../invoice.txt', 'text/plain; charset=utf-8', 7, ['text/plain'], 10)).toEqual({
+        originalName: 'invoice.txt',
+        contentType: 'text/plain',
+        size: 7,
+      });
+      expect(() => validateUploadMetadata('invoice.txt', 'application/pdf', 7, ['text/plain', 'application/pdf'], 10)).toThrow(
+        /extension/i,
+      );
+      expect(() => validateUploadMetadata('invoice.txt', 'text/plain', 11, ['text/plain'], 10)).toThrow(/size/i);
+    });
+
     it('accepts a matching PNG signature and rejects MIME/signature mismatches', () => {
       const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
       expect(validateUploadBuffer(png, 'image.png', 'image/png', ['image/png'], true).contentType).toBe('image/png');

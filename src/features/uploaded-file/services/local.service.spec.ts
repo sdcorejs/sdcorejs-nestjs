@@ -65,4 +65,45 @@ describe('LocalUploadedFileStorage', () => {
     expect(url).toBe('https://api.test/file-storage/core/tenant/t/id/a.txt');
     expect(url).not.toContain(root);
   });
+
+  it('supports the pending-to-final direct-upload lifecycle with provider-neutral instructions', async () => {
+    const direct = storage as unknown as {
+      createUploadUrl(input: Record<string, unknown>): Promise<{ method: string; url: string; headers: Record<string, string> }>;
+      putObject(key: string, source: Buffer, options: typeof writeOptions): Promise<void>;
+      headObject(key: string): Promise<Record<string, unknown> | null>;
+      promoteObject(input: Record<string, unknown>): Promise<void>;
+      createDownloadUrl(input: Record<string, unknown>): Promise<string>;
+      resolvePublicUrl(key: string): string;
+    };
+    const pendingKey = 'core/pending/tenant/id';
+    const finalKey = 'core/private/tenant/id/a.txt';
+
+    await expect(
+      direct.createUploadUrl({
+        key: pendingKey,
+        contentType: 'text/plain',
+        size: 7,
+        uploadUrl: 'https://api.test/uploaded-file/id/content',
+      }),
+    ).resolves.toEqual({
+      method: 'PUT',
+      url: 'https://api.test/uploaded-file/id/content',
+      headers: { 'content-length': '7', 'content-type': 'application/octet-stream' },
+    });
+    await direct.putObject(pendingKey, Buffer.from('payload'), writeOptions);
+    await expect(direct.headObject(pendingKey)).resolves.toEqual({
+      size: 7,
+      contentType: null,
+      etag: null,
+      checksum: null,
+      metadata: {},
+    });
+    await direct.promoteObject({ sourceKey: pendingKey, destinationKey: finalKey });
+    await expect(storage.download(pendingKey)).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(text(await storage.download(finalKey))).resolves.toBe('payload');
+    await expect(direct.createDownloadUrl({ downloadUrl: 'https://api.test/uploaded-file/id/download' })).resolves.toBe(
+      'https://api.test/uploaded-file/id/download',
+    );
+    expect(direct.resolvePublicUrl(finalKey)).toBe('https://api.test/file-storage/core/private/tenant/id/a.txt');
+  });
 });

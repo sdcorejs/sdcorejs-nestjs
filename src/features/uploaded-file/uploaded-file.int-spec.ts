@@ -713,6 +713,9 @@ describe('UploadedFileService tenant/owner integration (pg-mem)', () => {
 
   it('tracks temporary local objects as unused rows and removes them through cleanup', async () => {
     const root = await mkdtemp(join(tmpdir(), 'sdcore-temp-lifecycle-'));
+    const completedAt = new Date('2026-08-03T00:00:00.000Z');
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+    jest.setSystemTime(completedAt);
     try {
       const config = normalizeUploadedFileConfig({
         localRoot: root,
@@ -725,14 +728,28 @@ describe('UploadedFileService tenant/owner integration (pg-mem)', () => {
         localService.uploadTemporary(Buffer.from('temporary'), 'temporary.txt', { contentType: 'text/plain' }),
       );
       const row = await dataSource.getRepository(UploadedFile).findOneByOrFail({ key: temporary.key });
-      expect(row).toMatchObject({ isUsed: false, type: 'temporary' });
+      expect(row).toMatchObject({
+        isUsed: false,
+        type: 'temporary',
+        status: 'ready',
+        isTemporary: true,
+        visibility: 'private',
+        completedAt,
+      });
+      expect(row.expiredAt?.getTime()).toBe(completedAt.getTime() + 24 * 60 * 60 * 1000);
       await expect(streamText(await localStorage.download(temporary.key))).resolves.toBe('temporary');
 
-      await expect(localService.unsafeSystemPurgeUnusedBefore(new Date(Date.now() + 1_000))).resolves.toBe(1);
+      jest.setSystemTime(new Date(row.expiredAt!.getTime() - 1));
+      await expect(localService.cleanupExpiredTemporaryFiles()).resolves.toBe(0);
+      await expect(localStorage.download(temporary.key)).resolves.toBeDefined();
+
+      jest.setSystemTime(row.expiredAt!);
+      await expect(localService.cleanupExpiredTemporaryFiles()).resolves.toBe(1);
       await expect(localStorage.download(temporary.key)).rejects.toMatchObject({ code: 'ENOENT' });
       const finalized = await dataSource.getRepository(UploadedFile).findOne({ where: { id: row.id }, withDeleted: true });
       expect(finalized?.deletedAt).toBeInstanceOf(Date);
     } finally {
+      jest.useRealTimers();
       await rm(root, { recursive: true, force: true });
     }
   });

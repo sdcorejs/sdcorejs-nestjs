@@ -29,11 +29,19 @@ Register `UploadedFileController` yourself. It is guarded by `AuthGuard`.
 
 | Method | Route | Result |
 | --- | --- | --- |
+| `POST` | `/uploaded-file/initiate` | Private pending metadata and provider-neutral upload target |
+| `POST` | `/uploaded-file/temporary/initiate` | Private temporary pending upload; no visibility/TTL input |
+| `POST` | `/uploaded-file/:id/complete` | Verify and promote staging; URL-aware safe result |
+| `PUT` | `/uploaded-file/:id/content` | Bounded raw binary target for the local driver |
+| `GET` | `/uploaded-file/:id` | Authorized detail plus usable public/private preview URL |
+| `DELETE` | `/uploaded-file/:id` | Abort pending or durably delete ready; `{ "data": null }` |
 | `POST` | `/uploaded-file?module=&entity=&entityId=&type=` | One buffered multipart field named `file`; validated upload envelope |
 | `GET` | `/uploaded-file/:id/download` | Authorized stream with safe content headers |
 
 The multipart adapter accepts one file and has a 25 MiB absolute ceiling; the configured service
-limit can be lower. Missing, unauthorized, malformed, and cross-scope file IDs are intentionally
+limit can be lower. Direct initiate accepts metadata only and rejects public visibility, custom TTL,
+bucket, and object-key fields. Direct/detail responses omit storage keys and persisted URL fields.
+Missing, unauthorized, malformed, and cross-scope file IDs are intentionally
 non-enumerating. Do not expose the `unsafeSystem*` maintenance methods as routes.
 
 ## Action history

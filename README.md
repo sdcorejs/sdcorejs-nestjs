@@ -748,6 +748,14 @@ SdCoreModule.forRoot({
     bucket: process.env.S3_BUCKET,
     region: process.env.AWS_REGION,
     folder: 'core',
+    cdnBaseUrl: 'https://cdn.example.com',
+    defaultVisibility: 'private',
+    allowPublicUploads: true,
+    publicAccessMode: 'external',
+    uploadUrlTtlSeconds: 10 * 60,
+    privateDownloadUrlTtlSeconds: 15 * 60,
+    pendingCleanupInterval: '0 3 * * *',
+    temporaryCleanupInterval: '*/15 * * * *',
     maxFileSizeBytes: 8 * 1024 * 1024,
     allowedMimeTypes: ['image/png', 'application/pdf'],
     resolveScope: (ctx) => ({ tenantCode: ctx.tenant, userId: ctx.userId }),
@@ -764,11 +772,46 @@ SdCoreModule.forRoot({
 });
 ```
 
-The S3 driver lazy-loads AWS SDK v3. S3 mode requires a nonblank `bucket`. When `accessId` and
+The S3 driver lazy-loads AWS SDK v3 (`@aws-sdk/client-s3` and
+`@aws-sdk/s3-request-presigner`). S3 mode requires a nonblank `bucket`. When `accessId` and
 `accessKey` are both omitted, `S3Client` uses the standard AWS credential provider chain
 (recommended for workload identity); if either is configured, both must be nonblank. Partial or
 blank credentials fail module configuration instead of silently selecting local storage. Set
 `region` or provide it through the SDK provider chain. AWS SDK v2 (`aws-sdk`) is no longer used.
+
+For S3/Spaces, uploads use a control plane/data plane split. The authenticated backend creates a
+private pending row and a short-lived one-object target; the browser sends bytes directly to the
+storage origin, then asks the backend to verify `HEAD`, promote the exact staging version, and mark
+the row ready. Bucket names, object keys, credentials, and persisted private URLs are never included
+in the HTTP result.
+
+```ts
+const initiated = await api.post('/uploaded-file/initiate', {
+  originalName: file.name,
+  contentType: file.type,
+  size: file.size,
+});
+await fetch(initiated.data.upload.url, {
+  method: initiated.data.upload.method,
+  headers: initiated.data.upload.headers,
+  body: file,
+});
+const ready = await api.post(`/uploaded-file/${initiated.data.id}/complete`);
+image.src = ready.data.url;
+```
+
+Internal callers can use the same lifecycle without handling a signed URL. Passing the trusted
+owner ID selects the new overload; the prior Buffer overload remains available unchanged:
+
+```ts
+const ready = await uploads.upload(
+  buffer,
+  'contract.pdf',
+  { module: 'hrm', entity: 'contract', entityId },
+  currentUserId,
+  { contentType: 'application/pdf', visibility: 'private' },
+);
+```
 
 Storage keys are immutable, generated server-side, and tenant-namespaced:
 `<folder>/tenant/<base64url-tenant>/<uuid>/<sanitized-original-name>`. The original filename is metadata only;
@@ -806,11 +849,12 @@ const attached = await uploads.downloadAttached(document.id, {
 ```
 
 - **`UploadedFile<TExtraData>`** — generic entity with an `extraData` jsonb bag; type it per call.
-- **Service** — `upload<T>(buffer, fileName?, meta?, extraData?, { contentType?, allowedMimeTypes?,
-  maxFileSizeBytes? })` returns the
-  authorized row; `download(id)` returns `{ stream, fileName }`; `findById<T>(id)` and every mutation
-  enforce the same policy. Per-call MIME and byte limits are intersected/clamped with module
-  configuration and therefore cannot widen it. `cloneFromUrl` is disabled unless explicitly configured.
+- **Service** — the legacy `upload<T>(buffer, fileName?, meta?, extraData?, options?)` still returns
+  the authorized entity. The new overload accepts `Buffer | Uint8Array | Readable`, trusted context,
+  owner ID, and visibility/disposition options, then runs `initiate → PUT/write → complete` and returns
+  `UploadedFileResult`. Direct lifecycle methods are `initiateUpload`, `initiateTemporaryUpload`,
+  `completeUpload`, `abortUpload`, `find`, `deleteById`, and `resolveUrl`. Per-call MIME and byte limits
+  only narrow module configuration. `cloneFromUrl` remains disabled unless explicitly configured.
 - **Transactional attachment ownership** — `markUsed(ids, meta, manager?)` uses the supplied TypeORM
   `EntityManager` without opening a nested transaction. When omitted, the service preserves the
   existing all-or-nothing behavior by opening exactly one transaction. `downloadAttached(id,
@@ -818,8 +862,10 @@ const attached = await uploads.downloadAttached(document.id, {
   the lookup remains tenant-bound and requires an active, used row with exact `module`, `entity`, and
   UUID (including UUIDv7) `entityId` metadata. It intentionally does not require the current user to
   be the original uploader. Policy denial, metadata mismatch, and storage failure all return 404.
-- **Drop-in `UploadedFileController`** — `POST /uploaded-file` (multipart field `file`; optional
-  `module` / `entity` / `entityId` / `type` query params) and `GET /uploaded-file/:id/download`.
+- **Drop-in `UploadedFileController`** — keeps legacy multipart/download routes and adds
+  `POST /uploaded-file/initiate`, `POST /uploaded-file/temporary/initiate`,
+  `POST /uploaded-file/:id/complete`, `PUT /uploaded-file/:id/content` (local target),
+  `GET /uploaded-file/:id`, and `DELETE /uploaded-file/:id`.
   Guarded by `AuthGuard`; needs `@nestjs/platform-express`. Mount it under your prefix:
 
   ```ts
@@ -835,13 +881,21 @@ const attached = await uploads.downloadAttached(document.id, {
   upload tombstones across soft deletion and producer-process death; settled deletion work is
   prioritized so tombstones cannot starve it. Storage/finalization failures leave durable retry
   state with a one-minute future backoff so poison rows cannot monopolize bounded sweeps.
-- **Cleanup and temporary files** — the fixed `@Cron('0 3 * * *')` always retries pending deletions;
-  with `cleanupAfterDays > 0` it also purges never-attached files (`isUsed = false`) older than N days.
-  `uploadTemporary()` requires that positive cleanup setting and persists a tracking row before bytes.
-  Import `ScheduleModule.forRoot()` in the host or run the explicitly unsafe maintenance methods from
-  a separately authorized worker. With `jobScheduler` wired, each daily sweep uses its DB lock. Only
+- **Cleanup and temporary files** — new temporary uploads are always private and become inaccessible
+  at `now >= expiredAt`, where `expiredAt` is exactly `completedAt + 24 hours`; request/config TTLs
+  cannot override it. Private signed GET TTL is capped at one hour and clamped to temporary expiry.
+  Configurable pending and temporary cron tracks default to `0 3 * * *` and `*/15 * * * *`.
+  `cleanupAfterDays` remains only for the legacy unused-file age purge. Import
+  `ScheduleModule.forRoot()` or run the trusted maintenance methods from a separately authorized
+  worker. With `jobScheduler` wired, each sweep uses its DB lock. Only
   after draining producers and verifying no late write can occur may an operator call
   `unsafeSystemRetireUploadTombstone(id)` to settle a permanently abandoned upload tombstone.
+- **Visibility** — generic frontend initiate is always private. Internal public upload requires
+  `allowPublicUploads: true`; `publicAccessMode: 'object-acl'` applies `public-read` during promotion,
+  while `'external'` relies on an already reviewed bucket/CDN policy and never sends an ACL. Public
+  detail returns a stable CDN/origin URL with `urlExpiredAt: null`; private S3 detail returns a new
+  signed GET URL that is never persisted or logged. Legacy `publicFiles: true` normalizes to public
+  permanent uploads but never makes temporary files public.
 - **Batch and response safety** — ID/reference batches are capped at 100; references are capped at
   1024 characters. Unknown or extensionless names are rejected. Downloads derive `Content-Type`, use
   safe attachment disposition, and set `X-Content-Type-Options: nosniff`.
@@ -855,6 +909,10 @@ const attached = await uploads.downloadAttached(document.id, {
   main document part are rejected. This inspection is not malware scanning; use a separately reviewed
   scanning/quarantine pipeline where threat detection is required, and a separately reviewed streaming
   workflow for files larger than the ceiling.
+
+Run the exported `UploadedFileDirectLifecycle1785744000000` migration before enabling direct
+uploads. It backfills existing rows conservatively as private/ready/permanent and preserves every
+legacy column. See [the migration guide](docs/migration-1.2-uploaded-file-direct-upload.md).
 
 ### Action history
 

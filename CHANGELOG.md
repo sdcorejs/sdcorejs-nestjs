@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.0
+
+### Minor Changes
+
+- Add a backward-compatible uploaded-file direct lifecycle for AWS S3, DigitalOcean Spaces, and local
+  storage: provider-neutral initiate/complete/abort APIs and HTTP routes, managed internal uploads,
+  public CDN or private signed reads, fixed 24-hour private temporary files, configurable CAS/outbox
+  cleanup, additive PostgreSQL migration, and migration/operations documentation.
+- Standardize uploaded-file expiration names across persistence and API results as
+  `uploadExpiredAt`, `expiredAt`, and `urlExpiredAt`.
+
 ## 1.1.3
 
 ### Patch Changes
