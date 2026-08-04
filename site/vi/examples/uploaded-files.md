@@ -150,15 +150,50 @@ Phân quyền và load đơn hàng được tham chiếu trước cả hai lời
 Fragment chuyên biệt này giả định `files: UploadedFileService` đã được inject,
 `pdfBuffer: Buffer` thuộc ứng dụng và `orderId` là UUID.
 
+## Browser direct upload và managed internal upload {#browser-direct-upload-and-managed-internal-upload}
+
+```ts
+const initiated = (await api.post('/uploaded-file/initiate', {
+  originalName: browserFile.name,
+  contentType: browserFile.type,
+  size: browserFile.size,
+})).data;
+
+await fetch(initiated.upload.url, {
+  method: initiated.upload.method,
+  headers: initiated.upload.headers,
+  body: browserFile,
+});
+
+const detail = (await api.post(`/uploaded-file/${initiated.id}/complete`)).data;
+```
+
+Trusted backend code dùng cùng final lifecycle. `ownerId` lấy từ request/job context đã xác minh,
+không lấy từ caller JSON:
+
+```ts
+const publicCover = await files.upload(pngBuffer, 'cover.png', { module: 'cms', type: 'cover' }, ownerId, {
+  contentType: 'image/png',
+  visibility: 'public',
+  disposition: 'inline',
+});
+
+const temporary = await files.uploadTemporary(pngBuffer, 'preview.png', { module: 'cms' }, ownerId, {
+  contentType: 'image/png',
+});
+// temporary.expiredAt is exactly temporary.completedAt + 24 elapsed hours.
+```
+
 ## Hành vi khi thất bại {#failure-behavior}
 
 Upload theo cơ chế pending-first: hàng cơ sở dữ liệu được lưu ở trạng thái ẩn, sau đó byte được ghi,
 rồi đúng hàng đó được activation. Ghi/activation thất bại không để lại hàng hiển thị và giữ một
 cleanup claim bền vững nếu cleanup tức thời cũng thất bại.
 
-Quá trình xóa đánh dấu hàng là pending trước khi xóa object và xóa mềm. Job hằng ngày lúc 03:00 retry
-các claim đủ điều kiện và purge tệp chưa dùng cũ hơn bảy ngày. `jobScheduler: {}` đảm bảo chỉ một
-sweep thắng giữa các instance ứng dụng.
+Quá trình xóa đánh dấu hàng là pending trước khi xóa object và xóa mềm. Pending job cấu hình được
+retry pending/staging/outbox và có thể purge row legacy chưa dùng; temporary job riêng xóa file ready
+sau TTL cố định 24 giờ. `jobScheduler: {}` thêm distributed lock, còn CAS/outbox ở row vẫn bảo vệ
+các instance chạy đồng thời.
 
 Không gọi `unsafeSystemRetryPendingDeletions()` hoặc `unsafeSystemPurgeUnusedBefore()` từ HTTP
 controller. Theo thiết kế, chúng đi qua mọi tenant và chỉ thuộc về maintenance worker được phân

@@ -15,7 +15,8 @@ tiết lộ thông tin định danh cho resource không hợp lệ, bị thiếu
 | `UploadedFileModule`                 | class        | Module feature global; `forRoot(config)`                     |
 | `UploadedFileController`             | class        | Bề mặt HTTP upload/download có xác thực, tùy chọn            |
 | `UploadedFileConfig`                 | interface    | Cấu hình driver, validation, scope, authorization và cleanup |
-| `UploadedFileOperation`              | type         | `create`, `read`, `update`, `mark-used`, `delete`, `clone`   |
+| `UploadedFileContext`                | type         | Request context tin cậy được các thao tác service chấp nhận  |
+| `UploadedFileOperation`              | type         | gồm `create`, `read`, `complete`, `abort` và thao tác legacy |
 | `UploadedFileAccessDecision`         | type         | `'owner' \| 'tenant' \| 'deny'`                              |
 | `UploadedFileScope`                  | interface    | Tenant, department tùy chọn và owner ID                      |
 | `UploadedFileAuthorizationRequest`   | interface    | Đầu vào policy với context tin cậy và resource có giới hạn   |
@@ -25,7 +26,16 @@ tiết lộ thông tin định danh cho resource không hợp lệ, bị thiếu
 | `UploadedFileAttachedReadPolicy`     | type         | Callback đọc attachment mặc định từ chối                     |
 | `UploadedFileMeta`                   | interface    | Nguồn gốc module/entity/entityId/type tùy chọn                |
 | `UploadedFileUploadOptions`          | interface    | MIME khai báo và giới hạn validation theo lời gọi            |
-| `UploadedFileResult`                 | interface    | Hình dạng kết quả persist gọn cho adapter ứng dụng           |
+| `UploadedFileTemporaryUploadOptions` | type         | Option temporary managed; cấm visibility/TTL                 |
+| `InitiateUploadedFileInput`          | interface    | Tên gốc, content type khai báo, size chính xác, checksum      |
+| `InitiateUploadedFileResult`         | interface    | Upload instruction một object, trung lập provider            |
+| `UploadedFileResult`                 | interface    | Kết quả service có URL; giữ key/CDN legacy ở lớp internal    |
+| `UploadedFileHttpResult`             | type         | Kết quả HTTP đã loại `key` và `cdn` persist                  |
+| `UploadedFileVisibility`             | type         | `'public' \| 'private'`                                      |
+| `UploadedFilePublicAccessMode`       | type         | Chính sách object public `'object-acl' \| 'external'`        |
+| `UploadedFileStatus`                 | type         | `'pending' \| 'completing' \| 'ready' \| 'failed'`          |
+| `UploadedFileDisposition`            | type         | `'inline' \| 'attachment'`                                   |
+| `UploadedFileDirectLifecycle1785744000000` | migration class | Migration PostgreSQL additive cho lifecycle          |
 | `UploadedFileRemoteCloneConfig`      | type         | Điều khiển bật/timeout/kích thước/redirect/host              |
 | `UPLOADED_FILE_BATCH_LIMIT`          | value        | `100` ID/reference mỗi batch công khai                       |
 | `UPLOADED_FILE_REFERENCE_MAX_LENGTH` | value        | `1024` ký tự cho mỗi reference chính xác                     |
@@ -65,7 +75,9 @@ UploadedFileModule.forRoot({
 ```
 
 Thêm `UploadedFile` vào datasource. Entity dùng UUID, `jsonb`, `timestamptz`, cột soft-delete và có
-giá trị `key`/`cdn` unique.
+`key`/`cdn` unique. Direct lifecycle thêm `sizeBytes` chính xác, `contentType`, `pendingKey`,
+`visibility`, `status`, `isTemporary`, timestamp upload/complete/expire, `disposition`, `checksum`,
+`etag` và index cho pending/temporary/owner-status.
 
 ## Cấu hình {#configuration}
 
@@ -74,12 +86,23 @@ giá trị `key`/`cdn` unique.
 | `driver`                | Local trừ khi cặp `accessId` + `accessKey` đầy đủ, rõ ràng tự chọn S3; `'s3'` rõ ràng dùng chuỗi credential AWS                 |
 | `accessId`, `accessKey` | Tùy chọn nhưng phải được cung cấp cùng nhau và không rỗng                                                                        |
 | `region`                | Chuỗi provider AWS SDK khi bỏ qua                                                                                                |
+| `endpoint`              | S3-compatible origin tùy chọn, ví dụ Spaces endpoint                                                                             |
+| `forcePathStyle`        | `false`; dành cho compatible origin yêu cầu path-style addressing                                                                |
 | `bucket`                | Bắt buộc và không rỗng với S3                                                                                                    |
 | `folder`                | `'core'`; được chuẩn hóa, từ chối segment traversal                                                                              |
 | `localRoot`             | `<cwd>/upload`; đường dẫn tuyệt đối chuẩn                                                                                         |
 | `host`                  | Rỗng; base cho URL private có xác thực                                                                                           |
-| `cdnBaseUrl`            | Rỗng; chỉ dùng với `publicFiles: true`                                                                                           |
-| `publicFiles`           | `false`; bắt buộc opt-in rõ ràng                                                                                                 |
+| `cdnBaseUrl`            | Rỗng; base public read ổn định, không bao giờ là presigned PUT origin                                                            |
+| `defaultVisibility`     | `'private'`; mặc định cho managed internal upload                                                                                |
+| `allowPublicUploads`    | `false`; bắt buộc trước khi internal caller yêu cầu public                                                                       |
+| `publicAccessMode`      | `'external'`; `'object-acl'` gửi `public-read`, external không gửi ACL                                                          |
+| `publicFiles`           | Input tương thích đã deprecated; `true` chuẩn hóa permanent, không áp dụng temporary                                            |
+| `uploadUrlTtlSeconds`   | `600`; số nguyên dương, tối đa một giờ                                                                                           |
+| `privateDownloadUrlTtlSeconds` | `900`; không vượt maximum cấu hình/trần tuyệt đối một giờ                                                                |
+| `maxPrivateDownloadUrlTtlSeconds` | `3600`; không thể vượt một giờ                                                                                        |
+| `pendingCleanupInterval` | `'0 3 * * *'`; sweep direct pending/staging/outbox/legacy age                                                                  |
+| `temporaryCleanupInterval` | `'*/15 * * * *'`; sweep temporary ready đã hết hạn                                                                           |
+| `cleanupBatchSize`      | `100`; số nguyên dương, tối đa 100                                                                                               |
 | `downloadPath`          | `'uploaded-file'`                                                                                                                |
 | `maxFileSizeBytes`      | Mặc định 10 MiB; giới hạn theo trần tuyệt đối 25 MiB                                                                             |
 | `allowedMimeTypes`      | JSON, PDF, ZIP, DOCX, XLSX, PPTX, GIF, JPEG, PNG, WebP, CSV và plain text                                                        |
@@ -88,7 +111,7 @@ giá trị `key`/`cdn` unique.
 | `resolveScope`          | Fallback về `ctx.tenant`, `ctx.userId`, rồi các trường `ctx.custom` tương ứng                                                    |
 | `authorizationPolicy`   | Chỉ owner khi vắng mặt                                                                                                          |
 | `attachedReadPolicy`    | Từ chối đọc attachment khi vắng mặt; chỉ giá trị `true` chính xác mới cho phép                                                   |
-| `cleanupAfterDays`      | Age purge tắt khi bỏ qua/không dương; bắt buộc là số hữu hạn dương cho upload tạm thời                                           |
+| `cleanupAfterDays`      | Chỉ age purge row legacy chưa dùng; không điều khiển TTL temporary cố định 24 giờ                                                |
 
 `allowedHosts` từ xa là allowlist hostname chính xác tùy chọn. Khi bật clone, mọi URL và redirect
 đều được validation lại, DNS phải phân giải thành địa chỉ public, kết nối được pin vào địa chỉ đã
@@ -113,8 +136,16 @@ ID và reference được giới hạn trước khi callback chạy.
 | Thành viên                          | Signature / kết quả                                                                         |
 | ----------------------------------- | ------------------------------------------------------------------------------------------- |
 | `getContent`                        | `(fileName?) => { ContentType?, ContentDisposition? }`; ánh xạ extension allowlist thuần     |
-| `upload<T>`                         | `(buffer, fileName?, meta?, extraData?, options?) => Promise<UploadedFile<T>>`              |
-| `uploadTemporary`                   | `(buffer, fileName?, options?) => Promise<{ key, cdn }>`                                    |
+| `upload<T>` legacy                  | `(buffer, fileName?, meta?, extraData?, options?) => Promise<UploadedFile<T>>`              |
+| `upload` managed                    | `(source, originalName, context?, ownerId?, options?) => Promise<UploadedFileResult>`        |
+| `uploadTemporary` legacy            | `(buffer, fileName?, options?) => Promise<{ key, cdn }>`                                    |
+| `uploadTemporary` managed           | `(source, originalName, context?, ownerId?, options?) => Promise<UploadedFileResult>`        |
+| `initiateUpload` / `initiateTemporaryUpload` | `(input) => Promise<InitiateUploadedFileResult>`                                     |
+| `completeUpload` / `abortUpload`    | `(id) => Promise<UploadedFileResult \| void>`                                               |
+| `resolveUrl`                        | `(id) => Promise<{ url, urlExpiredAt }>`                                                    |
+| `find`                              | `(id) => Promise<UploadedFileResult>`                                                       |
+| `deleteById`                        | `(id) => Promise<void>`; abort pending hoặc delete ready qua durable cleanup                |
+| `putUploadContent`                  | `(id, buffer) => Promise<UploadedFileResult>`; chỉ local target đã xác thực                 |
 | `cloneFromUrl<T>`                   | `(url, fileName?, meta?, extraData?) => Promise<UploadedFile<T>>`                           |
 | `download`                          | `(id) => Promise<{ stream, fileName }>`                                                     |
 | `downloadAttached`                  | `(id, attachment) => Promise<{ stream, fileName }>`; đọc attachment chính xác đã được duyệt |
@@ -127,6 +158,9 @@ ID và reference được giới hạn trước khi callback chạy.
 | `unsafeSystemRetryPendingDeletions` | `(limit = 100) => Promise<number>`; chỉ bảo trì cross-tenant                                |
 | `unsafeSystemRetireUploadTombstone` | `(id) => Promise<boolean>`; chỉ upload bị bỏ quên do operator xác nhận                       |
 | `unsafeSystemPurgeUnusedBefore`     | `(cutoff) => Promise<number>`; chỉ bảo trì cross-tenant                                     |
+| `cleanupPendingUploads`             | `(limit?) => Promise<number>`; sweep direct pending/staging và deletion retry               |
+| `cleanupExpiredTemporaryFiles`      | `(now?, limit?) => Promise<number>`; cleanup CAS theo expiry chính xác                      |
+| `unsafeSystemCleanupCompletedStaging` | `(limit?) => Promise<number>`; cleanup S3 staging còn giữ                                 |
 
 ```ts
 const file = await uploads.upload(
@@ -169,6 +203,18 @@ chủ ý không nằm trong lookup attachment chính xác này.
 
 ## Vòng đời pending bền vững {#durable-pending-lifecycle}
 
+Direct initiate persist `status: 'pending'`, staging key private, final key sinh riêng, expected
+size/content type chính xác, upload expiry và in-flight cleanup lease trước khi trả target. Complete
+verify staging version, CAS-claim `pending → completing`, promote mà không download qua backend,
+verify final metadata rồi CAS-finalize `ready`. Completion lease ngăn hai instance promote độc lập;
+lease hết hạn có thể recovery. S3 staging được giữ để retry rồi xóa idempotent; local promotion dùng
+hard-link/move không overwrite và xóa `pendingKey`.
+
+File public ready dùng URL ổn định với expiry null. Private S3/Spaces dùng presigned GET mới, tối đa
+một giờ; signed URL không persist hay log. Temporary mới luôn private và complete thành công ghi
+`expiredAt = completedAt + 24 elapsed hours`. Read/detail từ chối tại `now >= expiredAt` độc
+lập với cleanup và clamp signed URL cuối theo boundary đó.
+
 Upload trước tiên được persist thành một hàng ẩn có `uploadPendingAt` là activation lease trong
 tương lai 15 phút; `deletionPendingAt` vẫn null. Sau khi ghi byte, activation dùng
 compare-and-swap (CAS): chỉ xóa chính xác upload marker đó khi deletion marker vẫn null. Các thao tác
@@ -202,10 +248,11 @@ gọi `unsafeSystemRetireUploadTombstone(id)`. Method này chuyển nguyên tử
 thành trạng thái deletion-retry đã trôi qua thông thường và từ chối retire upload lease đang sống
 hoặc chiếm deletion lease đang sống.
 
-`UploadedFileModule` đăng ký provider bảo trì hằng ngày lúc 03:00. Import
-`ScheduleModule.forRoot()` trong host để kích hoạt cron. Pending deletion được retry kể cả khi
-`cleanupAfterDays` bị tắt; age-based purge của hàng chưa dùng chỉ chạy khi retention dương. Khi cũng
-có `JobSchedulerService`, cron dùng khóa hằng ngày phân tán.
+`UploadedFileModule` đăng ký hai cron pending và temporary cấu hình được. Import
+`ScheduleModule.forRoot()` để kích hoạt. Pending/staging/deletion được retry kể cả khi
+`cleanupAfterDays` bị tắt; age purge row legacy chưa dùng chỉ chạy khi retention dương. Temporary
+expiry luôn 24 giờ và dùng interval riêng. Khi có `JobSchedulerService`, mỗi cron dùng distributed
+lock; row CAS/outbox cũng bảo vệ nhiều instance chạy đồng thời.
 
 ::: warning API bảo trì không an toàn
 Mọi method `unsafeSystem*` chủ ý bypass policy tenant/owner của request trên tất cả tenant. Chỉ gọi
@@ -216,12 +263,19 @@ chúng từ mã bảo trì nền tin cậy; không bao giờ công khai trực t
 
 `UploadedFileController` không được tự động đăng ký. Thêm nó vào `controllers` của module ứng dụng:
 
-| Route                             | Hành vi                                                                              |
-| --------------------------------- | ------------------------------------------------------------------------------------- |
-| `POST /uploaded-file`             | Trường multipart `file`; query param `module`, `entity`, `entityId`, `type` tùy chọn  |
-| `GET /uploaded-file/:id/download` | Stream được cấp quyền với type allowlist, `nosniff` và disposition attachment         |
+| Route                                      | Hành vi                                                               |
+| ------------------------------------------ | ---------------------------------------------------------------------- |
+| `POST /uploaded-file/initiate`             | Metadata private pending và direct target trung lập provider           |
+| `POST /uploaded-file/temporary/initiate`   | Temporary direct target private; không nhận TTL/visibility             |
+| `POST /uploaded-file/:id/complete`         | Verify/promote/finalize; body rỗng                                     |
+| `PUT /uploaded-file/:id/content`           | Raw binary target cho local driver                                     |
+| `GET /uploaded-file/:id`                   | Detail có URL đã phân quyền                                            |
+| `DELETE /uploaded-file/:id`                | Abort pending hoặc delete ready                                        |
+| `POST /uploaded-file`                      | Route multipart tương thích đã deprecated                              |
+| `GET /uploaded-file/:id/download`          | Stream tương thích với type allowlist, `nosniff`, attachment disposition |
 
-Cả hai route dùng `AuthGuard`; policy service vẫn thực thi truy cập tenant/owner. Giới hạn multipart
+Mọi route dùng `AuthGuard`; policy service vẫn thực thi tenant/owner. HTTP response direct không bao
+giờ serialize storage key hay reference private/CDN đã persist. Giới hạn multipart
 cho phép một file và thực thi trần tuyệt đối 25 MiB; service có thể thực thi giới hạn cấu hình thấp
 hơn. `downloadPath` mặc định khớp controller này. Nếu tùy chỉnh nó, hãy cung cấp hành vi
 routing/proxy tương ứng hoặc controller tùy chỉnh.
@@ -231,8 +285,9 @@ routing/proxy tương ứng hoặc controller tùy chỉnh.
 Lỗi định danh resource, authorization và existence chủ ý dùng chung `core.file.not-found`. Lỗi
 validation/vòng đời đã cấu hình dùng các code ổn định gồm `core.file.invalid-upload`,
 `core.file.invalid-meta`, `core.file.remote-disabled`, `core.file.remote-fetch-failed`,
-`core.file.temporary-cleanup-required`, `core.file.upload-failed`, `core.file.delete-failed` và
-`core.file.cleanup-failed`.
+`core.file.upload-expired`, `core.file.upload-completing`, `core.file.upload-verification-failed`,
+`core.file.public-upload-disabled`, `core.file.expired`, `core.file.upload-failed`,
+`core.file.delete-failed` và `core.file.cleanup-failed`.
 
 Không chuyển lỗi service không tiết lộ thông tin định danh thành chẩn đoán storage hoặc policy chi
 tiết tại HTTP boundary.

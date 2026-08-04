@@ -150,15 +150,50 @@ invoice permissions from them.
 This focused fragment assumes injected `files: UploadedFileService`, application
 `pdfBuffer: Buffer`, and UUID `orderId`.
 
+## Browser direct upload and managed internal upload
+
+```ts
+const initiated = (await api.post('/uploaded-file/initiate', {
+  originalName: browserFile.name,
+  contentType: browserFile.type,
+  size: browserFile.size,
+})).data;
+
+await fetch(initiated.upload.url, {
+  method: initiated.upload.method,
+  headers: initiated.upload.headers,
+  body: browserFile,
+});
+
+const detail = (await api.post(`/uploaded-file/${initiated.id}/complete`)).data;
+```
+
+The same final lifecycle is available to trusted backend code. `ownerId` comes from the verified
+request/job context, not caller JSON:
+
+```ts
+const publicCover = await files.upload(pngBuffer, 'cover.png', { module: 'cms', type: 'cover' }, ownerId, {
+  contentType: 'image/png',
+  visibility: 'public',
+  disposition: 'inline',
+});
+
+const temporary = await files.uploadTemporary(pngBuffer, 'preview.png', { module: 'cms' }, ownerId, {
+  contentType: 'image/png',
+});
+// temporary.expiredAt is exactly temporary.completedAt + 24 elapsed hours.
+```
+
 ## Failure behavior
 
 Upload is pending-first: the database row is saved hidden, then bytes are written, then the exact
 row is activated. A failed write/activation leaves no visible row and retains a durable cleanup
 claim if immediate cleanup also fails.
 
-Deletion marks rows pending before object removal and soft deletion. The daily 03:00 job retries
-eligible pending claims and purges unused files older than seven days. `jobScheduler: {}` ensures
-one sweep wins across application instances.
+Deletion marks rows pending before object removal and soft deletion. The configurable pending job
+retries pending/staging/outbox work and may purge unused legacy rows; the separate temporary job
+deletes ready files after their fixed 24-hour lifetime. `jobScheduler: {}` adds a distributed lock,
+while row CAS/outbox handling still protects concurrent instances.
 
 Do not call `unsafeSystemRetryPendingDeletions()` or `unsafeSystemPurgeUnusedBefore()` from an HTTP
 controller. They cross every tenant by design and belong only in a separately authorized maintenance

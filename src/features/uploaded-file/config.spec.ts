@@ -64,4 +64,55 @@ describe('uploaded-file configuration', () => {
     const config = normalizeUploadedFileConfig({ maxFileSizeBytes: 1024, remoteClone: { enabled: true, maxBytes: Number.NaN } });
     expect(config.remoteClone.maxBytes).toBe(1024);
   });
+
+  it('defaults direct uploads to private with bounded upload and download URL lifetimes', () => {
+    expect(normalizeUploadedFileConfig({})).toMatchObject({
+      defaultVisibility: 'private',
+      allowPublicUploads: false,
+      publicAccessMode: 'external',
+      uploadUrlTtlSeconds: 10 * 60,
+      privateDownloadUrlTtlSeconds: 15 * 60,
+      maxPrivateDownloadUrlTtlSeconds: 60 * 60,
+      cleanupBatchSize: 100,
+    });
+  });
+
+  it('normalizes legacy publicFiles into the additive visibility contract', () => {
+    expect(normalizeUploadedFileConfig({ publicFiles: true })).toMatchObject({
+      publicFiles: true,
+      defaultVisibility: 'public',
+      allowPublicUploads: true,
+    });
+    expect(normalizeUploadedFileConfig({ publicFiles: false })).toMatchObject({
+      publicFiles: false,
+      defaultVisibility: 'private',
+      allowPublicUploads: false,
+    });
+  });
+
+  it('fails configuration when a private signed URL could exceed one hour', () => {
+    expect(() =>
+      normalizeUploadedFileConfig({ privateDownloadUrlTtlSeconds: 3601 } as Parameters<typeof normalizeUploadedFileConfig>[0]),
+    ).toThrow(/one hour/i);
+    expect(() =>
+      normalizeUploadedFileConfig({ maxPrivateDownloadUrlTtlSeconds: 3601 } as Parameters<typeof normalizeUploadedFileConfig>[0]),
+    ).toThrow(/one hour/i);
+  });
+
+  it.each([
+    [{ uploadUrlTtlSeconds: 0 }, /positive integer/],
+    [{ pendingCleanupInterval: 'invalid' }, /cron expression/],
+    [{ driver: 'invalid' }, /driver must be either/],
+    [{ allowedMimeTypes: [' ', ''] }, /allowedMimeTypes must not be empty/],
+    [{ defaultVisibility: 'invalid' }, /defaultVisibility must be either/],
+    [{ defaultVisibility: 'public', allowPublicUploads: false }, /requires allowPublicUploads=true/],
+    [{ publicAccessMode: 'invalid' }, /publicAccessMode must be either/],
+    [{ privateDownloadUrlTtlSeconds: 901, maxPrivateDownloadUrlTtlSeconds: 900 }, /must not exceed maxPrivate/],
+    [{ uploadUrlTtlSeconds: 3601 }, /uploadUrlTtlSeconds must not exceed one hour/],
+    [{ cleanupBatchSize: 101 }, /cleanupBatchSize must not exceed 100/],
+  ] as const)('rejects unsafe direct-upload configuration %j', (unsafeConfig, expected) => {
+    expect(() => normalizeUploadedFileConfig(unsafeConfig as unknown as Parameters<typeof normalizeUploadedFileConfig>[0])).toThrow(
+      expected,
+    );
+  });
 });

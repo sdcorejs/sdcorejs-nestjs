@@ -17,8 +17,9 @@ import { UploadedFile } from './uploaded-file.entity';
  * local disk. Explicit S3 also supports the AWS default credential chain. Invalid credentials and
  * missing S3 buckets fail during module registration.
  * The consumer registers {@link UploadedFile} in its TypeORM datasource and may opt into the
- * drop-in controller separately. The maintenance provider is always registered so durable pending
- * deletions can retry; the host imports `ScheduleModule.forRoot()` to activate its daily cron.
+ * drop-in controller separately. The maintenance provider is always registered so durable pending,
+ * staging, deletion, and temporary-expiry work can retry; the host imports
+ * `ScheduleModule.forRoot()` to activate its configured cron tracks.
  *
  * @example
  * imports: [UploadedFileModule.forRoot({ driver: 's3', bucket: '...', region: 'ap-southeast-1' })]

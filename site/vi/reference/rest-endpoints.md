@@ -29,11 +29,19 @@ Tự đăng ký `UploadedFileController`. Controller này được bảo vệ b�
 
 | Method | Route | Kết quả |
 | --- | --- | --- |
+| `POST` | `/uploaded-file/initiate` | Metadata private pending và upload target trung lập provider |
+| `POST` | `/uploaded-file/temporary/initiate` | Temporary pending private; không nhận visibility/TTL |
+| `POST` | `/uploaded-file/:id/complete` | Verify/promote staging; kết quả an toàn có URL |
+| `PUT` | `/uploaded-file/:id/content` | Raw binary target có giới hạn cho local driver |
+| `GET` | `/uploaded-file/:id` | Detail đã phân quyền cùng preview URL public/private dùng được |
+| `DELETE` | `/uploaded-file/:id` | Abort pending hoặc xóa ready bền vững; `{ "data": null }` |
 | `POST` | `/uploaded-file?module=&entity=&entityId=&type=` | Một multipart field có buffer tên `file`; envelope upload đã validation |
 | `GET` | `/uploaded-file/:id/download` | Stream được phân quyền với content header an toàn |
 
 Multipart adapter nhận một tệp và có trần tuyệt đối 25 MiB; giới hạn service đã cấu hình có thể thấp
-hơn. ID tệp bị thiếu, không được phép, sai định dạng và khác scope đều chủ đích không cho phép suy
+hơn. Direct initiate chỉ nhận metadata và từ chối public visibility, custom TTL, bucket và object key.
+Response direct/detail loại storage key và URL field đã persist. ID tệp bị thiếu, không được phép,
+sai định dạng và khác scope đều chủ đích không cho phép suy
 đoán tài nguyên. Không expose các method maintenance `unsafeSystem*` thành route.
 
 ## Lịch sử thao tác {#action-history}

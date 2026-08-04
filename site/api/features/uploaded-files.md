@@ -15,7 +15,8 @@ non-enumerating failures for invalid, missing, denied and cross-scope resources.
 | `UploadedFileModule`                 | class        | Global feature module; `forRoot(config)`                     |
 | `UploadedFileController`             | class        | Optional authenticated upload/download HTTP surface          |
 | `UploadedFileConfig`                 | interface    | Driver, validation, scope, authorization and cleanup config  |
-| `UploadedFileOperation`              | type         | `create`, `read`, `update`, `mark-used`, `delete`, `clone`   |
+| `UploadedFileContext`                | type         | Trusted request context accepted by service operations       |
+| `UploadedFileOperation`              | type         | includes `create`, `read`, `complete`, `abort`, and legacy operations |
 | `UploadedFileAccessDecision`         | type         | `'owner' \| 'tenant' \| 'deny'`                              |
 | `UploadedFileScope`                  | interface    | Tenant, optional department and owner IDs                    |
 | `UploadedFileAuthorizationRequest`   | interface    | Policy input with trusted context and bounded resources      |
@@ -25,7 +26,16 @@ non-enumerating failures for invalid, missing, denied and cross-scope resources.
 | `UploadedFileAttachedReadPolicy`     | type         | Deny-by-default exact attachment read callback               |
 | `UploadedFileMeta`                   | interface    | Optional module/entity/entityId/type provenance              |
 | `UploadedFileUploadOptions`          | interface    | Optional declared MIME and per-call validation narrowing     |
-| `UploadedFileResult`                 | interface    | Compact persisted result shape for application adapters      |
+| `UploadedFileTemporaryUploadOptions` | type         | Managed temporary options; visibility/TTL are forbidden      |
+| `InitiateUploadedFileInput`          | interface    | Original name, declared content type, exact size, checksum    |
+| `InitiateUploadedFileResult`         | interface    | Provider-neutral one-object upload instructions               |
+| `UploadedFileResult`                 | interface    | URL-aware service result; legacy key/CDN fields retained internally |
+| `UploadedFileHttpResult`             | type         | HTTP-safe result with `key` and persisted `cdn` removed       |
+| `UploadedFileVisibility`             | type         | `'public' \| 'private'`                                      |
+| `UploadedFilePublicAccessMode`       | type         | `'object-acl' \| 'external'` public object policy            |
+| `UploadedFileStatus`                 | type         | `'pending' \| 'completing' \| 'ready' \| 'failed'`          |
+| `UploadedFileDisposition`            | type         | `'inline' \| 'attachment'`                                   |
+| `UploadedFileDirectLifecycle1785744000000` | migration class | Additive PostgreSQL lifecycle migration                |
 | `UploadedFileRemoteCloneConfig`      | type         | Enabled/timeout/size/redirect/host controls                  |
 | `UPLOADED_FILE_BATCH_LIMIT`          | value        | `100` IDs/references per public batch                        |
 | `UPLOADED_FILE_REFERENCE_MAX_LENGTH` | value        | `1024` characters per exact reference                        |
@@ -64,8 +74,10 @@ UploadedFileModule.forRoot({
 });
 ```
 
-Add `UploadedFile` to the datasource. The entity uses UUID, `jsonb`, `timestamptz` and
-soft-delete columns and has unique `key`/`cdn` values.
+Add `UploadedFile` to the datasource. The entity uses UUID, `jsonb`, `timestamptz` and soft-delete
+columns and has unique `key`/`cdn` values. Direct lifecycle adds exact `sizeBytes`, `contentType`,
+`pendingKey`, `visibility`, `status`, `isTemporary`, upload/completion/expiry timestamps,
+`disposition`, `checksum`, and `etag`, plus pending/temporary/owner-status indexes.
 
 ## Configuration
 
@@ -74,12 +86,23 @@ soft-delete columns and has unique `key`/`cdn` values.
 | `driver`                | Local unless a complete explicit `accessId` + `accessKey` pair auto-selects S3; explicit `'s3'` uses the AWS credential chain |
 | `accessId`, `accessKey` | Optional but must be supplied together and nonblank                                                                           |
 | `region`                | AWS SDK provider chain when omitted                                                                                           |
+| `endpoint`              | Optional S3-compatible origin, for example a Spaces endpoint                                                                 |
+| `forcePathStyle`        | `false`; used with compatible origins that require path-style addressing                                                      |
 | `bucket`                | Required and nonblank for S3                                                                                                  |
 | `folder`                | `'core'`; normalized, traversal segments rejected                                                                             |
 | `localRoot`             | `<cwd>/upload`; canonical absolute path                                                                                       |
 | `host`                  | Empty; base for authenticated private URLs                                                                                    |
-| `cdnBaseUrl`            | Empty; used only with `publicFiles: true`                                                                                     |
-| `publicFiles`           | `false`; explicit opt-in is required                                                                                          |
+| `cdnBaseUrl`            | Empty; stable public read base only, never the presigned PUT origin                                                           |
+| `defaultVisibility`     | `'private'`; managed internal upload default                                                                                  |
+| `allowPublicUploads`    | `false`; required before internal callers can request public                                                                 |
+| `publicAccessMode`      | `'external'`; `'object-acl'` sends `public-read`, external sends no ACL                                                       |
+| `publicFiles`           | Deprecated compatibility input; `true` normalizes permanent defaults/opt-in, never temporary                                 |
+| `uploadUrlTtlSeconds`   | `600`; positive integer, at most one hour                                                                                     |
+| `privateDownloadUrlTtlSeconds` | `900`; positive integer, never above the configured/absolute one-hour maximum                                         |
+| `maxPrivateDownloadUrlTtlSeconds` | `3600`; cannot exceed one hour                                                                                       |
+| `pendingCleanupInterval` | `'0 3 * * *'`; direct pending/staging/outbox/legacy age sweep                                                               |
+| `temporaryCleanupInterval` | `'*/15 * * * *'`; ready temporary expiry sweep                                                                            |
+| `cleanupBatchSize`      | `100`; positive integer capped at 100                                                                                         |
 | `downloadPath`          | `'uploaded-file'`                                                                                                             |
 | `maxFileSizeBytes`      | 10 MiB default; clamped to the absolute 25 MiB ceiling                                                                        |
 | `allowedMimeTypes`      | JSON, PDF, ZIP, DOCX, XLSX, PPTX, GIF, JPEG, PNG, WebP, CSV and plain text                                                    |
@@ -88,7 +111,7 @@ soft-delete columns and has unique `key`/`cdn` values.
 | `resolveScope`          | Falls back to `ctx.tenant`, `ctx.userId`, then matching `ctx.custom` fields                                                   |
 | `authorizationPolicy`   | Owner-only when absent                                                                                                        |
 | `attachedReadPolicy`    | Attached reads denied when absent; only exact `true` approves                                                                 |
-| `cleanupAfterDays`      | Age purge disabled when omitted/non-positive; required positive finite value for temporary uploads                            |
+| `cleanupAfterDays`      | Legacy unused-row age purge only; does not control the fixed 24-hour temporary lifetime                                       |
 
 Remote `allowedHosts` is an optional exact hostname allowlist. When cloning is enabled, every URL
 and redirect is revalidated, DNS must resolve to public addresses, the connection is pinned to a
@@ -114,8 +137,16 @@ references are bounded before the callback runs.
 | Member                              | Signature / result                                                                         |
 | ----------------------------------- | ------------------------------------------------------------------------------------------ |
 | `getContent`                        | `(fileName?) => { ContentType?, ContentDisposition? }`; pure allowlisted extension mapping |
-| `upload<T>`                         | `(buffer, fileName?, meta?, extraData?, options?) => Promise<UploadedFile<T>>`             |
-| `uploadTemporary`                   | `(buffer, fileName?, options?) => Promise<{ key, cdn }>`                                   |
+| `upload<T>` legacy                  | `(buffer, fileName?, meta?, extraData?, options?) => Promise<UploadedFile<T>>`             |
+| `upload` managed                    | `(source, originalName, context?, ownerId?, options?) => Promise<UploadedFileResult>`       |
+| `uploadTemporary` legacy            | `(buffer, fileName?, options?) => Promise<{ key, cdn }>`                                   |
+| `uploadTemporary` managed           | `(source, originalName, context?, ownerId?, options?) => Promise<UploadedFileResult>`       |
+| `initiateUpload` / `initiateTemporaryUpload` | `(input) => Promise<InitiateUploadedFileResult>`                                    |
+| `completeUpload` / `abortUpload`    | `(id) => Promise<UploadedFileResult \| void>`                                              |
+| `resolveUrl`                        | `(id) => Promise<{ url, urlExpiredAt }>`                                                   |
+| `find`                              | `(id) => Promise<UploadedFileResult>`                                                      |
+| `deleteById`                        | `(id) => Promise<void>`; abort pending or delete ready with durable cleanup                |
+| `putUploadContent`                  | `(id, buffer) => Promise<UploadedFileResult>`; local authenticated target only             |
 | `cloneFromUrl<T>`                   | `(url, fileName?, meta?, extraData?) => Promise<UploadedFile<T>>`                          |
 | `download`                          | `(id) => Promise<{ stream, fileName }>`                                                    |
 | `downloadAttached`                  | `(id, attachment) => Promise<{ stream, fileName }>`; exact policy-approved attachment read |
@@ -128,6 +159,9 @@ references are bounded before the callback runs.
 | `unsafeSystemRetryPendingDeletions` | `(limit = 100) => Promise<number>`; cross-tenant maintenance only                          |
 | `unsafeSystemRetireUploadTombstone` | `(id) => Promise<boolean>`; operator-confirmed abandoned upload only                       |
 | `unsafeSystemPurgeUnusedBefore`     | `(cutoff) => Promise<number>`; cross-tenant maintenance only                               |
+| `cleanupPendingUploads`             | `(limit?) => Promise<number>`; direct pending/staging and deletion retry sweep              |
+| `cleanupExpiredTemporaryFiles`      | `(now?, limit?) => Promise<number>`; exact-expiry CAS cleanup                              |
+| `unsafeSystemCleanupCompletedStaging` | `(limit?) => Promise<number>`; retained S3 staging cleanup                               |
 
 ```ts
 const file = await uploads.upload(
@@ -171,6 +205,20 @@ uploader is intentionally not part of this exact attachment lookup.
 
 ## Durable pending lifecycle
 
+Direct initiate persists `status: 'pending'`, a private staging key, distinct generated final key,
+exact expected size/content type, upload expiry, and an in-flight cleanup lease before returning the
+target. Completion verifies the staging version, CAS-claims `pending → completing`, promotes without
+downloading through the backend, verifies final metadata, then CAS-finalizes `ready`. A completion
+lease prevents two instances from promoting independently; an expired lease can be recovered. S3
+staging remains retryable until a later idempotent cleanup, while local promotion uses a no-overwrite
+hard-link/move and clears `pendingKey`.
+
+Public ready files resolve to a stable URL with null expiry. Private S3/Spaces files use a fresh
+presigned GET capped at one hour; the signed URL is neither persisted nor logged. A new temporary
+file is always private, and successful completion writes `expiredAt = completedAt + 24 elapsed hours`.
+Read/detail refuses it at `now >= expiredAt` independently of cleanup and clamps the final signed URL
+to that boundary.
+
 An upload is persisted first as a hidden row whose `uploadPendingAt` is a future 15-minute
 activation lease; `deletionPendingAt` remains null. After writing bytes, activation uses
 compare-and-swap (CAS): it clears only that exact upload marker while the deletion marker is still
@@ -205,10 +253,12 @@ operator may call `unsafeSystemRetireUploadTombstone(id)`. It atomically convert
 tombstone into ordinary elapsed deletion-retry state and refuses to retire a live upload lease or
 steal a live deletion lease.
 
-`UploadedFileModule` registers the daily 03:00 maintenance provider. Import
-`ScheduleModule.forRoot()` in the host to activate cron. Pending deletions are retried even when
-`cleanupAfterDays` is disabled; age-based purge of unused rows runs only with positive retention.
-When `JobSchedulerService` is also available, the cron uses a distributed daily lock.
+`UploadedFileModule` registers configurable pending and temporary cron tracks. Import
+`ScheduleModule.forRoot()` in the host to activate them. Pending/staging/deletion work is retried even
+when `cleanupAfterDays` is disabled; age-based purge of unused legacy rows runs only with positive
+retention. Temporary expiry is always 24 hours and uses its own interval. When `JobSchedulerService`
+is available, each cron uses a distributed lock; row CAS/outbox handling also protects concurrent
+instances.
 
 ::: warning Unsafe maintenance API
 All `unsafeSystem*` methods intentionally bypass request tenant/owner policy across all tenants.
@@ -220,12 +270,19 @@ controller.
 
 `UploadedFileController` is not auto-registered. Add it to an application module's `controllers`:
 
-| Route                             | Behavior                                                                             |
-| --------------------------------- | ------------------------------------------------------------------------------------ |
-| `POST /uploaded-file`             | Multipart field `file`; optional `module`, `entity`, `entityId`, `type` query params |
-| `GET /uploaded-file/:id/download` | Authorized stream with allowlisted type, `nosniff` and attachment disposition        |
+| Route                                      | Behavior                                                                      |
+| ------------------------------------------ | ----------------------------------------------------------------------------- |
+| `POST /uploaded-file/initiate`             | Private pending metadata and provider-neutral direct target                   |
+| `POST /uploaded-file/temporary/initiate`   | Private temporary direct target; no TTL/visibility input                      |
+| `POST /uploaded-file/:id/complete`         | Verify/promote/finalize; empty body                                            |
+| `PUT /uploaded-file/:id/content`           | Local-driver raw binary target                                                 |
+| `GET /uploaded-file/:id`                   | Authorized URL-aware detail                                                    |
+| `DELETE /uploaded-file/:id`                | Abort pending or delete ready                                                  |
+| `POST /uploaded-file`                      | Deprecated multipart compatibility route                                      |
+| `GET /uploaded-file/:id/download`          | Compatibility stream with allowlisted type, `nosniff`, attachment disposition |
 
-Both routes use `AuthGuard`; service policy still enforces tenant/owner access. Multipart limits
+All routes use `AuthGuard`; service policy still enforces tenant/owner access. Direct HTTP responses
+never serialize storage keys or persisted private/CDN references. Multipart limits
 allow one file and enforce the 25 MiB absolute ceiling; the service can enforce a lower configured
 limit. The default `downloadPath` matches this controller. If you customize it, provide matching
 routing/proxy behavior or a custom controller.
@@ -235,8 +292,9 @@ routing/proxy behavior or a custom controller.
 Resource identifier, authorization and existence failures intentionally share
 `core.file.not-found`. Validation/configured lifecycle failures use stable codes including
 `core.file.invalid-upload`, `core.file.invalid-meta`, `core.file.remote-disabled`,
-`core.file.remote-fetch-failed`, `core.file.temporary-cleanup-required`, `core.file.upload-failed`,
-`core.file.delete-failed` and `core.file.cleanup-failed`.
+`core.file.remote-fetch-failed`, `core.file.upload-expired`, `core.file.upload-completing`,
+`core.file.upload-verification-failed`, `core.file.public-upload-disabled`, `core.file.expired`,
+`core.file.upload-failed`, `core.file.delete-failed` and `core.file.cleanup-failed`.
 
 Do not convert non-enumerating service errors into detailed storage or policy diagnostics at the
 HTTP boundary.

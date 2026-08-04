@@ -1,8 +1,20 @@
 import type { RequestContext } from '../../core/context/types';
 import type { RemoteCloneOptions } from './remote-fetcher';
 
+/** Per-file read exposure. Private is the secure default. */
+export type UploadedFileVisibility = 'public' | 'private';
+
+/** Persisted direct-upload lifecycle state. */
+export type UploadedFileStatus = 'pending' | 'completing' | 'ready' | 'failed';
+
+/** Browser rendering/download preference persisted with the file. */
+export type UploadedFileDisposition = 'inline' | 'attachment';
+
+/** How a public object becomes readable at its origin. */
+export type UploadedFilePublicAccessMode = 'object-acl' | 'external';
+
 /** Authorized operation evaluated by the uploaded-file policy. */
-export type UploadedFileOperation = 'create' | 'read' | 'update' | 'mark-used' | 'delete' | 'clone';
+export type UploadedFileOperation = 'create' | 'read' | 'update' | 'mark-used' | 'delete' | 'clone' | 'complete' | 'abort';
 
 /** Bounded policy result; mandatory tenant/department predicates always remain in force. */
 export type UploadedFileAccessDecision = 'owner' | 'tenant' | 'deny';
@@ -67,6 +79,10 @@ export interface UploadedFileConfig {
   accessKey?: string;
   /** Optional AWS region. Omit to use the AWS SDK v3 default region provider chain. */
   region?: string;
+  /** Optional S3-compatible origin endpoint, for example a DigitalOcean Spaces endpoint. */
+  endpoint?: string;
+  /** Force path-style addressing for S3-compatible providers that require it. */
+  forcePathStyle?: boolean;
   /** Required and non-blank whenever the resolved driver is S3. */
   bucket?: string;
   /** Primary object-key prefix. Default `'core'`; traversal components are rejected at startup. */
@@ -75,10 +91,28 @@ export interface UploadedFileConfig {
   localRoot?: string;
   /** Base host for authenticated download URLs. */
   host?: string;
-  /** Public CDN base URL. Used only when `publicFiles` is explicitly enabled. */
+  /** Stable public read base. It never replaces the S3/Spaces origin used for signed PUT. */
   cdnBaseUrl?: string;
   /** Explicit opt-in for unauthenticated/public object URLs. Default `false`. */
   publicFiles?: boolean;
+  /** Visibility used by legacy/internal uploads when no per-call visibility is supplied. */
+  defaultVisibility?: UploadedFileVisibility;
+  /** Required opt-in before an internal caller may create a public file. */
+  allowPublicUploads?: boolean;
+  /** Public origin policy. `external` is compatible with ACL-disabled S3 buckets. */
+  publicAccessMode?: UploadedFilePublicAccessMode;
+  /** Lifetime of one direct-upload target. Default 10 minutes. */
+  uploadUrlTtlSeconds?: number;
+  /** Lifetime of one private S3/Spaces preview URL. Default 15 minutes. */
+  privateDownloadUrlTtlSeconds?: number;
+  /** Absolute private preview URL ceiling. Must not exceed one hour. */
+  maxPrivateDownloadUrlTtlSeconds?: number;
+  /** Cron expression used to retry pending upload/deletion work. */
+  pendingCleanupInterval?: string;
+  /** Cron expression used to remove expired temporary files. */
+  temporaryCleanupInterval?: string;
+  /** Maximum rows claimed by one cleanup batch. */
+  cleanupBatchSize?: number;
   /** Route segment appended to `host` for private downloads. Default `uploaded-file`. */
   downloadPath?: string;
   /** Hard service-level size limit. Values above the library ceiling are clamped. */
@@ -96,9 +130,11 @@ export interface UploadedFileConfig {
   /** Optional fail-closed policy for exact used-file attachment reads. Omission denies the operation. */
   attachedReadPolicy?: UploadedFileAttachedReadPolicy;
   /**
-   * Days after which never-attached files (`isUsed = false`) are purged by a daily 03:00 cron.
+   * Days after which never-attached legacy files (`isUsed = false`) are purged by pending cleanup.
    * Omit (or `<= 0`) to disable age-based purging. Durable pending deletions are still retried.
-   * Temporary uploads require a positive finite value so they always have a tracked lifecycle.
+   * The legacy three-argument `uploadTemporary` overload still requires this value for source
+   * compatibility, but every newly completed temporary file uses the non-configurable 24-hour
+   * completion lifetime and is excluded from this age purge.
    */
   cleanupAfterDays?: number;
 }
@@ -106,11 +142,33 @@ export interface UploadedFileConfig {
 export interface UploadedFileResult {
   /** Persisted `uploaded_file` row id (UUID). */
   id: string;
+  /** Legacy display-name field. */
   fileName: string;
+  /** Canonical display-name alias for new consumers. */
+  originalName: string;
+  /** Legacy rounded-MiB field. */
   fileSize: number;
+  /** Exact byte count for direct uploads. */
+  size: number;
+  /** @deprecated Internal storage reference retained for service-level compatibility. */
   key: string;
+  /** @deprecated Legacy URL/reference retained for service-level compatibility. */
   cdn: string;
+  contentType: string;
+  visibility: UploadedFileVisibility;
+  status: UploadedFileStatus;
+  isTemporary: boolean;
+  completedAt: Date | null;
+  expiredAt: Date | null;
+  disposition: UploadedFileDisposition;
+  /** Immediately usable preview URL. Never persisted when it is signed. */
+  url: string | null;
+  /** Null for stable public/protected-local URLs. */
+  urlExpiredAt: Date | null;
 }
+
+/** Safe HTTP projection: storage keys and the legacy persisted URL are never serialized. */
+export type UploadedFileHttpResult = Omit<UploadedFileResult, 'key' | 'cdn'>;
 
 /** Optional provenance recorded on the persisted `uploaded_file` row. */
 export interface UploadedFileMeta {
@@ -120,6 +178,9 @@ export interface UploadedFileMeta {
   type?: string;
 }
 
+/** Domain ownership/provenance supplied by an internal caller. */
+export type UploadedFileContext = UploadedFileMeta;
+
 /** Optional server-validated attributes for one upload. */
 export interface UploadedFileUploadOptions {
   /** Untrusted client-declared MIME; validated against allowlist, extension, and signature. */
@@ -128,6 +189,39 @@ export interface UploadedFileUploadOptions {
   allowedMimeTypes?: readonly string[];
   /** Optional caller narrowing; clamped to the configured service limit and never widens it. */
   maxFileSizeBytes?: number;
+  /** Exact source byte count. Required for a Readable source. */
+  size?: number;
+  /** Requested internal visibility. Public requires module opt-in. */
+  visibility?: UploadedFileVisibility;
+  /** Preview/download content disposition. */
+  disposition?: UploadedFileDisposition;
+}
+
+/** Temporary uploads cannot request visibility or caller-controlled expiry. */
+export type UploadedFileTemporaryUploadOptions = Omit<UploadedFileUploadOptions, 'visibility'> & {
+  visibility?: never;
+  expiredAt?: never;
+  ttlSeconds?: never;
+};
+
+/** Metadata accepted before any direct-upload bytes exist. */
+export interface InitiateUploadedFileInput {
+  originalName: string;
+  contentType: string;
+  size: number;
+  checksum?: string;
+}
+
+/** Provider-neutral one-object upload instructions. */
+export interface InitiateUploadedFileResult {
+  id: string;
+  status: 'pending';
+  upload: {
+    method: 'PUT' | 'POST';
+    url: string;
+    headers: Record<string, string>;
+    expiredAt: Date;
+  };
 }
 
 /** Maximum number of IDs or storage references accepted by one public batch operation. */

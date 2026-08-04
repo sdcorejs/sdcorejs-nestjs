@@ -19,6 +19,7 @@ export function createNav(locale) {
       items: [
         item(locale, vi ? 'Điểm mới trong 1.1.0' : 'What is new in 1.1.0', '/releases/1.1.0'),
         item(locale, vi ? 'Nâng cấp 1.0 → 1.1' : 'Upgrade 1.0 → 1.1', '/migrations/1.0-to-1.1'),
+        item(locale, vi ? 'Nâng cấp 1.1 → 1.2' : 'Upgrade 1.1 → 1.2', '/migrations/1.1-to-1.2'),
         item(locale, vi ? 'Chuyển từ core-be' : 'Migrate from core-be', '/migrations/from-core-be'),
         item(locale, vi ? 'Nhật ký thay đổi' : 'Changelog', '/releases/changelog'),
       ],
@@ -143,6 +144,7 @@ export function createSidebar(locale) {
       items: [
         item(locale, vi ? 'Phiên bản 1.1.0' : 'Version 1.1.0', '/releases/1.1.0'),
         item(locale, vi ? 'Nâng cấp 1.0 → 1.1' : 'Upgrade 1.0 → 1.1', '/migrations/1.0-to-1.1'),
+        item(locale, vi ? 'Nâng cấp 1.1 → 1.2' : 'Upgrade 1.1 → 1.2', '/migrations/1.1-to-1.2'),
         item(locale, vi ? 'Chuyển từ core-be' : 'Migrate from core-be', '/migrations/from-core-be'),
         item(locale, vi ? 'Nhật ký thay đổi' : 'Changelog', '/releases/changelog'),
       ],

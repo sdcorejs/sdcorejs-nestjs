@@ -9,6 +9,15 @@ export interface NormalizedUploadedFileConfig extends UploadedFileConfig {
   host: string;
   cdnBaseUrl: string;
   publicFiles: boolean;
+  defaultVisibility: 'public' | 'private';
+  allowPublicUploads: boolean;
+  publicAccessMode: 'object-acl' | 'external';
+  uploadUrlTtlSeconds: number;
+  privateDownloadUrlTtlSeconds: number;
+  maxPrivateDownloadUrlTtlSeconds: number;
+  pendingCleanupInterval: string;
+  temporaryCleanupInterval: string;
+  cleanupBatchSize: number;
   downloadPath: string;
   maxFileSizeBytes: number;
   allowedMimeTypes: readonly string[];
@@ -18,6 +27,23 @@ export interface NormalizedUploadedFileConfig extends UploadedFileConfig {
 
 /** Absolute ceiling keeps every Buffer entry point bounded even if consumer config is unsafe. */
 export const ABSOLUTE_MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+export const MAX_PRIVATE_DOWNLOAD_URL_TTL_SECONDS = 60 * 60;
+
+function positiveInteger(value: number | undefined, fallback: number, name: string): number {
+  const resolved = value === undefined ? fallback : value;
+  if (!Number.isSafeInteger(resolved) || resolved <= 0) {
+    throw new Error(`UploadedFileConfig.${name} must be a positive integer`);
+  }
+  return resolved;
+}
+
+function cronExpression(value: string | undefined, fallback: string, name: string): string {
+  const resolved = value?.trim() || fallback;
+  if (!resolved || resolved.length > 128 || resolved.split(/\s+/).length < 5) {
+    throw new Error(`UploadedFileConfig.${name} must be a non-empty cron expression`);
+  }
+  return resolved;
+}
 
 export function normalizeUploadedFileConfig(config: UploadedFileConfig): NormalizedUploadedFileConfig {
   if (config.driver !== undefined && config.driver !== 's3' && config.driver !== 'local') {
@@ -54,6 +80,39 @@ export function normalizeUploadedFileConfig(config: UploadedFileConfig): Normali
     typeof configuredRemoteLimit === 'number' && Number.isFinite(configuredRemoteLimit)
       ? Math.floor(configuredRemoteLimit)
       : maxFileSizeBytes;
+  const legacyPublic = config.publicFiles === true;
+  const defaultVisibility = config.defaultVisibility ?? (legacyPublic ? 'public' : 'private');
+  if (defaultVisibility !== 'public' && defaultVisibility !== 'private') {
+    throw new Error("UploadedFileConfig.defaultVisibility must be either 'public' or 'private'");
+  }
+  const allowPublicUploads = config.allowPublicUploads ?? legacyPublic;
+  if (defaultVisibility === 'public' && allowPublicUploads !== true) {
+    throw new Error('UploadedFileConfig.defaultVisibility public requires allowPublicUploads=true');
+  }
+  if (config.publicAccessMode !== undefined && config.publicAccessMode !== 'object-acl' && config.publicAccessMode !== 'external') {
+    throw new Error("UploadedFileConfig.publicAccessMode must be either 'object-acl' or 'external'");
+  }
+  const maxPrivateDownloadUrlTtlSeconds = positiveInteger(
+    config.maxPrivateDownloadUrlTtlSeconds,
+    MAX_PRIVATE_DOWNLOAD_URL_TTL_SECONDS,
+    'maxPrivateDownloadUrlTtlSeconds',
+  );
+  const privateDownloadUrlTtlSeconds = positiveInteger(config.privateDownloadUrlTtlSeconds, 15 * 60, 'privateDownloadUrlTtlSeconds');
+  if (
+    maxPrivateDownloadUrlTtlSeconds > MAX_PRIVATE_DOWNLOAD_URL_TTL_SECONDS ||
+    privateDownloadUrlTtlSeconds > MAX_PRIVATE_DOWNLOAD_URL_TTL_SECONDS
+  ) {
+    throw new Error('UploadedFileConfig private signed URL TTL must not exceed one hour');
+  }
+  if (privateDownloadUrlTtlSeconds > maxPrivateDownloadUrlTtlSeconds) {
+    throw new Error('UploadedFileConfig.privateDownloadUrlTtlSeconds must not exceed maxPrivateDownloadUrlTtlSeconds');
+  }
+  const uploadUrlTtlSeconds = positiveInteger(config.uploadUrlTtlSeconds, 10 * 60, 'uploadUrlTtlSeconds');
+  if (uploadUrlTtlSeconds > 60 * 60) {
+    throw new Error('UploadedFileConfig.uploadUrlTtlSeconds must not exceed one hour');
+  }
+  const cleanupBatchSize = positiveInteger(config.cleanupBatchSize, 100, 'cleanupBatchSize');
+  if (cleanupBatchSize > 100) throw new Error('UploadedFileConfig.cleanupBatchSize must not exceed 100');
   return {
     ...config,
     driver,
@@ -61,11 +120,22 @@ export function normalizeUploadedFileConfig(config: UploadedFileConfig): Normali
     accessKey: hasAccessKey ? accessKey : undefined,
     bucket: bucket || undefined,
     region: config.region?.trim() || undefined,
+    endpoint: config.endpoint?.trim().replace(/\/+$/, '') || undefined,
+    forcePathStyle: config.forcePathStyle === true,
     folder: normalizeStoragePrefix(config.folder),
     localRoot: resolve(config.localRoot ?? resolve(process.cwd(), 'upload')),
     host: config.host ?? '',
     cdnBaseUrl: config.cdnBaseUrl ?? '',
-    publicFiles: config.publicFiles === true,
+    publicFiles: defaultVisibility === 'public',
+    defaultVisibility,
+    allowPublicUploads,
+    publicAccessMode: config.publicAccessMode ?? 'external',
+    uploadUrlTtlSeconds,
+    privateDownloadUrlTtlSeconds,
+    maxPrivateDownloadUrlTtlSeconds,
+    pendingCleanupInterval: cronExpression(config.pendingCleanupInterval, '0 3 * * *', 'pendingCleanupInterval'),
+    temporaryCleanupInterval: cronExpression(config.temporaryCleanupInterval, '*/15 * * * *', 'temporaryCleanupInterval'),
+    cleanupBatchSize,
     downloadPath: normalizeStoragePrefix(config.downloadPath ?? 'uploaded-file'),
     maxFileSizeBytes,
     allowedMimeTypes,

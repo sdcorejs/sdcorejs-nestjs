@@ -2,8 +2,8 @@
 
 Các tính năng có state được định hướng cho PostgreSQL. Mã nguồn dùng `uuid`, `jsonb`, `timestamptz`,
 cột enum, interval PostgreSQL, `ON CONFLICT` và biểu thức đồng hồ cơ sở dữ liệu. Test dùng `pg-mem`;
-dự án không tuyên bố tương thích MySQL hay SQLite và không phát hành migration consumer có thể chạy
-ngay.
+dự án không tuyên bố tương thích MySQL hay SQLite. Consumer vẫn sở hữu rollout schema; direct
+lifecycle uploaded-file có một migration PostgreSQL default-schema được export.
 
 ## Các base entity dùng chung {#common-base-entities}
 
@@ -18,9 +18,12 @@ ngay.
 Các cột chính gồm UUID `id` được sinh tự động; `tenantCode` và `userId` non-null;
 `departmentCode` nullable; `fileName`, `fileSize`, `fileExtension`, `key` và `cdn` bất biến; các
 trường usage và provenance; `extraData jsonb` tùy chọn; `uploadPendingAt` và `deletionPendingAt`
-nullable; cùng timestamp tiêu chuẩn và thời điểm xóa mềm. `key` và `cdn` là duy nhất.
+nullable; `sizeBytes`/`contentType` chính xác; `pendingKey` private; `visibility`, `status`,
+`isTemporary`, `disposition`; timestamp upload/complete/expire, checksum và ETag nullable; cùng
+timestamp tiêu chuẩn và thời điểm xóa mềm. `key` và `cdn` là duy nhất.
 
-Index bao phủ tenant/department/owner/id, lease kích hoạt upload và deletion đang chờ. Một upload
+Index bao phủ tenant/department/owner/id, owner/status, lease kích hoạt upload, deletion đang chờ,
+direct pending cleanup và temporary expiry. Một upload
 mới được lưu sẽ bị ẩn bằng lease `uploadPendingAt` trong tương lai trong khi byte đang được ghi;
 activation xóa đúng marker của nó. `deletionPendingAt` là claim xóa storage. Maintenance giữ lại
 upload tombstone chưa xử lý và deletion claim đã lên lịch qua quá trình xóa mềm, kể cả khi process
@@ -49,4 +52,5 @@ lease theo đồng hồ cơ sở dữ liệu.
 Đăng ký feature entity thông qua `autoLoadEntities: true` hoặc đăng ký rõ ràng. Trên production, hãy
 phát hành migration do ứng dụng sở hữu: thêm cột nullable, backfill/cách ly bằng dữ liệu quyền sở hữu
 có thẩm quyền, xác thực, rồi thêm constraint non-null và index. Không bao giờ dựa vào
-`synchronize: true` khi triển khai production. Làm theo [migration 1.0 → 1.1](/vi/migrations/1.0-to-1.1).
+`synchronize: true` khi triển khai production. Làm theo [migration 1.0 → 1.1](/vi/migrations/1.0-to-1.1),
+sau đó chạy [migration uploaded-file 1.1 → 1.2](/vi/migrations/1.1-to-1.2).

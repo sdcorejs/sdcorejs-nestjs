@@ -1,42 +1,90 @@
-import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
+import { Inject, Injectable, Logger, type OnApplicationBootstrap, type OnApplicationShutdown, Optional } from '@nestjs/common';
+import { SchedulerRegistry } from '@nestjs/schedule';
+import { CronJob } from 'cron';
 import { JobSchedulerService } from '../job-scheduler/job-scheduler.service';
 import { JobSchedulerType } from '../job-scheduler/types';
 import { UploadedFileService } from './services/uploaded-file.service';
 import { UPLOADED_FILE_CONFIG, type UploadedFileConfig } from './types';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const RETRY_BATCH_SIZE = 100;
 const MAX_RETRY_BATCHES_PER_RUN = 10;
+const PENDING_JOB_NAME = 'uploaded-file-pending-cleanup';
+const TEMPORARY_JOB_NAME = 'uploaded-file-temporary-cleanup';
 
 /**
- * Daily 3 AM file maintenance. Durable pending object deletions are always retried. Age-based
- * cleanup of unused files (`isUsed = false`) runs only when `cleanupAfterDays` is configured.
+ * Configurable pending and temporary file maintenance. Durable pending/deletion work is retried,
+ * while ready temporary rows are independently claimed at their exact expiry boundary. Age-based
+ * cleanup of unused legacy files runs only when `cleanupAfterDays` is configured.
  *
- * Schedule is a fixed `@Cron('0 3 * * *')` — the host MUST import `@nestjs/schedule`
- * `ScheduleModule.forRoot()` so the cron fires. When {@link JobSchedulerService} is available (the
- * consumer wired the job-scheduler feature) each run is guarded by a distributed DB lock so only
- * one instance purges per day; otherwise it runs directly.
+ * The host imports `ScheduleModule.forRoot()` so {@link SchedulerRegistry} is available. When
+ * {@link JobSchedulerService} is present, each configured track also uses a distributed DB lock;
+ * service-level compare-and-swap claims remain the multi-instance correctness boundary.
  */
 @Injectable()
-export class UploadedFileCleanupJob {
+export class UploadedFileCleanupJob implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(UploadedFileCleanupJob.name);
 
   constructor(
     private readonly uploadedFiles: UploadedFileService,
     @Inject(UPLOADED_FILE_CONFIG) private readonly config: UploadedFileConfig,
     @Optional() private readonly jobs?: JobSchedulerService,
+    @Optional() private readonly scheduler?: SchedulerRegistry,
   ) {}
 
-  /** Runs daily at 03:00. Public so a host can also trigger a sweep manually. */
-  @Cron('0 3 * * *')
+  onApplicationBootstrap(): void {
+    if (!this.scheduler) return;
+    this.register(PENDING_JOB_NAME, this.config.pendingCleanupInterval ?? '0 3 * * *', () => this.pendingTick());
+    this.register(TEMPORARY_JOB_NAME, this.config.temporaryCleanupInterval ?? '*/15 * * * *', () => this.temporaryTick());
+  }
+
+  onApplicationShutdown(): void {
+    if (!this.scheduler) return;
+    for (const name of [PENDING_JOB_NAME, TEMPORARY_JOB_NAME]) {
+      try {
+        this.scheduler.deleteCronJob(name);
+      } catch {
+        // A partially initialized ScheduleModule may not contain either job.
+      }
+    }
+  }
+
+  private register(name: string, expression: string, callback: () => Promise<void>): void {
+    if (!this.scheduler) return;
+    const job = CronJob.from({
+      cronTime: expression,
+      onTick: () => void callback().catch(() => this.logger.error(`${name} run failed`)),
+      start: false,
+    });
+    this.scheduler.addCronJob(name, job);
+    job.start();
+  }
+
+  /** Public manual entry point that runs both maintenance tracks. */
   async tick(): Promise<void> {
+    await this.pendingTick();
+    await this.temporaryTick();
+  }
+
+  async pendingTick(): Promise<void> {
     const days = this.config.cleanupAfterDays;
     const cleanupDays = typeof days === 'number' && Number.isFinite(days) && days > 0 ? days : undefined;
-    const runKey = new Date().toISOString().slice(0, 10);
+    const runKey = new Date().toISOString().slice(0, 16);
     const run = () => this.purge(cleanupDays);
     if (this.jobs) {
-      await this.jobs.runExclusive({ code: 'uploaded-file-orphan-cleanup', runKey, type: JobSchedulerType.SCHEDULE }, run);
+      await this.jobs.runExclusive({ code: PENDING_JOB_NAME, runKey, type: JobSchedulerType.SCHEDULE }, run);
+    } else {
+      await run();
+    }
+  }
+
+  async temporaryTick(): Promise<void> {
+    const runKey = new Date().toISOString().slice(0, 16);
+    const run = async () => {
+      const expired = await this.uploadedFiles.cleanupExpiredTemporaryFiles(new Date(), this.config.cleanupBatchSize ?? 100);
+      if (expired) this.logger.log(`Temporary cleanup: purged ${expired} expired files`);
+    };
+    if (this.jobs) {
+      await this.jobs.runExclusive({ code: TEMPORARY_JOB_NAME, runKey, type: JobSchedulerType.SCHEDULE }, run);
     } else {
       await run();
     }
@@ -45,7 +93,7 @@ export class UploadedFileCleanupJob {
   private async purge(days?: number): Promise<void> {
     let retried = 0;
     for (let batch = 0; batch < MAX_RETRY_BATCHES_PER_RUN; batch += 1) {
-      const count = await this.uploadedFiles.unsafeSystemRetryPendingDeletions(RETRY_BATCH_SIZE);
+      const count = await this.uploadedFiles.cleanupPendingUploads(this.config.cleanupBatchSize ?? 100);
       retried += count;
     }
     if (retried) this.logger.log(`Orphan cleanup: finalized ${retried} pending file deletions`);
