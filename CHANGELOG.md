@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.1
+
+### Patch Changes
+
+- b9a4480: Escape relation aliases in scoped JOIN conditions through the database driver. This fixes PostgreSQL failures when paging or reading details with camel-case or nested relation names while preserving tenant predicates on every joined entity.
+- Refresh dependency lockfiles and patch overrides to resolve release-audit findings while retaining the NestJS 11 peer contract.
+
 ## 1.2.0
 
 ### Minor Changes
