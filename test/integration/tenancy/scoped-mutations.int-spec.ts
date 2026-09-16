@@ -38,6 +38,25 @@ class SecureScopedParent {
   @ManyToOne(() => SecureScopedChild, { nullable: false })
   @JoinColumn({ name: 'child_id' })
   child!: SecureScopedChild;
+
+  @ManyToOne(() => SecureScopedChild, { nullable: true })
+  @JoinColumn({ name: 'related_child_id' })
+  relatedChild?: SecureScopedChild | null;
+}
+
+@Entity('secure_scoped_root')
+class SecureScopedRoot {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column({ type: 'varchar', name: 'tenant_code' }) @Scoped() tenantCode!: string;
+  @ManyToOne(() => SecureScopedParent, { nullable: false })
+  @JoinColumn({ name: 'parent_id' })
+  parentLink!: SecureScopedParent;
+}
+
+class SecureRootRepository extends BaseRepository<SecureScopedRoot> {
+  constructor(ds: DataSource, options?: BaseRepositoryOptions) {
+    super(SecureScopedRoot, ds, options);
+  }
 }
 
 class SecureProductRepository extends BaseRepository<SecureScopedProduct> {
@@ -346,7 +365,7 @@ describe('scoped relations', () => {
   let ds: DataSource;
 
   beforeEach(async () => {
-    ({ ds } = await createDataSource([SecureScopedProduct, SecureScopedChild, SecureScopedParent]));
+    ({ ds } = await createDataSource([SecureScopedProduct, SecureScopedChild, SecureScopedParent, SecureScopedRoot]));
   });
 
   afterEach(async () => ds.destroy());
@@ -363,4 +382,32 @@ describe('scoped relations', () => {
     const detail = await repo.detail(parentA.id, { relations: ['child'] });
     expect(detail?.child).toBeNull();
   });
+
+  it.each([{ tenantScope: 'A' }, { tenantScope: ['A'] }])(
+    'hydrates nested camel-case relations while retaining scope %j',
+    async ({ tenantScope }) => {
+      const children = ds.getRepository(SecureScopedChild);
+      const childA = await children.save({ name: 'A-child', tenantCode: 'A' });
+      const childB = await children.save({ name: 'B-child', tenantCode: 'B' });
+      const parents = ds.getRepository(SecureScopedParent);
+      const parentA = await parents.save({ name: 'A-parent', tenantCode: 'A', child: childA, relatedChild: childA });
+      const foreignLink = await parents.save({ name: 'A-foreign-link', tenantCode: 'A', child: childA, relatedChild: childB });
+      const roots = ds.getRepository(SecureScopedRoot);
+      const rootA = await roots.save({ tenantCode: 'A', parentLink: parentA });
+      const rootForeign = await roots.save({ tenantCode: 'A', parentLink: foreignLink });
+      const rootB = await roots.save({ tenantCode: 'B', parentLink: parentA });
+      const repo = new SecureRootRepository(ds, { tenancyStrategy: strategy({ tenantCode: tenantScope }) });
+      const args = { relations: ['parentLink.relatedChild' as const] };
+
+      const detail = await repo.detail(rootA.id, args);
+      expect(detail?.parentLink.relatedChild?.id).toBe(childA.id);
+      const hiddenRelation = await repo.detail(rootForeign.id, args);
+      expect(hiddenRelation?.parentLink.relatedChild).toBeNull();
+      expect(await repo.detail(rootB.id, args)).toBeNull();
+      const page = await repo.paging({ pageNumber: 0, pageSize: 10 }, args);
+      expect(page.total).toBe(2);
+      expect(page.items.find((row) => row.id === rootA.id)?.parentLink.relatedChild?.id).toBe(childA.id);
+      expect(page.items.find((row) => row.id === rootForeign.id)?.parentLink.relatedChild).toBeNull();
+    },
+  );
 });
