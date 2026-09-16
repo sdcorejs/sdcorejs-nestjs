@@ -318,7 +318,7 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
       }
       if (predicate.operator === 'IN' && predicate.values.length === 0) return { condition: '1 = 0' };
       const parameter = `${parameterPrefix}_${index}`;
-      const columnSql = `${alias}."${column.databaseName.replace(/"/g, '""')}"`;
+      const columnSql = `${this.datasource.driver.escape(alias)}.${this.datasource.driver.escape(column.databaseName)}`;
       if (predicate.operator === 'IN') {
         conditions.push(`${columnSql} IN (:...${parameter})`);
         parameters[parameter] = [...predicate.values];
