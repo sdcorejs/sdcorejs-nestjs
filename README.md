@@ -98,6 +98,8 @@ Auto-installed, but a failed install won't break your project. Skip with `--omit
 
 Engines: `node >=20` (Node.js 20 and 22 are tested in CI; NestJS 11 does not support Node.js 18).
 
+For repository development and Changesets commands, use Node.js 22.11+ on the 22.x line (as selected by `.nvmrc`) and npm 10.9+. The published library continues to support the runtime versions declared in `package.json`; CI tests Node.js 20 and 22.
+
 ---
 
 ## Sub-paths
