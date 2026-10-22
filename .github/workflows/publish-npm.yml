@@ -12,6 +12,20 @@ jobs:
     name: Version or publish
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.6@sha256:4ef4dbc939d61acea57712655ddb4b4ab27419c913f94cca0cd57cb3ea3c2280
+        env:
+          POSTGRES_DB: core_test
+          POSTGRES_USER: core_test
+          POSTGRES_PASSWORD: core_fixture_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U core_test -d core_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     permissions:
       contents: write # push the version commit + create the tag/GitHub release
       pull-requests: write # open / update the "Version Packages" PR
@@ -38,6 +52,8 @@ jobs:
         run: npm ci --prefix site
 
       - name: Verify release
+        env:
+          CORE_TEST_DATABASE_URL: postgresql://core_test:core_fixture_only@127.0.0.1:5432/core_test
         run: |
           npm run lint
           npm run format:check
@@ -45,6 +61,7 @@ jobs:
           npm run examples:typecheck
           npm run test:coverage
           npm run build
+          npm run test:postgres
           npm run check:package-di
           npm run check:exports
           npm pack --dry-run

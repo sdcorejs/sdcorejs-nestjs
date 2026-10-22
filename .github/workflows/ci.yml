@@ -10,6 +10,20 @@ jobs:
   build:
     name: Build + lint + test (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.6@sha256:4ef4dbc939d61acea57712655ddb4b4ab27419c913f94cca0cd57cb3ea3c2280
+        env:
+          POSTGRES_DB: core_test
+          POSTGRES_USER: core_test
+          POSTGRES_PASSWORD: core_fixture_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U core_test -d core_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     strategy:
       fail-fast: false
       matrix:
@@ -44,6 +58,11 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: PostgreSQL joined paging (packed CJS and ESM)
+        run: npm run test:postgres
+        env:
+          CORE_TEST_DATABASE_URL: postgresql://core_test:core_fixture_only@127.0.0.1:5432/core_test
 
       - name: Verify package DI identity
         run: npm run check:package-di

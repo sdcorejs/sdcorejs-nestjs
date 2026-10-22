@@ -57,17 +57,27 @@ describe('resolveSortColumn', () => {
     expect(() => resolveSortColumn('ghost', 'e', meta({ col: undefined }))).toThrow();
   });
   it('returns alias.field for an existing column', () => {
-    expect(resolveSortColumn('name', 'e', meta({ col: {} }))).toBe('e.name');
+    expect(resolveSortColumn('name', 'e', meta({ col: { propertyPath: 'name', databaseName: 'name' } }))).toBe('e.name');
   });
-  it('uses the mapped database name for an existing column', () => {
-    expect(resolveSortColumn('tenantCode', 'e', meta({ col: { databaseName: 'tenant_code' } }))).toBe('e."tenant_code"');
+  it('keeps the metadata property path for a mapped column so TypeORM can page joins', () => {
+    expect(resolveSortColumn('tenantCode', 'e', meta({ col: { propertyPath: 'tenantCode', databaseName: 'tenant_code' } }))).toBe(
+      'e.tenantCode',
+    );
   });
   it('throws when the root relation of a nested sort is unknown', () => {
     expect(() => resolveSortColumn('rel.name', 'e', meta({ rel: undefined }))).toThrow();
   });
   it('resolves a nested relation sort to underscore alias', () => {
-    const m = meta({ rel: { inverseEntityMetadata: { findColumnWithPropertyName: () => ({}) } } });
+    const m = meta({
+      rel: { inverseEntityMetadata: { findColumnWithPropertyName: () => ({ propertyPath: 'name', databaseName: 'name' }) } },
+    });
     expect(resolveSortColumn('brand.name', 'e', m)).toBe('brand.name');
+  });
+  it('keeps camel-case joined aliases and mapped nested property paths', () => {
+    const child = meta({ col: { propertyPath: 'displayName', databaseName: 'display_name' } });
+    const parent = meta({ rel: { inverseEntityMetadata: child } });
+    const root = meta({ rel: { inverseEntityMetadata: parent } });
+    expect(resolveSortColumn('parentLink.relatedChild.displayName', 'e', root)).toBe('parentLink_relatedChild.displayName');
   });
 });
 
