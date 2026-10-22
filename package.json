@@ -132,6 +132,7 @@
     "check:exports": "publint --strict && attw --pack .",
     "test": "jest",
     "test:coverage": "jest --coverage",
+    "test:postgres": "node scripts/check-packed-postgres.mjs",
     "test:e2e": "jest --testRegex='.*\\.e2e-spec\\.ts$' --runInBand",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",

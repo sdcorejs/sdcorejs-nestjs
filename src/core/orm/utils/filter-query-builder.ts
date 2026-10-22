@@ -157,7 +157,9 @@ export function resolveSortColumn(field: string, alias: string, metadata: Entity
     if (!col) {
       throw new BadRequestException(apiError('core.repository.column-not-found', 'Column not found in entity', { field }));
     }
-    return col.databaseName ? `${alias}.${quoteIdentifier(col.databaseName)}` : `${alias}.${field}`;
+    // TypeORM's joined pagination resolves ORDER BY against property metadata before
+    // producing SQL. Leave quoting and physical-column mapping to the query builder.
+    return `${alias}.${col.propertyPath}`;
   }
 
   const rootRelation = parts[0];
@@ -193,7 +195,7 @@ export function resolveSortColumn(field: string, alias: string, metadata: Entity
     );
   }
 
-  return finalCol.databaseName ? `${aliasName}.${quoteIdentifier(finalCol.databaseName)}` : `${aliasName}.${columnName}`;
+  return `${aliasName}.${finalCol.propertyPath}`;
 }
 
 const findFilterColumn = (field: string, metadata: EntityMetadata): { type?: unknown; isArray?: boolean } | undefined => {
