@@ -4,6 +4,8 @@ import { BaseService } from './base-service';
 import type { IBaseRepository } from './base-repository.interface';
 import { Schema, SchemaProp } from './decorators/schema.decorator';
 import type { Dto } from './types/dto.types';
+import type { QueryRunner } from 'typeorm';
+import type { Filter } from '@sdcorejs/utils/models';
 
 interface RawEntity {
   id: string;
@@ -54,6 +56,31 @@ class RawService extends BaseService<RawEntity, RawDto> {
 }
 
 describe('BaseService', () => {
+  it.each(['paging', 'pagingDeleted', 'all', 'search', 'detail'] as const)(
+    'forwards the caller runner through %s and maps DTOs',
+    async (method) => {
+      const repo = makeMockRepo([{ id: '1', name: 'A', active: true }]);
+      const svc = new RawService(repo);
+      const qr = {} as QueryRunner;
+      const args = { andWheres: [{ where: 'e.name = :name', parameters: { name: 'A' } }] };
+      const filters: Filter<RawEntity>[] = [{ field: 'name', operator: 'EQUAL', data: 'A' }];
+      const req = { pageNumber: 0, filters };
+      if (method === 'search') {
+        expect(await svc.search('A', filters, qr)).toEqual([{ id: '1', name: 'A', deletable: true, restorable: false }]);
+        expect(repo.search).toHaveBeenCalledWith('A', filters, qr);
+      } else if (method === 'all') {
+        expect(await svc.all(filters, args, qr)).toHaveLength(1);
+        expect(repo.all).toHaveBeenCalledWith(filters, args, qr);
+      } else if (method === 'detail') {
+        expect(await svc.detail('1', args, qr)).toMatchObject({ id: '1', deletable: true });
+        expect(repo.detail).toHaveBeenCalledWith('1', args, qr);
+      } else {
+        expect(await svc[method](req, args, qr)).toMatchObject({ total: 1, items: [{ id: '1', deletable: true }] });
+        expect(repo[method]).toHaveBeenCalledWith(req, args, qr);
+      }
+    },
+  );
+
   it('paging maps entities to DTOs', async () => {
     const repo = makeMockRepo([
       { id: '1', name: 'A' },

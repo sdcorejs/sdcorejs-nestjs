@@ -145,3 +145,28 @@ not validate requests. Use `ZodValidationGuard` for runtime validation.
 Repository mutation methods accept an optional `QueryRunner`. For scoped operations, a supplied
 runner must have an active transaction. The repository starts, commits, rolls back, and releases its
 own runner only when the caller did not supply one.
+
+Read APIs also accept an optional **final** `qr?: QueryRunner`: repository/service
+`paging(req, args, qr)`, `pagingDeleted(req, args, qr)`, `all(filters, args, qr)`,
+`search(keyword, filters, qr)`, and `detail(id, args, qr)`, plus repository
+`findByIds(ids, args, qr)`. Existing calls without a runner are unchanged.
+
+```ts
+const result = await dataSource.transaction(async (manager) => {
+  // Retain application authorization and scope setup around this operation.
+  return productService.paging(request, { relations: ['category'] }, manager.queryRunner);
+});
+```
+
+The runner must belong to the repository's exact DataSource, its manager must be bound to that
+runner, and it must be unreleased with an active transaction. Invalid runners fail before reading
+with `core.repository.invalid-query-runner`, including empty batch reads. Only `undefined` omits
+the runner; `null` is invalid. Core uses the existing connection and never begins, commits,
+rolls back, or releases a supplied read transaction, even on errors. The caller must finish its
+transaction and handle failures. This avoids borrowing a second connection while every pool slot
+is already held by an application transaction. Reads can see that transaction's uncommitted writes.
+
+Tenancy and relation scope, filters, sorting, paging and DTO mapping still apply. The existing
+UUID-search shortcut applies tenancy scope but ignores caller filters; use a filtered `paging`
+request with an exact `id` filter when extra business predicates must also apply.
+QueryRunner is a server-side API only: `BaseController` does not bind it from HTTP input.

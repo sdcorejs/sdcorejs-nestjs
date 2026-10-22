@@ -23,26 +23,26 @@ export abstract class BaseService<T extends ObjectLiteral, TDto extends Dto> imp
 
   // --- READ ----------------------------------------------------------------
 
-  async paging(req: PagingReq<T>, args?: BaseRepositoryArgs<T>): Promise<PagingRes<TDto>> {
-    const { items, total } = await this.repository.paging(req, args);
+  async paging(req: PagingReq<T>, args?: BaseRepositoryArgs<T>, qr?: QueryRunner): Promise<PagingRes<TDto>> {
+    const { items, total } = await this.repository.paging(req, args, qr);
     return { items: this.mapMany(items), total };
   }
 
-  async pagingDeleted(req: PagingReq<T>, args?: BaseRepositoryArgs<T>): Promise<PagingRes<TDto>> {
-    const { items, total } = await this.repository.pagingDeleted(req, args);
+  async pagingDeleted(req: PagingReq<T>, args?: BaseRepositoryArgs<T>, qr?: QueryRunner): Promise<PagingRes<TDto>> {
+    const { items, total } = await this.repository.pagingDeleted(req, args, qr);
     return { items: this.mapMany(items), total };
   }
 
-  async all(filters?: Filter<T>[], args?: BaseRepositoryArgs<T>): Promise<TDto[]> {
-    return this.mapMany(await this.repository.all(filters, args));
+  async all(filters?: Filter<T>[], args?: BaseRepositoryArgs<T>, qr?: QueryRunner): Promise<TDto[]> {
+    return this.mapMany(await this.repository.all(filters, args, qr));
   }
 
-  async search(keyword: string, filters?: Filter<T>[]): Promise<TDto[]> {
-    return this.mapMany(await this.repository.search(keyword, filters));
+  async search(keyword: string, filters?: Filter<T>[], qr?: QueryRunner): Promise<TDto[]> {
+    return this.mapMany(await this.repository.search(keyword, filters, qr));
   }
 
-  async detail(id: string, args?: BaseRepositoryArgs<T>): Promise<TDto | null> {
-    const e = await this.repository.detail(id, args);
+  async detail(id: string, args?: BaseRepositoryArgs<T>, qr?: QueryRunner): Promise<TDto | null> {
+    const e = await this.repository.detail(id, args, qr);
     return this.mapDTO(e) ?? null;
   }
 
