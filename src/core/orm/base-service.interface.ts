@@ -12,11 +12,12 @@ import type { SchemaOptions, SchemaPropOptions } from './decorators/schema.decor
 export interface IBaseService<T extends ObjectLiteral, TDto extends Dto> {
   mapDTO(entity: T | undefined | null): TDto | undefined | null;
 
-  paging(req: PagingReq<T>, args?: BaseRepositoryArgs<T>): Promise<PagingRes<TDto>>;
-  pagingDeleted(req: PagingReq<T>, args?: BaseRepositoryArgs<T>): Promise<PagingRes<TDto>>;
-  all(filters?: Filter<T>[], args?: BaseRepositoryArgs<T>): Promise<TDto[]>;
-  search(keyword: string, filters?: Filter<T>[]): Promise<TDto[]>;
-  detail(id: string, args?: BaseRepositoryArgs<T>): Promise<TDto | null>;
+  /** Optional read runners must belong to this DataSource and have an active caller-owned transaction. */
+  paging(req: PagingReq<T>, args?: BaseRepositoryArgs<T>, qr?: QueryRunner): Promise<PagingRes<TDto>>;
+  pagingDeleted(req: PagingReq<T>, args?: BaseRepositoryArgs<T>, qr?: QueryRunner): Promise<PagingRes<TDto>>;
+  all(filters?: Filter<T>[], args?: BaseRepositoryArgs<T>, qr?: QueryRunner): Promise<TDto[]>;
+  search(keyword: string, filters?: Filter<T>[], qr?: QueryRunner): Promise<TDto[]>;
+  detail(id: string, args?: BaseRepositoryArgs<T>, qr?: QueryRunner): Promise<TDto | null>;
 
   create(entity: DeepPartial<T>, qr?: QueryRunner): Promise<T>;
   import(entities: DeepPartial<T>[]): Promise<T[]>;

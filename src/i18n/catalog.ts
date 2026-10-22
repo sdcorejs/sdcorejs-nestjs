@@ -26,6 +26,7 @@ export const CORE_CATALOG_EN: MessageCatalog = {
   'core.permission.internal-secret-provider-missing': 'Internal secret provider is not configured',
   // repository
   'core.repository.invalid-filter': 'Invalid filter',
+  'core.repository.invalid-query-runner': 'A read QueryRunner must belong to this DataSource and have an active transaction',
   'core.repository.invalid-uuid': 'Invalid UUID: {id}',
   'core.repository.invalid-field-name': 'Invalid field name: {field}',
   'core.repository.invalid-sort-field': 'Invalid sort field: {field}',
@@ -83,6 +84,7 @@ export const CORE_CATALOG_VI: MessageCatalog = {
   'core.permission.internal-secret-provider-missing': 'Chưa cấu hình internal secret provider',
   // repository
   'core.repository.invalid-filter': 'Bộ lọc không hợp lệ',
+  'core.repository.invalid-query-runner': 'QueryRunner đọc phải thuộc đúng DataSource và có transaction đang hoạt động',
   'core.repository.invalid-uuid': 'UUID không hợp lệ: {id}',
   'core.repository.invalid-field-name': 'Tên trường không hợp lệ: {field}',
   'core.repository.invalid-sort-field': 'Trường sắp xếp không hợp lệ: {field}',

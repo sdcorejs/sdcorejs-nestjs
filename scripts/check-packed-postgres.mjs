@@ -29,11 +29,18 @@ try {
   assert.equal(packageJson.name, '@sdcorejs/nestjs');
   symlinkSync(join(root, 'node_modules'), join(consumer, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
   cpSync(join(root, 'scripts', 'check-postgres-paging.mjs'), join(consumer, 'check-postgres-paging.mjs'));
+  cpSync(join(root, 'scripts', 'check-postgres-read-runner.mjs'), join(consumer, 'check-postgres-read-runner.mjs'));
   console.log(
     JSON.stringify({ package: packageJson.name, version: packageJson.version, integrity: packed[0].integrity, shasum: packed[0].shasum }),
   );
   for (const format of ['cjs', 'esm']) {
     execFileSync(process.execPath, [join(consumer, 'check-postgres-paging.mjs'), format], {
+      cwd: consumer,
+      env: process.env,
+      stdio: 'inherit',
+      windowsHide: true,
+    });
+    execFileSync(process.execPath, [join(consumer, 'check-postgres-read-runner.mjs'), format], {
       cwd: consumer,
       env: process.env,
       stdio: 'inherit',

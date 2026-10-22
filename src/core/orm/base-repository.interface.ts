@@ -9,13 +9,14 @@ import type { BaseRepositoryArgs } from './types/repository-args.types';
 export interface IBaseRepository<T extends ObjectLiteral> {
   readonly target: EntityTarget<T>;
 
-  paging(req: PagingReq<T>, args?: BaseRepositoryArgs<T>): Promise<PagingRes<T>>;
-  pagingDeleted(req: PagingReq<T>, args?: BaseRepositoryArgs<T>): Promise<PagingRes<T>>;
-  all(filters?: Filter<T>[], args?: BaseRepositoryArgs<T>): Promise<T[]>;
-  search(keyword: string, filters?: Filter<T>[]): Promise<T[]>;
-  detail(id: string, args?: BaseRepositoryArgs<T>): Promise<T | null>;
+  /** Optional read runners must belong to this DataSource and have an active caller-owned transaction. */
+  paging(req: PagingReq<T>, args?: BaseRepositoryArgs<T>, qr?: QueryRunner): Promise<PagingRes<T>>;
+  pagingDeleted(req: PagingReq<T>, args?: BaseRepositoryArgs<T>, qr?: QueryRunner): Promise<PagingRes<T>>;
+  all(filters?: Filter<T>[], args?: BaseRepositoryArgs<T>, qr?: QueryRunner): Promise<T[]>;
+  search(keyword: string, filters?: Filter<T>[], qr?: QueryRunner): Promise<T[]>;
+  detail(id: string, args?: BaseRepositoryArgs<T>, qr?: QueryRunner): Promise<T | null>;
   /** Find the authorized subset of unique ids using the repository's active tenancy scope. */
-  findByIds(ids: string[], args?: BaseRepositoryArgs<T>): Promise<T[]>;
+  findByIds(ids: string[], args?: BaseRepositoryArgs<T>, qr?: QueryRunner): Promise<T[]>;
 
   create(entity: DeepPartial<T>, qr?: QueryRunner): Promise<T>;
   update(entity: DeepPartial<T>, qr?: QueryRunner): Promise<T>;

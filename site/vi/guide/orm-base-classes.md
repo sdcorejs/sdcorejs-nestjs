@@ -145,3 +145,28 @@ không validate request. Dùng `ZodValidationGuard` để validation khi chạy.
 Các method thay đổi của repository nhận một `QueryRunner` tùy chọn. Đối với thao tác có phạm vi, runner được cung cấp
 phải có transaction đang hoạt động. Repository chỉ tự khởi tạo, commit, rollback và release
 runner khi caller không cung cấp runner.
+
+API đọc cũng nhận `qr?: QueryRunner` ở **tham số cuối**: repository/service có
+`paging(req, args, qr)`, `pagingDeleted(req, args, qr)`, `all(filters, args, qr)`,
+`search(keyword, filters, qr)`, `detail(id, args, qr)`; repository còn có
+`findByIds(ids, args, qr)`. Lời gọi không truyền runner giữ nguyên hành vi.
+
+```ts
+const result = await dataSource.transaction(async (manager) => {
+  // Retain application authorization and scope setup around this operation.
+  return productService.paging(request, { relations: ['category'] }, manager.queryRunner);
+});
+```
+
+Runner phải thuộc đúng DataSource của repository, manager phải gắn với runner đó,
+chưa release và có transaction đang hoạt động. Runner không hợp lệ bị từ chối trước khi đọc
+bằng mã `core.repository.invalid-query-runner`, kể cả truy vấn danh sách ID rỗng.
+Chỉ `undefined` nghĩa là không truyền runner; `null` không hợp lệ. Core dùng kết nối hiện có,
+không tự bắt đầu, commit, rollback hay release transaction được truyền vào, kể cả khi lỗi.
+Caller chịu trách nhiệm kết thúc transaction và xử lý lỗi. Cách này tránh xin kết nối thứ hai
+khi các transaction đã giữ hết pool, đồng thời đọc được dữ liệu chưa commit của transaction đó.
+
+Phạm vi tenant và relation, bộ lọc, sắp xếp, phân trang và ánh xạ DTO vẫn được giữ.
+Nhánh tìm bằng UUID hiện có áp dụng phạm vi tenant nhưng bỏ qua bộ lọc caller; nếu cần
+thêm điều kiện nghiệp vụ, dùng `paging` với bộ lọc `id` chính xác cùng các điều kiện đó.
+QueryRunner chỉ là API phía server; `BaseController` không nhận runner từ dữ liệu HTTP.

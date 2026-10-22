@@ -85,4 +85,28 @@ describe('BaseController (HTTP integration)', () => {
     expect(res.status).toBe(201);
     expect(res.body.data).toHaveLength(1);
   });
+
+  it('does not bind a read runner supplied in HTTP body or query', async () => {
+    const repo = app.get(TestProductRepository);
+    const paging = jest.spyOn(repo, 'paging');
+    const search = jest.spyOn(repo, 'search');
+    const detail = jest.spyOn(repo, 'detail');
+    try {
+      const fake = { isTransactionActive: true, isReleased: false };
+      const paged = await request(app.getHttpServer()).post('/test-products/paging?qr=forged').send({ pageNumber: 0, qr: fake });
+      expect(paged.status).toBe(201);
+      expect(paging.mock.calls[0][2]).toBeUndefined();
+      const found = await request(app.getHttpServer()).post('/test-products/search?keyword=Foo&qr=forged').send([]);
+      expect(found.status).toBe(201);
+      expect(search.mock.calls[0][2]).toBeUndefined();
+      const id = paged.body.data.items[0].id;
+      const one = await request(app.getHttpServer()).get(`/test-products/${id}?qr=forged`);
+      expect(one.status).toBe(200);
+      expect(detail.mock.calls[0][2]).toBeUndefined();
+    } finally {
+      paging.mockRestore();
+      search.mockRestore();
+      detail.mockRestore();
+    }
+  });
 });

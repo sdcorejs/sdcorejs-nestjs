@@ -106,6 +106,26 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
     return qr ? qr.manager.getRepository(this._target) : this.datasource.getRepository(this._target);
   }
 
+  /** Read runners are application-owned active transactions; Core never manages their lifecycle. */
+  private assertReadQueryRunner(qr?: QueryRunner): void {
+    if (qr === undefined) return;
+    if (
+      !qr ||
+      qr.connection !== this.datasource ||
+      qr.manager?.connection !== this.datasource ||
+      qr.manager?.queryRunner !== qr ||
+      qr.isReleased !== false ||
+      qr.isTransactionActive !== true
+    ) {
+      throw new BadRequestException(
+        apiError(
+          'core.repository.invalid-query-runner',
+          'A read QueryRunner must belong to this DataSource and have an active transaction',
+        ),
+      );
+    }
+  }
+
   // --- Tenancy + audit integration hooks -----------------------------------
 
   /** Effective tenancy strategy: per-repo option overrides the global registry. */
@@ -330,10 +350,15 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
     return conditions.length ? { condition: conditions.join(' AND '), parameters } : {};
   }
 
-  private createBaseQueryBuilder(req: Required<PagingReq<T>>, args?: BaseRepositoryArgs<T>, paginate = true): SelectQueryBuilder<T> {
+  private createBaseQueryBuilder(
+    req: Required<PagingReq<T>>,
+    args?: BaseRepositoryArgs<T>,
+    paginate = true,
+    qr?: QueryRunner,
+  ): SelectQueryBuilder<T> {
     const { pageNumber, pageSize, orders, filters } = req;
     const alias = 'e';
-    const repository = this.rawRepository();
+    const repository = this.rawRepository(qr);
     const meta = repository.metadata;
     const query = repository.createQueryBuilder(alias);
 
@@ -393,25 +418,28 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
 
   // --- READ -----------------------------------------------------------------
 
-  paging = async (req: PagingReq<T>, args?: BaseRepositoryArgs<T>): Promise<PagingRes<T>> => {
-    const q = this.createBaseQueryBuilder(this.preparePagingReq(req), args);
+  paging = async (req: PagingReq<T>, args?: BaseRepositoryArgs<T>, qr?: QueryRunner): Promise<PagingRes<T>> => {
+    this.assertReadQueryRunner(qr);
+    const q = this.createBaseQueryBuilder(this.preparePagingReq(req), args, true, qr);
     const [items, total] = await q.getManyAndCount();
     return { items, total };
   };
 
-  pagingDeleted = async (req: PagingReq<T>, args?: BaseRepositoryArgs<T>): Promise<PagingRes<T>> => {
-    return this.paging(req, { ...args, withDeleted: true });
+  pagingDeleted = async (req: PagingReq<T>, args?: BaseRepositoryArgs<T>, qr?: QueryRunner): Promise<PagingRes<T>> => {
+    return this.paging(req, { ...args, withDeleted: true }, qr);
   };
 
-  all = async (filters?: Filter<T>[], args?: BaseRepositoryArgs<T>): Promise<T[]> => {
+  all = async (filters?: Filter<T>[], args?: BaseRepositoryArgs<T>, qr?: QueryRunner): Promise<T[]> => {
+    this.assertReadQueryRunner(qr);
     // Unbounded fetch — bypass the paging cap (paginate=false → no LIMIT/OFFSET).
-    const q = this.createBaseQueryBuilder(this.preparePagingReq({ pageNumber: 0, filters }), args, false);
+    const q = this.createBaseQueryBuilder(this.preparePagingReq({ pageNumber: 0, filters }), args, false, qr);
     return q.getMany();
   };
 
-  search = async (keyword: string, filters?: Filter<T>[]): Promise<T[]> => {
+  search = async (keyword: string, filters?: Filter<T>[], qr?: QueryRunner): Promise<T[]> => {
+    this.assertReadQueryRunner(qr);
     const term = keyword?.trim();
-    const repo = this.rawRepository();
+    const repo = this.rawRepository(qr);
     const meta = repo.metadata;
 
     // UUID input: exact-match by id, but STILL apply tenancy scope (no cross-tenant id leak).
@@ -472,7 +500,8 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
     return query.take(20).getMany();
   };
 
-  detail = async (id: string, args?: BaseRepositoryArgs<T>): Promise<T | null> => {
+  detail = async (id: string, args?: BaseRepositoryArgs<T>, qr?: QueryRunner): Promise<T | null> => {
+    this.assertReadQueryRunner(qr);
     if (!isUuid(id)) {
       throw new BadRequestException(apiError('core.repository.invalid-uuid', 'Invalid UUID', { id }));
     }
@@ -481,14 +510,15 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
       pageSize: 1,
       filters: [{ field: 'id', operator: 'EQUAL', data: id } as Filter<T>],
     });
-    return this.createBaseQueryBuilder(req, args).getOne();
+    return this.createBaseQueryBuilder(req, args, true, qr).getOne();
   };
 
   /** Scoped batch lookup used by services before applying DTO-level mutation policy. */
-  findByIds = async (ids: string[], args?: BaseRepositoryArgs<T>): Promise<T[]> => {
+  findByIds = async (ids: string[], args?: BaseRepositoryArgs<T>, qr?: QueryRunner): Promise<T[]> => {
+    this.assertReadQueryRunner(qr);
     const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
     if (!uniqueIds.length) return [];
-    return this.all([{ field: 'id', operator: 'IN', data: uniqueIds } as Filter<T>], args);
+    return this.all([{ field: 'id', operator: 'IN', data: uniqueIds } as Filter<T>], args, qr);
   };
 
   // --- CUD ------------------------------------------------------------------
