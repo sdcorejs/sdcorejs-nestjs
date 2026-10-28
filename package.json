@@ -149,7 +149,7 @@
     "examples:typecheck": "tsc -p examples/tsconfig.json --noEmit",
     "changeset": "changeset",
     "changeset:version": "changeset version",
-    "release": "npm run build && changeset publish",
+    "release": "npm run build && node scripts/core-release-audit.mjs --publish-window && changeset publish",
     "clean": "rimraf dist coverage",
     "test:packed-publication": "node scripts/check-packed-publication.mjs"
   },

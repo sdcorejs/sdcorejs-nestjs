@@ -87,8 +87,8 @@ jobs:
       - name: Audit dependency trees
         if: matrix.node == '22.x'
         run: |
-          npm audit
-          npm audit --prefix site
+          node --test scripts/core-release-audit.test.mjs
+          node scripts/core-release-audit.mjs
 
       - name: Upload coverage
         if: matrix.node == '22.x'
@@ -96,3 +96,12 @@ jobs:
         with:
           files: ./coverage/lcov.info
           fail_ci_if_error: false
+
+      - name: Retain full audit and packed runtime evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-audit-${{ github.job }}-${{ matrix.node || 'release' }}-${{ github.sha }}
+          path: test-results/release-audit/**
+          if-no-files-found: warn
+          retention-days: 30
