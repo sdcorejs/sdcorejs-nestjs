@@ -85,3 +85,7 @@ The branch-ready gate is: `npm test` green + `npm run lint` clean + `npm run bui
 ## Instruction provenance
 
 Unique guidance from [CLAUDE.md](CLAUDE.md) is consolidated here. Existing AGENTS scope, approval rules and confirmed conventions remain authoritative. CLAUDE.md is retained; update shared conventions together rather than maintaining independent conflicting rules.
+
+## Attachment publication invariants
+
+Shared file publication belongs to one neutral capability under the existing features entrypoint. Consumers inject trusted policy, transaction/CAS repository and byte/object ports; never copy domain publication engines or export raw internal storage drivers. A client flag or URL never authorizes public access. Stage a valid domain assignment and immutable publication intent in one transaction; keep the original private and use a separate immutable rendition. Only acknowledge a URL after exact object integrity and a still-current fenced binding commit. Private replacement must retire all older logical-binding generations; unlink immediately hides the URL. Preserve unknown outcomes and retirement tombstones for late writes. Use an explicit HTTPS CDN base and external delivery profile; configuration/HEAD does not prove live public access or cache recall. Run the common conformance suite for every consumer adapter and label local synthetic versus real storage/DB/CDN evidence. See docs/uploaded-file-publication.md.

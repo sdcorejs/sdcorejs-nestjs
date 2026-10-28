@@ -4,3 +4,4 @@ export * from './services/uploaded-file.service';
 export * from './uploaded-file.module';
 export * from './uploaded-file.controller';
 export * from './migrations';
+export * from './publication';
