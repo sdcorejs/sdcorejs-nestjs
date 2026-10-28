@@ -1,9 +1,0 @@
-{
-  "at": "2026-10-28T09:58:56.532Z",
-  "package": "@sdcorejs/nestjs",
-  "version": "1.2.3",
-  "sha256": "cdcc88a70e7d1a85275f882ddbbd7baabff91e8525b1b7a0231b70b4c3f4b0eb",
-  "integrity": "sha512-C6Gpy6QSHURYN6y1Ciky2XnWgqd+leqdP5AP48iIS4VceH6sdlxeOOV6PfQcawvsSAVfL+RncCSkLf8Qfwr/HQ==",
-  "files": 152,
-  "decision": "PASS_NO_TEST_TOOLING_IN_RUNTIME"
-}
