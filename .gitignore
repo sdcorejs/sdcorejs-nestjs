@@ -13,3 +13,6 @@ coverage/
 .vscode/
 .claude/
 .cache/
+
+# CI evidence is retained by Actions; not part of version commits.
+/test-results/
