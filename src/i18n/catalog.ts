@@ -58,6 +58,20 @@ export const CORE_CATALOG_EN: MessageCatalog = {
   'core.file.upload-not-pending': 'File upload is not pending',
   'core.file.upload-promotion-failed': 'Uploaded object could not be finalized',
   'core.file.upload-verification-failed': 'Uploaded object could not be verified',
+  // attachment publication
+  'core.file.publication.binding-retired': 'The file assignment is no longer current; public rendition cleanup is pending',
+  'core.file.publication.deadline': 'File publication processing timed out; the outcome requires reconciliation',
+  'core.file.publication.generation-conflict': 'The file assignment generation conflicts with an existing publication intent',
+  'core.file.publication.invalid-descriptor': 'Invalid file publication descriptor',
+  'core.file.publication.invalid-limit': 'Invalid file publication size limit',
+  'core.file.publication.namespace-denied': 'File publication is not allowed in this environment or module',
+  'core.file.publication.not-configured': 'File publication is not configured correctly',
+  'core.file.publication.object-conflict': 'The public rendition conflicts with the expected file descriptor',
+  'core.file.publication.outcome-unknown': 'The file publication outcome is unknown and requires reconciliation',
+  'core.file.publication.policy-denied': 'File publication is not allowed by the assignment policy',
+  'core.file.publication.retired': 'The public rendition is absent or removed; cached copies may remain',
+  'core.file.publication.retirement-unknown': 'Public rendition removal is not confirmed and requires reconciliation',
+  'core.file.publication.source-integrity': 'The private source does not match its recorded version, size or checksum',
   // action history
   'core.history.not-found': 'History not found',
 };
@@ -116,6 +130,20 @@ export const CORE_CATALOG_VI: MessageCatalog = {
   'core.file.upload-not-pending': 'Tệp không ở trạng thái chờ tải lên',
   'core.file.upload-promotion-failed': 'Không thể hoàn tất object đã tải lên',
   'core.file.upload-verification-failed': 'Không thể xác minh object đã tải lên',
+  // attachment publication
+  'core.file.publication.binding-retired': 'Liên kết tệp không còn hiệu lực; bản sao công khai đang chờ dọn dẹp',
+  'core.file.publication.deadline': 'Quá thời gian xử lý công khai tệp; kết quả cần được đối soát',
+  'core.file.publication.generation-conflict': 'Phiên bản liên kết tệp xung đột với yêu cầu công khai đã lưu',
+  'core.file.publication.invalid-descriptor': 'Thông tin mô tả công khai tệp không hợp lệ',
+  'core.file.publication.invalid-limit': 'Giới hạn kích thước tệp công khai không hợp lệ',
+  'core.file.publication.namespace-denied': 'Không cho phép công khai tệp trong môi trường hoặc phân hệ này',
+  'core.file.publication.not-configured': 'Chưa cấu hình đúng chức năng công khai tệp',
+  'core.file.publication.object-conflict': 'Bản sao công khai xung đột với thông tin mô tả tệp dự kiến',
+  'core.file.publication.outcome-unknown': 'Chưa xác định được kết quả công khai tệp; cần đối soát',
+  'core.file.publication.policy-denied': 'Chính sách liên kết tệp không cho phép công khai tệp',
+  'core.file.publication.retired': 'Bản sao công khai không tồn tại hoặc đã được xóa; bản trong bộ nhớ đệm có thể vẫn còn',
+  'core.file.publication.retirement-unknown': 'Chưa xác nhận việc xóa bản sao công khai; cần đối soát',
+  'core.file.publication.source-integrity': 'Tệp nguồn riêng tư không khớp phiên bản, kích thước hoặc mã kiểm tra đã lưu',
   // action history
   'core.history.not-found': 'Không tìm thấy lịch sử',
 };

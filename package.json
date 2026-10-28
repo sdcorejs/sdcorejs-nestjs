@@ -39,7 +39,8 @@
     "docs/migration-1.2-uploaded-file-direct-upload.md",
     "docs/migration-from-core-be.md",
     "LICENSE",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "docs/uploaded-file-publication.md"
   ],
   "exports": {
     ".": {
@@ -148,8 +149,9 @@
     "examples:typecheck": "tsc -p examples/tsconfig.json --noEmit",
     "changeset": "changeset",
     "changeset:version": "changeset version",
-    "release": "npm run build && changeset publish",
-    "clean": "rimraf dist coverage"
+    "release": "npm run build && node scripts/core-release-audit.mjs --publish-window && changeset publish",
+    "clean": "rimraf dist coverage",
+    "test:packed-publication": "node scripts/check-packed-publication.mjs"
   },
   "peerDependencies": {
     "@nestjs/common": "^11.0.0",
@@ -170,7 +172,7 @@
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0",
     "typeorm": "^0.3.31",
-    "zod": "^4.0.0"
+    "zod": "^4.6.6"
   },
   "optionalDependencies": {
     "@aws-sdk/client-s3": "^3.1090.0",
@@ -213,7 +215,9 @@
     "esbuild": "0.27.2",
     "immutable": "4.3.9",
     "js-yaml": "4.3.2",
-    "multer": "2.4.0"
+    "multer": "2.5.0",
+    "body-parser": "2.4.0",
+    "qs": "6.16.1"
   },
   "type": "commonjs",
   "typesVersions": {

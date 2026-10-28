@@ -291,3 +291,37 @@ validation/vòng đời đã cấu hình dùng các code ổn định gồm `cor
 
 Không chuyển lỗi service không tiết lộ thông tin định danh thành chẩn đoán storage hoặc policy chi
 tiết tại HTTP boundary.
+
+
+## Công khai file theo quyết định của máy chủ {#server-owned-attachment-publication}
+
+Capability tùy chọn `createUploadedFilePublicationCoordinator` phân giải policy trong transaction gắn file của ứng dụng. Ghi intent bất biến cùng liên kết rồi mới dispatch sau commit. URL chỉ sẵn sàng khi object đúng nội dung, liên kết còn hiệu lực và lease theo đồng hồ database chưa hết hạn. Gán private hoặc bỏ liên kết phải ẩn ngay các generation cũ và giữ tombstone để cleanup. `UploadedFilePublicationError` cung cấp mã lỗi i18n ổn định.
+
+`createUploadedFilePublicationStorage` kiểm tra byte bất biến, tạo/xóa có điều kiện và cấu hình CDN external rõ ràng. Capability không sửa file gốc private, ACL hay hạ tầng. Cấu hình không chứng minh CDN thật truy cập được; xóa object gốc không thu hồi được bản đã tải hoặc cache. Không tự đăng ký HTTP route, worker hoặc migration.
+
+`runUploadedFilePublicationConformance` chạy mười hai vector synthetic trên repository adapter cô lập. Các vector không chứng minh quyền actor, database thật hay storage thật. Theo [hợp đồng đầy đủ trong repository](https://github.com/sdcorejs/sdcorejs-nestjs/blob/main/docs/uploaded-file-publication.md); policy, transaction và lease bền vững vẫn do consumer quản lý.
+
+Các hợp đồng public tại `@sdcorejs/nestjs/features`:
+
+| Contract |
+| --- |
+| `UPLOADED_FILE_PUBLICATION_API_VERSION` |
+| `UploadedFilePublicationBinding` |
+| `UploadedFilePublicationSource` |
+| `UploadedFilePublicationConfig` |
+| `UploadedFilePublicationIntent` |
+| `UploadedFilePublicationState` |
+| `UploadedFilePublicationLease` |
+| `UploadedFilePublicationPolicy` |
+| `UploadedFilePublicationRepository` |
+| `UploadedFilePublicationStorage` |
+| `UploadedFilePublicationOptions` |
+| `UploadedFilePublicationCoordinator` |
+| `UploadedFilePublicationDeliveryProfile` |
+| `UploadedFilePublicationObjectMetadata` |
+| `UploadedFilePublicationObjectPort` |
+| `UploadedFilePublicationStorageOptions` |
+| `UploadedFilePublicationConformanceProfile` |
+| `UploadedFilePublicationConformanceFixture` |
+| `UploadedFilePublicationConformanceFactory` |
+| `UploadedFilePublicationConformanceResult` |

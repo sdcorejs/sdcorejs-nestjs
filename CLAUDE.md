@@ -80,3 +80,7 @@ The branch-ready gate is: `npm test` green + `npm run lint` clean + `npm run bui
 - [README.md](README.md) — public-facing overview + install.
 - [docs/migration-from-core-be.md](docs/migration-from-core-be.md) — mapping from the original `be-masterdata/core-be`.
 - `.sdcorejs/specs/nestjs/` + `.sdcorejs/plans/nestjs/` — design contract + implementation plan for the extraction.
+
+## Attachment publication invariants
+
+The shared features publication capability owns one neutral lifecycle and integrity protocol. Consumers supply authorized domain policies and transactional/CAS and transport ports. Keep private originals unchanged, stage immutable assignment intents transactionally, expose URLs only after acknowledged exact-object writes and a still-current fenced binding, and retain uncertain/retirement work. Private reassignment retires prior logical-binding generations. Never export raw internal storage drivers or duplicate the publication engine. Explicit CDN/external-mode configuration is not evidence of live delivery or cache recall. Follow AGENTS.md and docs/uploaded-file-publication.md; run shared consumer conformance.
