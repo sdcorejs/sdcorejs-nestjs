@@ -1,0 +1,32 @@
+[
+  {
+    "scope": "root",
+    "at": "2026-10-28T09:58:50.620Z",
+    "rawExit": 1,
+    "rawReportSha256": "b0eb3e253a965b8f3ea05b4f2c7d7178fb5c51b7d5ecd93ceff122a38ef061e0",
+    "runtimeSourceHash": "2215c1833fb1ff2c04b327b07de380ecf71f522a7ad1bab515e2087f2c28c05d",
+    "decision": "ACCEPTED_WITH_TIME_LIMITED_EXCEPTION",
+    "findings": 6,
+    "advisory": "https://github.com/advisories/GHSA-gcqx-w48m-w2h4",
+    "expiresAt": "2026-11-04T09:30:00Z",
+    "release": "1.3.0"
+  },
+  {
+    "scope": "production",
+    "at": "2026-10-28T09:58:51.211Z",
+    "rawExit": 0,
+    "rawReportSha256": "f5e0be8b51fa5eb68384e0284d21db8742e00817e75989804b5a1eee00f86103",
+    "runtimeSourceHash": "2215c1833fb1ff2c04b327b07de380ecf71f522a7ad1bab515e2087f2c28c05d",
+    "decision": "PASS",
+    "findings": 0
+  },
+  {
+    "scope": "site",
+    "at": "2026-10-28T09:58:51.647Z",
+    "rawExit": 0,
+    "rawReportSha256": "e7cf1921f813ab62e9d048b8f1cde57b323aba9c49d2e7aea6da1f89075a65a3",
+    "runtimeSourceHash": "2215c1833fb1ff2c04b327b07de380ecf71f522a7ad1bab515e2087f2c28c05d",
+    "decision": "PASS",
+    "findings": 0
+  }
+]
