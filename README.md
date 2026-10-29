@@ -33,6 +33,7 @@ existing applications.
 - [Internal (service-to-service) calls](#internal-service-to-service-calls)
 - [Request context](#request-context)
 - [HTTP propagation and cache isolation](#http-propagation-and-cache-isolation)
+- [Single-flight utility](#single-flight-utility)
 - [ORM base classes](#orm-base-classes)
 - [Validation (Zod v4)](#validation-zod-v4)
 - [Internationalised errors](#internationalised-errors)
@@ -111,6 +112,7 @@ The package has multiple entry points; import only what you use.
 | `@sdcorejs/nestjs`            | `SdCoreModule.forRoot({...})` + commonly used ergonomic exports. Treat the grouped sub-paths below as the canonical public API for feature-specific imports.                                                                                                                                                                                                                                                                        |
 | `@sdcorejs/nestjs/core`       | ORM base classes (`BaseEntity`, `WithTimestamps`, `WithAudit`, `BaseRepository`, `BaseService`, `BaseController`, `@Scoped`, `@SearchableFields`, `@Schema`, `apiError`/`ApiResponse`), request context (`ContextService`, `ContextMiddleware`, `RequestContext`), multi-tenancy (`ITenancyStrategy`, `TENANCY_STRATEGY`, `buildScopeFilters`/`buildScopeWhere`), and audit (`IAuditStrategy`, `AUDIT_STRATEGY`, `AuditSubscriber`) |
 | `@sdcorejs/nestjs/auth`       | JWT / Keycloak strategies (`JwtModule`, `JwtStrategy`, `KeycloakJwtStrategy`, `JWT_CONFIG`), plus permission enforcement (`IPermissionStrategy`, `AuthGuard`, `InternalGuard`, `@HasPermission`, `@HasAnyPermission`, `IInternalSecretProvider`, `IInternalContextEnricher`)                                                                                                                                                        |
+| `@sdcorejs/nestjs/utils` | `SingleFlightService` for per-instance, per-key pending-work deduplication |
 | `@sdcorejs/nestjs/services`   | HTTP client (`HttpService`, axios-based, context-aware) + cache (`CacheService`, `CacheInterceptor`, `@Cached` — memory and redis backends)                                                                                                                                                                                                                                                                                         |
 | `@sdcorejs/nestjs/queue`      | `QueueModule`, `SdWorkerHost` (BullMQ + Redis) + re-exported `Processor`/`InjectQueue`/`Job`/`Queue`                                                                                                                                                                                                                                                                                                                                |
 | `@sdcorejs/nestjs/validation` | `ZodValidationGuard(schema \| map, source)`, `parseZod`, query presets (`zPaging`, `zUuid`, `zBool`), `ZodIssueDetail` (Zod **v4**)                                                                                                                                                                                                                                                                                                 |
@@ -582,6 +584,21 @@ that prefix. Use a release-versioned prefix when cache-key semantics change and 
 only your application's old prefix.
 
 ---
+
+## Single-flight utility
+
+```ts
+import { SingleFlightService } from '@sdcorejs/nestjs/utils';
+
+const flights = new SingleFlightService();
+// Reuse this instance; derive trustedScopedKey from all result/security boundaries.
+const result = await flights.run(trustedScopedKey, fetchAuthorized);
+```
+
+Only overlapping calls share work; settled results and errors are removed. There is no automatic
+retry, cancellation, result cache or distributed lock. Register the class in Nest providers when
+using DI. Keys must distinguish tenant, realm, client, credential version, user and permission
+scope; never log secrets or raw keys. See [cache and non-cache examples](https://sdcorejs.github.io/sdcorejs-nestjs/api/utils).
 
 ## ORM base classes
 

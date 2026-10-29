@@ -97,6 +97,38 @@ const contextHarness = (initial?: RequestContext) => {
 };
 
 describe('CacheInterceptor', () => {
+  it.each(['tenant', 'user'] as const)('isolates concurrent %s flights with real request context', async (scope) => {
+    const context = new ContextService();
+    const cache = new CacheService();
+    const interceptor = new CacheInterceptor(cache, context);
+    const service = new TestService();
+    const calls: string[] = [];
+    const expectedCalls = scope === 'tenant' ? 2 : 3;
+    let release!: () => void;
+    let started!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const ready = new Promise<void>((resolve) => (started = resolve));
+    const run = (tenant: string, userId: string) =>
+      context.run({ tenant, userId }, () =>
+        firstValueFrom(
+          interceptor.intercept(buildExecCtx(service, scope, [7]), {
+            handle: () => {
+              const value = scope === 'tenant' ? context.tenant : `${context.tenant}/${context.userId}`;
+              calls.push(value!);
+              if (calls.length === expectedCalls) started();
+              return from(gate.then(() => value));
+            },
+          }),
+        ),
+      );
+    const pending = [run('t1', 'u1'), run('t1', 'u1'), run('t2', 'u1'), run('t1', 'u2')];
+    await ready;
+    expect(calls).toHaveLength(expectedCalls);
+    release();
+    expect(await Promise.all(pending)).toEqual(scope === 'tenant' ? ['t1', 't1', 't2', 't1'] : ['t1/u1', 't1/u1', 't2/u1', 't1/u2']);
+    expect(calls).toHaveLength(expectedCalls);
+  });
+
   it('caches an explicitly global value without request context', async () => {
     const cache = new CacheService({ ttl: 60 });
     const interceptor = new CacheInterceptor(cache);

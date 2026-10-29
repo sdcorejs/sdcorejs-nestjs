@@ -31,6 +31,14 @@ describe('CacheService (memory backend)', () => {
     await expect(cache.get('absent')).resolves.toBeUndefined();
   });
 
+  it('starts a read before a subsequent write in the same turn', async () => {
+    await cache.set('k', 'old');
+    const read = cache.get('k');
+    await cache.set('k', 'new');
+    await expect(read).resolves.toBe('old');
+    await expect(cache.get('k')).resolves.toBe('new');
+  });
+
   it('del removes entry', async () => {
     await cache.set('k', 'v');
     await cache.del('k');
@@ -110,6 +118,20 @@ describe('CacheService — construction + fallback', () => {
 });
 
 describe('CacheService — resilience (timeout, error swallow, single-flight)', () => {
+  it('releases get flights after a sync backend failure and after successful reads', async () => {
+    const svc = new CacheService();
+    const get = jest.fn();
+    get.mockImplementationOnce(() => {
+      throw new Error('temporary backend error');
+    });
+    get.mockResolvedValueOnce('recovered').mockResolvedValueOnce('fresh');
+    setBackend(svc, { get, set: jest.fn(), del: jest.fn(), clear: jest.fn(), size: jest.fn() });
+    await expect(Promise.all([svc.get('k'), svc.get('k')])).resolves.toEqual([undefined, undefined]);
+    await expect(svc.get('k')).resolves.toBe('recovered');
+    await expect(svc.get('k')).resolves.toBe('fresh');
+    expect(get).toHaveBeenCalledTimes(3);
+  });
+
   // Hide expected warn output from these failure-path tests
   let warnSpy: jest.SpyInstance;
   beforeEach(() => {
@@ -203,6 +225,19 @@ describe('CacheService — resilience (timeout, error swallow, single-flight)', 
 });
 
 describe('CacheService — load() cache-aside', () => {
+  it.each(['throw', 'reject'] as const)('releases a failed factory flight (%s) so a later call can retry', async (failure) => {
+    const svc = new CacheService();
+    const error = new Error('factory failed');
+    const factory = jest.fn((): Promise<string> => {
+      if (failure === 'throw') throw error;
+      return Promise.reject(error);
+    });
+    const results = await Promise.allSettled(Array.from({ length: 20 }, () => svc.load('k', factory)));
+    expect(factory).toHaveBeenCalledTimes(1);
+    for (const result of results) expect(result).toEqual({ status: 'rejected', reason: error });
+    await expect(svc.load('k', async () => 'recovered')).resolves.toBe('recovered');
+  });
+
   it('calls factory on miss and caches the result', async () => {
     const svc = new CacheService();
     let factoryCalls = 0;

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.1
+
+### Patch Changes
+
+- Extract `SingleFlightService` to the new `@sdcorejs/nestjs/utils` entrypoint for per-instance, per-key in-process deduplication without result caching or automatic retries. Reuse it in `CacheService.get/load` and fix synchronous factory failures retaining a rejected load flight. Preserve cache TTL, soft misses, backend fallback, and `@Cached` tenant/user isolation. Include cache and non-cache examples and packed CJS/ESM consumer coverage.
+
 ## 1.3.0
 
 ### Minor Changes

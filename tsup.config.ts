@@ -9,6 +9,7 @@ const entryMap: Record<string, string> = {
   'queue/index': 'src/queue/index.ts',
   'i18n/index': 'src/i18n/index.ts',
   'features/index': 'src/features/index.ts',
+  'utils/index': 'src/utils/index.ts',
 };
 
 const external = [
