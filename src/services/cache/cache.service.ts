@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy, Optional } from '@nestjs/common';
+import { SingleFlightService } from '../../utils/single-flight.service';
 import type { CacheBackend } from './backends/cache-backend';
 import { MemoryCacheBackend } from './backends/memory-cache.backend';
 import { RedisCacheBackend } from './backends/redis-cache.backend';
@@ -33,9 +34,9 @@ export class CacheService implements CacheBackend, OnModuleDestroy {
   private readonly timeoutMs: number;
 
   /** In-flight `get` promises keyed by cache key — single-flight dedup. */
-  private readonly getLocks = new Map<string, Promise<unknown>>();
+  private readonly getFlights = new SingleFlightService();
   /** In-flight `load` factory promises keyed by cache key — factory dedup. */
-  private readonly loadLocks = new Map<string, Promise<unknown>>();
+  private readonly loadFlights = new SingleFlightService();
 
   constructor(@Optional() @Inject(CACHE_CONFIG) cfg?: CacheConfig) {
     const c = cfg ?? {};
@@ -66,15 +67,7 @@ export class CacheService implements CacheBackend, OnModuleDestroy {
   // --- public API ---------------------------------------------------------
 
   async get<T = unknown>(key: string): Promise<T | undefined> {
-    const existing = this.getLocks.get(key);
-    if (existing) return existing as Promise<T | undefined>;
-    const p = this.guarded<T | undefined>(() => this.backend.get<T>(key), undefined, 'get');
-    this.getLocks.set(key, p);
-    try {
-      return await p;
-    } finally {
-      this.getLocks.delete(key);
-    }
+    return this.getFlights.run(key, () => this.guarded<T | undefined>(() => this.backend.get<T>(key), undefined, 'get'));
   }
 
   async set<T>(key: string, value: T, ttlSec?: number): Promise<void> {
@@ -105,20 +98,11 @@ export class CacheService implements CacheBackend, OnModuleDestroy {
     const hit = await this.get<T>(key);
     if (hit !== undefined) return hit;
 
-    const inflight = this.loadLocks.get(key);
-    if (inflight) return inflight as Promise<T>;
-
-    const p = (async () => {
-      try {
-        const value = await factory();
-        if (value !== undefined) await this.set(key, value, ttlSec);
-        return value;
-      } finally {
-        this.loadLocks.delete(key);
-      }
-    })();
-    this.loadLocks.set(key, p);
-    return p;
+    return this.loadFlights.run(key, async () => {
+      const value = await factory();
+      if (value !== undefined) await this.set(key, value, ttlSec);
+      return value;
+    });
   }
 
   /** Release backend resources on shutdown (e.g. the redis connection). No-op for memory. */

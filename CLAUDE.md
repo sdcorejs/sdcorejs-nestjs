@@ -37,7 +37,7 @@ Adding a sub-path requires editing **four** files in lockstep:
 ## Core principles
 
 - **Fully neutral.** No domain column names baked in. Consumers pick columns via `@Scoped()` on the column (the property name is the column) and supply their own `ITenancyStrategy`/`IAuditStrategy`/`IPermissionStrategy`. Never reintroduce `tenantCode`/`departmentCode`.
-- **No prototype pollution.** No `String.isUuid()` / `Array.prototype.distinct()` / `Object.propertyOf()`. Import from `@sdcorejs/utils` directly — `ValidationUtilities.isUuid` / `ArrayUtilities.distinct` from `@sdcorejs/utils/fns`; for type-safe field names use the `NestedKeyOf<T>` type from `@sdcorejs/utils/models`. The library does **not** re-export these — no `src/utils/` barrel.
+- **No prototype pollution.** No `String.isUuid()` / `Array.prototype.distinct()` / `Object.propertyOf()`. Import from `@sdcorejs/utils` directly — `ValidationUtilities.isUuid` / `ArrayUtilities.distinct` from `@sdcorejs/utils/fns`; for type-safe field names use the `NestedKeyOf<T>` type from `@sdcorejs/utils/models`. The library does **not** re-export these — the `src/utils/` barrel only exports package-owned NestJS utilities such as `SingleFlightService`.
 - **TypeORM 0.3.x bound.** No ORM abstraction layer — lean into TypeORM directly.
 - **Strategies are DI tokens, not subclassing.** Each concern defines an interface + a `*_STRATEGY` symbol token + a `Default*Strategy` no-op fallback.
 - **Bilingual errors.** Throw with i18n **codes**, not literal sentences. The consumer's i18n layer maps `code` + `data`. Validation issues carry the Zod message (set it to an i18n code in your schema) — see [src/validation/zod.utils.ts](src/validation/zod.utils.ts).
