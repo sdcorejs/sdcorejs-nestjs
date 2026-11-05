@@ -14,6 +14,13 @@ Cài đặt package:
 npm install @sdcorejs/nestjs
 ```
 
+Phiên bản 1.3.1 dùng bản backport metadata dependency của TypeORM 0.3.31 và NestJS
+11.2.8 qua peer dependency trỏ tới tarball HTTPS theo commit cố định trên GitHub.
+Mã runtime giữ nguyên; glob và multer được chọn ở phiên bản đã vá. Cần truy cập được
+`raw.githubusercontent.com`. Xem
+[ghi chú bảo mật và cài đặt](https://github.com/sdcorejs/sdcorejs-nestjs/blob/main/docs/migration-1.3.1-security.md)
+trước khi dùng registry mirror hạn chế hoặc package manager khác.
+
 Package cài đặt các runtime dependency, bao gồm TypeORM, Passport, BullMQ, Axios, Zod v4
 và các package tích hợp NestJS. Những dependency sau là tùy chọn khi chạy và chỉ
 cần thiết khi bạn bật tính năng tương ứng:

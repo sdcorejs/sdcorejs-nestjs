@@ -1,0 +1,77 @@
+{
+  "id": "core-one-release-1.3.0-20261028",
+  "approvedAt": "2026-10-28T09:30:00Z",
+  "expiresAt": "2026-11-04T09:30:00Z",
+  "reviewAt": "2026-10-30T09:30:00Z",
+  "release": "1.3.0",
+  "package": "@sdcorejs/nestjs",
+  "versions": [
+    "1.2.3",
+    "1.3.0"
+  ],
+  "runtimeSourceHash": "2215c1833fb1ff2c04b327b07de380ecf71f522a7ad1bab515e2087f2c28c05d",
+  "advisory": "https://github.com/advisories/GHSA-gcqx-w48m-w2h4",
+  "chain": [
+    {
+      "name": "deepmerge",
+      "version": "4.3.1",
+      "path": "node_modules/deepmerge",
+      "integrity": "sha512-3sUqbMEc77XqpdNO7FRyRog+eW3ph+GYCbj+rK+uYyRMuwsVy0rMiVtPn+QJlKFvWP/1PYpapqYn0Me2knFn+A==",
+      "dev": true,
+      "via": []
+    },
+    {
+      "name": "jest-config",
+      "version": "30.5.2",
+      "path": "node_modules/jest-config",
+      "integrity": "sha512-U6221OZekabePvGcGPf4raIBKMvYQWFHvhobDJRojOYaFMj2HaGytAdknjDhYc6JTz2fdHW9+6k0wWUDaNeOFQ==",
+      "dev": true,
+      "via": [
+        "deepmerge"
+      ]
+    },
+    {
+      "name": "@jest/core",
+      "version": "30.5.2",
+      "path": "node_modules/@jest/core",
+      "integrity": "sha512-/jqvFWoJF7LV1a6AUpYMbMm+2yIYsHJfR474H0SCzr9k8tnO/jl9wRg6zSG6lxgf6EozNlCG4amFzWsbZSvvZA==",
+      "dev": true,
+      "via": [
+        "jest-config"
+      ]
+    },
+    {
+      "name": "jest-cli",
+      "version": "30.5.2",
+      "path": "node_modules/jest-cli",
+      "integrity": "sha512-YYYxUUVjFgPvgEleKNKMaYGIFgR3l3832Cl0kRL/oCiDZ03v7wImUtquHl2OOBCCNgprjZgBN5bczS/JklPBDg==",
+      "dev": true,
+      "via": [
+        "@jest/core",
+        "jest-config"
+      ]
+    },
+    {
+      "name": "jest",
+      "version": "30.5.2",
+      "path": "node_modules/jest",
+      "integrity": "sha512-3gnpdBIza8ijCl3iMV9ChE3hSt1+46865qqod863gQtJr1DixOkAU5DoGbi3u+XlRcw++BhZQMu/y4xBdHBvSQ==",
+      "dev": true,
+      "via": [
+        "@jest/core",
+        "jest-cli"
+      ]
+    },
+    {
+      "name": "ts-jest",
+      "version": "29.4.11",
+      "path": "node_modules/ts-jest",
+      "integrity": "sha512-IrFl7l9AuB/qrNw5quqvAv/hmKMb8dhWOH4jQOGo0Oq8tCeo1O86/iTFG1FaRimgUkF13l4PcepO8ATFT6Ns4g==",
+      "dev": true,
+      "via": [
+        "jest"
+      ]
+    }
+  ],
+  "sourceHashMethod": "sorted codepoint relative path + SHA256 UTF8-fatal source normalized CRLF to LF"
+}

@@ -11,6 +11,7 @@ the most common integration contracts.
 | [`@sdcorejs/nestjs`](./root.md) | `SdCoreModule`, root configuration, common DI tokens, guards, response and validation helpers |
 | [`@sdcorejs/nestjs/core`](./core/orm.md) | TypeORM base classes, request context, tenancy and audit |
 | [`@sdcorejs/nestjs/auth`](./auth/jwt.md) | Symmetric JWT, JWKS/OIDC, permissions and internal-call guards |
+| [`@sdcorejs/nestjs/utils`](./utils.md) | SingleFlightService for sharing pending work |
 | [`@sdcorejs/nestjs/services`](./services/cache.md) | Cache backends/interceptor and trusted-origin HTTP client |
 | [`@sdcorejs/nestjs/validation`](./validation.md) | Zod parsing, request guards and query presets |
 | [`@sdcorejs/nestjs/i18n`](./i18n.md) | Language resolution, catalogs and exception localization |

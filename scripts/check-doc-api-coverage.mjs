@@ -22,6 +22,7 @@ const groups = {
     entry: 'src/services/index.ts',
     docs: ['api/services/index.md', 'api/services/cache.md', 'api/services/http.md'],
   },
+  utils: { entry: 'src/utils/index.ts', docs: ['api/utils.md'] },
   validation: { entry: 'src/validation/index.ts', docs: ['api/validation.md'] },
   queue: { entry: 'src/queue/index.ts', docs: ['api/queue.md'] },
   i18n: { entry: 'src/i18n/index.ts', docs: ['api/i18n.md'] },
@@ -72,4 +73,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('API documentation symbol coverage passed for all eight package entry points in English and Vietnamese.');
+console.log('API documentation symbol coverage passed for all nine package entry points in English and Vietnamese.');

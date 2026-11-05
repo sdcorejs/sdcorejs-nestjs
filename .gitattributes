@@ -1,1 +1,3 @@
 *.ts text eol=lf
+backports/licenses/* text eol=lf
+backports/*.tgz -text

@@ -1,0 +1,8 @@
+{
+  "name": "@sdcorejs/jest-config-merge",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Private hardened merge implementation used only by Jest configuration",
+  "main": "index.cjs",
+  "license": "MIT"
+}

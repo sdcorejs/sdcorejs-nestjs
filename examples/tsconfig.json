@@ -13,7 +13,8 @@
       "@sdcorejs/nestjs/validation": ["src/validation/index.ts"],
       "@sdcorejs/nestjs/queue": ["src/queue/index.ts"],
       "@sdcorejs/nestjs/i18n": ["src/i18n/index.ts"],
-      "@sdcorejs/nestjs/features": ["src/features/index.ts"]
+      "@sdcorejs/nestjs/features": ["src/features/index.ts"],
+      "@sdcorejs/nestjs/utils": ["src/utils/index.ts"]
     }
   },
   "include": ["src/**/*.ts"],

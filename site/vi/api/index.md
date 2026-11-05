@@ -11,6 +11,7 @@ phổ biến nhất.
 | [`@sdcorejs/nestjs`](./root.md) | `SdCoreModule`, cấu hình root, các DI token dùng chung, guard, helper response và validation |
 | [`@sdcorejs/nestjs/core`](./core/orm.md) | Các lớp cơ sở TypeORM, request context, tenancy và audit |
 | [`@sdcorejs/nestjs/auth`](./auth/jwt.md) | JWT đối xứng, JWKS/OIDC, permission và guard cho lời gọi nội bộ |
+| [`@sdcorejs/nestjs/utils`](./utils.md) | Tiện ích SingleFlightService chia sẻ công việc đang chờ |
 | [`@sdcorejs/nestjs/services`](./services/cache.md) | Backend/interceptor cache và HTTP client cho origin tin cậy |
 | [`@sdcorejs/nestjs/validation`](./validation.md) | Phân tích Zod, request guard và các preset query |
 | [`@sdcorejs/nestjs/i18n`](./i18n.md) | Phân giải ngôn ngữ, catalog và bản địa hóa exception |

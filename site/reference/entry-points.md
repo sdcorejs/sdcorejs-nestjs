@@ -1,6 +1,6 @@
 # Entry points
 
-The package exposes exactly eight supported import paths. Use the narrowest path that owns the API
+The package exposes exactly nine supported import paths. Use the narrowest path that owns the API
 you need. Deep imports target build internals and are not part of the compatibility contract.
 
 | Import | Main responsibility | Typical first symbol |
@@ -8,6 +8,7 @@ you need. Deep imports target build internals and are not part of the compatibil
 | `@sdcorejs/nestjs` | Composition and common cross-cutting primitives | `SdCoreModule` |
 | `@sdcorejs/nestjs/core` | ORM, request context, tenancy, audit | `BaseRepository` |
 | `@sdcorejs/nestjs/auth` | JWT/JWKS, permission checks, internal calls | `JwtModule` |
+| `@sdcorejs/nestjs/utils` | Pending-work utilities | `SingleFlightService` |
 | `@sdcorejs/nestjs/services` | Cache and outbound HTTP | `CacheModule` |
 | `@sdcorejs/nestjs/validation` | Zod v4 parsing and guards | `ZodValidationGuard` |
 | `@sdcorejs/nestjs/queue` | BullMQ module and worker adapter | `QueueModule` |

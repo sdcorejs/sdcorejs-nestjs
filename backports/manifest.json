@@ -1,0 +1,35 @@
+[
+  {
+    "name": "typeorm",
+    "version": "0.3.31",
+    "upstream": "https://registry.npmjs.org/typeorm/-/typeorm-0.3.31.tgz",
+    "upstreamIntegrity": "sha512-6u9EFtdLBgHjnPm78NStVeM+I/1MolTzKykDDcydzKUkh6E++YS6XViU/fePJbvDvEGU4Xq34KOM/CLeer9I2A==",
+    "dependenciesBefore": {
+      "glob": "^10.5.0"
+    },
+    "dependenciesAfter": {
+      "glob": "14.0.3"
+    },
+    "file": "typeorm-0.3.31-sdcorejs.1.tgz",
+    "integrity": "sha512-LCdJQ4/8/fDOomOFLBi9uOfa5hdaygrrW/vI/gaaKnWh6AQZ9nXg3qnN33xop1vczohn2aqYVIl7hNMc85d/Og==",
+    "additionalLicense": {
+      "source": "https://raw.githubusercontent.com/typeorm/typeorm/0.3.31/LICENSE",
+      "file": "licenses/typeorm-LICENSE",
+      "integrity": "sha512-Us9TQTDFPgRAPLYkcCkvI5pGLBTjop/pJZNeBSPwftpnpWWRaCV4guvb47CcBCbSj6e17JqyFoiWCyW8uV31Ag=="
+    }
+  },
+  {
+    "name": "@nestjs/platform-express",
+    "version": "11.2.8",
+    "upstream": "https://registry.npmjs.org/@nestjs/platform-express/-/platform-express-11.2.8.tgz",
+    "upstreamIntegrity": "sha512-aSAAz8E31qv+sDsL0s7Cw/HoXmeM0TVf35ny17BjLL10c2PgFDp2vunycL7muVyp3/IP5TStMb3Ia4B/RTNHZA==",
+    "dependenciesBefore": {
+      "multer": "2.4.0"
+    },
+    "dependenciesAfter": {
+      "multer": "2.5.0"
+    },
+    "file": "nestjs-platform-express-11.2.8-sdcorejs.1.tgz",
+    "integrity": "sha512-XCiiglf2CdPlg0O6yfwTeGJ697xWrqbQvrICr2+/+pnIWg0TNUuLFKm1jrXi/DADbZU6dmx2Glk5xspcVIGcYA=="
+  }
+]

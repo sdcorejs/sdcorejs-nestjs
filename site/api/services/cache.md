@@ -164,3 +164,5 @@ configure(consumer: MiddlewareConsumer): void {
 ```
 
 This map is not a replacement for authorization checks and disappears after the request.
+
+Pending-work deduplication uses `SingleFlightService` from `@sdcorejs/nestjs/utils`. See [cache and non-cache examples](../utils).

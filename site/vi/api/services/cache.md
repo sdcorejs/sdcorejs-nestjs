@@ -164,3 +164,5 @@ configure(consumer: MiddlewareConsumer): void {
 ```
 
 Map này không thay thế kiểm tra authorization và biến mất sau request.
+
+Cơ chế chia sẻ công việc đang chờ dùng `SingleFlightService` từ `@sdcorejs/nestjs/utils`. Xem [ví dụ cache và không cache](../utils).

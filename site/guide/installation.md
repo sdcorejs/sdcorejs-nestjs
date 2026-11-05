@@ -14,6 +14,13 @@ Install the package:
 npm install @sdcorejs/nestjs
 ```
 
+Version 1.3.1 installs reviewed TypeORM 0.3.31 and NestJS 11.2.8 dependency metadata
+backports as shared peers from immutable GitHub HTTPS tarballs. Their runtime code is
+unchanged; patched glob and multer selections remove vulnerable transitive dependencies.
+Access to `raw.githubusercontent.com` is required. See the
+[security and installation notes](https://github.com/sdcorejs/sdcorejs-nestjs/blob/main/docs/migration-1.3.1-security.md)
+before using a restricted mirror or another package manager.
+
 The package installs its runtime dependencies, including TypeORM, Passport, BullMQ, Axios, Zod v4,
 and the NestJS integration packages. The following dependencies are optional at runtime and are
 needed only when you enable the corresponding capability:

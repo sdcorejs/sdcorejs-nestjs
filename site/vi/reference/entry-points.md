@@ -1,6 +1,6 @@
 # Entry point {#entry-points}
 
-Package cung cấp chính xác tám đường dẫn import được hỗ trợ. Hãy dùng đường dẫn hẹp nhất sở hữu API
+Package cung cấp chính xác chín đường dẫn import được hỗ trợ. Hãy dùng đường dẫn hẹp nhất sở hữu API
 bạn cần. Deep import trỏ đến nội bộ của bản build và không thuộc hợp đồng tương thích.
 
 | Import | Trách nhiệm chính | Symbol thường dùng đầu tiên |
@@ -8,6 +8,7 @@ bạn cần. Deep import trỏ đến nội bộ của bản build và không th
 | `@sdcorejs/nestjs` | Composition và các primitive xuyên suốt dùng chung | `SdCoreModule` |
 | `@sdcorejs/nestjs/core` | ORM, request context, tenancy, audit | `BaseRepository` |
 | `@sdcorejs/nestjs/auth` | JWT/JWKS, kiểm tra permission, lời gọi nội bộ | `JwtModule` |
+| `@sdcorejs/nestjs/utils` | Tiện ích chia sẻ công việc đang chờ | `SingleFlightService` |
 | `@sdcorejs/nestjs/services` | Cache và HTTP đi | `CacheModule` |
 | `@sdcorejs/nestjs/validation` | Parse và guard Zod v4 | `ZodValidationGuard` |
 | `@sdcorejs/nestjs/queue` | Module BullMQ và adapter worker | `QueueModule` |

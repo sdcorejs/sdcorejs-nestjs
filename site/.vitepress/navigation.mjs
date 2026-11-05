@@ -116,6 +116,7 @@ export function createSidebar(locale) {
         item(locale, vi ? 'Tổng quan dịch vụ' : 'Services overview', '/api/services/'),
         item(locale, 'Cache', '/api/services/cache'),
         item(locale, 'HTTP', '/api/services/http'),
+        item(locale, vi ? 'Tiện ích' : 'Utilities', '/api/utils'),
         item(locale, vi ? 'Kiểm tra dữ liệu' : 'Validation', '/api/validation'),
         item(locale, 'i18n', '/api/i18n'),
         item(locale, vi ? 'Hàng đợi' : 'Queue', '/api/queue'),

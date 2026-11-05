@@ -4,6 +4,7 @@ dist/
 coverage/
 *.tsbuildinfo
 *.tgz
+!/backports/*.tgz
 *.log
 .DS_Store
 .env
