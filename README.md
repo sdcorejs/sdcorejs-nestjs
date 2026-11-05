@@ -51,6 +51,11 @@ existing applications.
 npm install @sdcorejs/nestjs
 ```
 
+Version 1.3.1 uses reviewed TypeORM/Nest dependency backports through immutable GitHub
+tarball peers. npm installs them automatically while preserving shared DI identities.
+See the [1.3.1 dependency security notes](./docs/migration-1.3.1-security.md), including
+download requirements for restricted registry environments.
+
 ### Peer dependencies
 
 Only **two** — every NestJS app already has them:

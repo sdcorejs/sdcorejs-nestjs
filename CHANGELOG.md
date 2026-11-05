@@ -4,6 +4,8 @@
 
 ### Patch Changes
 
+- Backport patched glob/multer dependency selections for TypeORM 0.3.31 and NestJS 11.2.8 using reviewed, commit-addressed tarball peers that preserve shared DI identities. Harden the dev-only Jest configuration merger, update targeted security dependencies and require zero audit findings in repository, docs, fresh-install and upgrade consumer trees. See `docs/migration-1.3.1-security.md` for HTTPS download and package-manager requirements.
+
 - Extract `SingleFlightService` to the new `@sdcorejs/nestjs/utils` entrypoint for per-instance, per-key in-process deduplication without result caching or automatic retries. Reuse it in `CacheService.get/load` and fix synchronous factory failures retaining a rejected load flight. Preserve cache TTL, soft misses, backend fallback, and `@Cached` tenant/user isolation. Include cache and non-cache examples and packed CJS/ESM consumer coverage.
 
 ## 1.3.0
